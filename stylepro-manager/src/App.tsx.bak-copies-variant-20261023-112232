@@ -1,0 +1,2216 @@
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
+import type { FormEvent, CSSProperties } from 'react'
+import type { User } from '@supabase/supabase-js'
+import {
+  Shirt,
+  Store,
+  Package,
+  LogOut,
+  Plus,
+  Sun,
+  Moon,
+  RefreshCw,
+  ShieldCheck,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  LayoutDashboard,
+  ShoppingBag,
+  Settings,
+  Users,
+  TrendingUp,
+  Search,
+  ChevronRight,
+  LockKeyhole,
+  Pencil,
+  Copy,
+  RotateCcw,
+  CheckSquare,
+  Square,
+  Printer,
+  Check
+} from 'lucide-react'
+import { supabase } from './lib/supabase'
+import './stylepro.css'
+import QRCode from 'qrcode'
+
+type StoreRow = {
+  id: string
+  name: string
+  currency: string
+}
+
+type ProductRow = {
+  id: string
+  name: string
+  target_audience: string
+  description?: string | null
+  category_id?: string | null
+  brand_id?: string | null
+  active: boolean
+}
+
+
+type CategoryRow = {
+  id: string
+  name: string
+}
+
+type BrandRow = {
+  id: string
+  name: string
+}
+
+
+type POSVariant = {
+  id: string
+  product_id: string
+  sku: string
+  barcode: string | null
+  qr_token: string | null
+  size: string | null
+  color: string | null
+  sale_price: number
+  active: boolean
+}
+type POSCustomer = { id: string; full_name: string; phone: string | null }
+type POSCartItem = {
+  variant_id: string
+  name: string
+  sku: string
+  unit_price: number
+  quantity: number
+  stock: number
+  size: string | null
+  color: string | null
+}
+
+type VariantDraft = {
+  id?: string
+  sku: string
+  barcode: string
+  size: string
+  color: string
+  purchase_cost: string
+  sale_price: string
+  min_stock: string
+}
+
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [ready, setReady] = useState(false)
+  const [login, setLogin] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [storeName, setStoreName] = useState('')
+  const [stores, setStores] = useState<StoreRow[]>([])
+  const [storeId, setStoreId] = useState('')
+  const [currentView, setCurrentView] = useState<
+  'dashboard' | 'catalogue' | 'stock' | 'sales' | 'customers' | 'statistics' | 'labels' | 'labels'
+>('dashboard')
+  const [labelVariants, setLabelVariants] = useState<POSVariant[]>([])
+  const [labelSearch, setLabelSearch] = useState('')
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
+  const [labelLoading, setLabelLoading] = useState(false)
+  const [labelError, setLabelError] = useState('')
+  const [labelImages, setLabelImages] = useState<Record<string, string>>({})
+  const [labelPaperSize, setLabelPaperSize] = useState('A4')
+  const [labelColumns, setLabelColumns] = useState(3)
+  const [labelCopies, setLabelCopies] = useState(1)
+  const [showLabelName, setShowLabelName] = useState(true)
+  const [showLabelSku, setShowLabelSku] = useState(true)
+  const [showLabelPrice, setShowLabelPrice] = useState(true)
+  const [showLabelColor, setShowLabelColor] = useState(true)
+  const [showLabelSize, setShowLabelSize] = useState(true)
+
+  const [posVariants, setPosVariants] = useState<POSVariant[]>([])
+  const [posCustomers, setPosCustomers] = useState<POSCustomer[]>([])
+  const [posStocks, setPosStocks] = useState<Record<string, number>>({})
+  const [movementVariant, setMovementVariant] = useState('')
+  const [movementType, setMovementType] = useState<'in' | 'out' | 'adjustment'>('in')
+  const [movementQty, setMovementQty] = useState('1')
+  const [movementCost, setMovementCost] = useState('')
+  const [movementReason, setMovementReason] = useState('')
+  const [movementBusy, setMovementBusy] = useState(false)
+  const [movementHistory, setMovementHistory] = useState<any[]>([])
+  const [posCart, setPosCart] = useState<POSCartItem[]>([])
+  const [posSearch, setPosSearch] = useState('')
+  const [posCustomerId, setPosCustomerId] = useState('')
+  const [posBusy, setPosBusy] = useState(false)
+  const [lastReceipt, setLastReceipt] = useState<{sale_number: number; total: number} | null>(null)
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [scannerCode, setScannerCode] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [scannerMessage, setScannerMessage] = useState('')
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const scannerBusyRef = useRef(false)
+  const scannerElementId = 'stylepro-pos-camera'
+  type ThemeMode = 'light' | 'dark' | 'system'
+type AccentName = 'beige' | 'green' | 'blue' | 'burgundy' | 'slate'
+
+const [themeMode, setThemeMode] = useState<ThemeMode>(
+  () => (localStorage.getItem('stylepro-theme') as ThemeMode) || 'light'
+)
+const [accent, setAccent] = useState<AccentName>(
+  () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
+)
+const [settingsOpen, setSettingsOpen] = useState(false)
+
+const dark =
+  themeMode === 'dark' ||
+  (themeMode === 'system' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+const accentColors: Record<AccentName, { primary: string; hover: string }> = {
+  beige: { primary: '#a9875b', hover: '#896a43' },
+  green: { primary: '#397568', hover: '#285c51' },
+  blue: { primary: '#466b9d', hover: '#34547f' },
+  burgundy: { primary: '#914c60', hover: '#75394b' },
+  slate: { primary: '#626b78', hover: '#48515e' },
+}
+
+useEffect(() => {
+  localStorage.setItem('stylepro-theme', themeMode)
+}, [themeMode])
+
+useEffect(() => {
+  localStorage.setItem('stylepro-accent', accent)
+}, [accent])
+  const [search, setSearch] = useState('')
+
+useEffect(() => {
+
+
+
+
+  return () => {
+    const scanner = scannerRef.current
+    if (scanner?.isScanning) {
+      void scanner.stop().catch(() => {})
+    }
+  }
+}, [])
+  
+const [categories, setCategories] = useState<CategoryRow[]>([])
+const [brands, setBrands] = useState<BrandRow[]>([])
+
+
+const [showProductForm, setShowProductForm] = useState(false)
+const [editingProductId, setEditingProductId] = useState<string | null>(null)
+const [savingProduct, setSavingProduct] = useState(false)
+
+const [productName, setProductName] = useState('')
+const [productDescription, setProductDescription] = useState('')
+const [targetAudience, setTargetAudience] = useState('women')
+const [categoryId, setCategoryId] = useState('')
+const [brandId, setBrandId] = useState('')
+
+const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
+  {
+    sku: '',
+    barcode: '',
+    size: '',
+    color: '',
+    purchase_cost: '0',
+    sale_price: '',
+    min_stock: '0',
+  },
+])
+
+  useEffect(() => {
+    let alive = true
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!alive) return
+      if (error) setError(error.message)
+      setUser(data.session?.user ?? null)
+      setReady(true)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+        setError('')
+        setMessage('')
+      }
+    )
+
+    return () => {
+      alive = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  const loadStores = useCallback(async () => {
+    if (!user) return
+
+    setLoading(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id,name,currency')
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      setError(`Chargement des boutiques : ${error.message}`)
+      setLoading(false)
+      return
+    }
+
+    const rows = (data ?? []) as StoreRow[]
+    setStores(rows)
+    setStoreId(previous =>
+      rows.some(row => row.id === previous) ? previous : rows[0]?.id ?? ''
+    )
+    setLoading(false)
+  }, [user])
+
+  const loadProducts = useCallback(async () => {
+    if (!storeId) {
+      setProducts([])
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,target_audience,description,category_id,brand_id,active')
+      .eq('store_id', storeId)
+      .order('name')
+
+    if (error) {
+      setError(`Chargement des articles : ${error.message}`)
+    } else {
+      setProducts((data ?? []) as ProductRow[])
+    }
+
+    setLoading(false)
+  }, [storeId])
+
+  useEffect(() => {
+    if (user) void loadStores()
+    else {
+      setStores([])
+      setStoreId('')
+      setProducts([])
+    }
+  }, [user, loadStores])
+
+  useEffect(() => {
+    if (user && storeId) void loadProducts()
+    else setProducts([])
+  }, [user, storeId, loadProducts])
+
+  
+const loadProductOptions = useCallback(async () => {
+  if (!storeId) {
+    setCategories([])
+    setBrands([])
+    return
+  }
+
+  const [categoryResult, brandResult] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id,name')
+      .eq('store_id', storeId)
+      .order('name'),
+    supabase
+      .from('brands')
+      .select('id,name')
+      .eq('store_id', storeId)
+      .order('name'),
+  ])
+
+  if (categoryResult.error) {
+    setError(`Chargement des catégories : ${categoryResult.error.message}`)
+    return
+  }
+
+  if (brandResult.error) {
+    setError(`Chargement des marques : ${brandResult.error.message}`)
+    return
+  }
+
+  setCategories(categoryResult.data ?? [])
+  setBrands(brandResult.data ?? [])
+}, [storeId])
+
+  useEffect(() => {
+    if (user && storeId) {
+      void loadProductOptions()
+    } else {
+      setCategories([])
+      setBrands([])
+    }
+  }, [user, storeId, loadProductOptions])
+
+  const loadPOSData = useCallback(async () => {
+    if (!storeId) return
+    const [vr, mr, cr] = await Promise.all([
+      supabase.from('product_variants')
+        .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
+        .eq('store_id', storeId).eq('active', true).order('sku'),
+      supabase.from('stock_movements')
+        .select('variant_id,quantity_delta').eq('store_id', storeId),
+      supabase.from('customers')
+        .select('id,full_name,phone').eq('store_id', storeId).order('full_name')
+    ])
+    if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
+    if (mr.error) throw new Error(`Stock : ${mr.error.message}`)
+    if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+
+    const activeIds = new Set(products.filter(p => p.active).map(p => p.id))
+    setPosVariants(((vr.data ?? []) as POSVariant[]).filter(v => activeIds.has(v.product_id)))
+    setPosCustomers((cr.data ?? []) as POSCustomer[])
+    const stocks: Record<string, number> = {}
+    for (const m of mr.data ?? []) {
+      stocks[m.variant_id] = (stocks[m.variant_id] ?? 0) + Number(m.quantity_delta)
+    }
+    setPosStocks(stocks)
+    setPosCart(cart => cart.map(item => ({...item, stock: stocks[item.variant_id] ?? 0})))
+  }, [storeId, products])
+
+  useEffect(() => {
+    if (!user || !storeId || (currentView !== 'sales' && currentView !== 'customers' && currentView !== 'stock')) return
+    void loadPOSData().catch(e => setError(e instanceof Error ? e.message : 'Erreur de chargement POS'))
+  }, [user, storeId, currentView, loadPOSData])
+
+  const loadMovementHistory = useCallback(async () => {
+  if (!storeId) return
+
+  const { data, error } = await supabase
+    .from('stock_movements')
+    .select('id,variant_id,movement_type,quantity_delta,unit_cost,reason,created_at')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) throw new Error(error.message)
+  setMovementHistory(data ?? [])
+}, [storeId])
+
+useEffect(() => {
+  if (user && storeId && currentView === 'stock') {
+    void loadMovementHistory().catch(e =>
+      setError(e instanceof Error ? e.message : String(e))
+    )
+  }
+}, [user, storeId, currentView, loadMovementHistory])
+
+async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
+  e.preventDefault()
+  if (!user || !storeId || !movementVariant) return
+
+  const qty = Number(movementQty)
+  const current = posStocks[movementVariant] ?? 0
+
+  if (!Number.isInteger(qty) || qty <= 0) {
+    setError('La quantité doit être un entier positif.')
+    return
+  }
+
+  const delta =
+    movementType === 'in' ? qty :
+    movementType === 'out' ? -qty :
+    qty - current
+
+  if (current + delta < 0) {
+    setError('Stock insuffisant.')
+    return
+  }
+
+  if (movementType === 'adjustment' && delta === 0) {
+    setError('Le stock est déjà correct.')
+    return
+  }
+
+  setMovementBusy(true)
+  setError('')
+
+  try {
+    const { error } = await supabase.from('stock_movements').insert({
+      store_id: storeId,
+      variant_id: movementVariant,
+      movement_type:
+       movementType === 'in' ? 'purchase' :
+       movementType === 'out' ? 'damage' :
+       'adjustment',
+      quantity_delta: delta,
+      unit_cost: movementCost ? Number(movementCost) : null,
+      reason: movementReason || 'Mouvement manuel',
+      created_by: user.id
+    })
+
+    if (error) throw error
+
+    setMovementQty('1')
+    setMovementCost('')
+    setMovementReason('')
+
+    await loadPOSData()
+    await loadMovementHistory()
+  } catch (err) {
+    setError(
+  err instanceof Error
+    ? `Erreur de mouvement : ${err.message}`
+    : `Erreur de mouvement : ${JSON.stringify(err)}`
+)
+  } finally {
+    setMovementBusy(false)
+  }
+}
+
+function handleScannedCode(rawCode: string) {
+  const code = rawCode.trim()
+  if (!code || scannerBusyRef.current) return
+
+  scannerBusyRef.current = true
+
+  try {
+    const normalized = code.toLowerCase()
+
+    const variant = posVariants.find(v =>
+      v.active &&
+      (
+        v.sku.trim().toLowerCase() === normalized ||
+(v.barcode ?? '').trim().toLowerCase() === normalized ||
+(v.qr_token ?? '').trim().toLowerCase() === normalized
+      )
+    )
+
+    if (!variant) {
+      setScannerMessage(`Code introuvable : ${code}`)
+      setError('')
+      return
+    }
+
+    const product = products.find(
+      p => p.id === variant.product_id && p.active
+    )
+
+    if (!product) {
+      setScannerMessage('Produit inactif ou introuvable.')
+      return
+    }
+
+    const stock = posStocks[variant.id] ?? 0
+    const existing = posCart.find(i => i.variant_id === variant.id)
+    const currentQuantity = existing?.quantity ?? 0
+
+    if (stock <= currentQuantity) {
+      setScannerMessage(`Stock insuffisant : ${product.name}`)
+      return
+    }
+
+    addPOSItem(variant)
+    setScannerMessage(`Article ajouté : ${product.name}`)
+    setPosSearch('')
+  } finally {
+    window.setTimeout(() => {
+      scannerBusyRef.current = false
+    }, 250)
+  }
+}
+
+async function startPOSCamera() {
+  try {
+    setScannerMessage('')
+    setError('')
+
+    const scanner = new Html5Qrcode(scannerElementId)
+    scannerRef.current = scanner
+
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decodedText) => {
+        if (scannerBusyRef.current) return
+        handleScannedCode(decodedText)
+      },
+      () => {}
+    )
+
+    setCameraOpen(true)
+  } catch (e) {
+    scannerRef.current = null
+    setCameraOpen(false)
+    setScannerMessage(
+      e instanceof Error
+        ? `Impossible d'ouvrir la caméra : ${e.message}`
+        : 'Impossible d’ouvrir la caméra.'
+    )
+  }
+}
+
+async function stopPOSCamera() {
+  const scanner = scannerRef.current
+
+  if (scanner) {
+    try {
+      if (scanner.isScanning) {
+        await scanner.stop()
+      }
+      scanner.clear()
+    } catch {
+      // La caméra peut déjà être arrêtée.
+    }
+  }
+
+  scannerRef.current = null
+  setCameraOpen(false)
+}
+
+  function addPOSItem(v: POSVariant) {
+    const product = products.find(p => p.id === v.product_id && p.active)
+    if (!product) { setError('Produit introuvable ou inactif.'); return }
+    const stock = posStocks[v.id] ?? 0
+    if (stock <= 0) { setError(`Stock nul pour ${product.name}.`); return }
+    const existing = posCart.find(i => i.variant_id === v.id)
+    if (existing && existing.quantity >= stock) { setError('Stock insuffisant pour cette quantité.'); return }
+    setError('')
+    setLastReceipt(null)
+    setPosCart(cart => {
+      const old = cart.find(i => i.variant_id === v.id)
+      if (old) return cart.map(i => i.variant_id === v.id ? {...i, quantity: Math.min(i.quantity + 1, stock), stock} : i)
+      return [...cart, {
+        variant_id: v.id, name: product.name, sku: v.sku,
+        unit_price: Number(v.sale_price), quantity: 1, stock,
+        size: v.size, color: v.color
+      }]
+    })
+  }
+
+  async function finishPOS() {
+    if (!storeId || posCart.length === 0) { setError('Le panier est vide.'); return }
+    setPosBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const { data, error } = await supabase.rpc('create_pos_sale_cart', {
+        p_store_id: storeId,
+        p_items: posCart.map(i => ({variant_id: i.variant_id, quantity: i.quantity})),
+        p_customer_id: posCustomerId || null
+      })
+      if (error) throw error
+      const row = Array.isArray(data) ? data[0] : data
+      if (!row || row.sale_number == null) throw new Error('La vente n’a pas retourné de numéro de reçu.')
+      setLastReceipt({sale_number: Number(row.sale_number), total: Number(row.total)})
+      setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
+      setPosCart([])
+      setPosCustomerId('')
+      await Promise.all([loadPOSData(), loadProducts()])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Échec de la vente.')
+    } finally {
+      setPosBusy(false)
+    }
+  }
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    setLoading(true)
+
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: login.trim(),
+          password,
+        })
+
+        if (error) throw error
+
+        setMessage(
+          data.session
+            ? 'Compte créé et connecté.'
+            : 'Compte créé. Vérifie ton e-mail pour confirmer ton inscription.'
+        )
+      } else {
+        const identifier = login.trim()
+        const email = identifier.toLowerCase() === 'admin'
+          ? ADMIN_EMAIL?.trim()
+          : identifier
+
+        if (!email) {
+          throw new Error(
+            'Configure VITE_ADMIN_EMAIL dans .env.local pour utiliser le nom admin.'
+          )
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (error) throw error
+        setMessage('Connexion réussie.')
+        setPassword('')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de connexion.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function createStore(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!storeName.trim()) return
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const { data, error } = await supabase.rpc('create_store', {
+        p_name: storeName.trim(),
+        p_currency: 'DZD',
+      })
+
+      if (error) throw error
+
+      const createdId = data as string
+      setStoreName('')
+      await loadStores()
+      setStoreId(createdId)
+      setMessage('Boutique créée avec succès.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Création impossible.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  
+function addVariantDraft() {
+  setVariantDrafts(current => [
+    ...current,
+    {
+      sku: '',
+      barcode: '',
+      size: '',
+      color: '',
+      purchase_cost: '0',
+      sale_price: '',
+      min_stock: '0',
+    },
+  ])
+}
+
+function duplicateVariantDraft(index: number) {
+  setVariantDrafts(current => {
+    const source = current[index]
+    if (!source) return current
+
+    const copy: VariantDraft = {
+      ...source,
+      sku: '',
+      barcode: '',
+    }
+
+    return [...current, copy]
+  })
+}
+
+function updateVariantDraft(
+  index: number,
+  field: keyof VariantDraft,
+  value: string
+) {
+  setVariantDrafts(current =>
+    current.map((variant, i) =>
+      i === index ? { ...variant, [field]: value } : variant
+    )
+  )
+}
+
+function resetProductForm() {
+  setEditingProductId(null)
+  setProductName('')
+  setProductDescription('')
+  setTargetAudience('women')
+  setCategoryId('')
+  setBrandId('')
+  setVariantDrafts([{
+    sku: '',
+    barcode: '',
+    size: '',
+    color: '',
+    purchase_cost: '0',
+    sale_price: '',
+    min_stock: '0',
+  }])
+  setShowProductForm(false)
+}
+
+
+async function openProductEditor(productId: string, duplicate = false) {
+  if (!storeId) return
+
+  setError('')
+  setMessage('')
+  setLoading(true)
+
+  try {
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id,name,description,target_audience,category_id,brand_id,active')
+      .eq('id', productId)
+      .eq('store_id', storeId)
+      .single()
+
+    if (productError) throw productError
+
+    const { data: variants, error: variantsError } = await supabase
+      .from('product_variants')
+      .select('id,sku,barcode,size,color,purchase_cost,sale_price,min_stock,active')
+      .eq('product_id', productId)
+      .eq('store_id', storeId)
+      .order('sku')
+
+    if (variantsError) throw variantsError
+
+    setProductName(product.name ?? '')
+    setProductDescription(product.description ?? '')
+    setTargetAudience(product.target_audience ?? 'women')
+    setCategoryId(product.category_id ?? '')
+    setBrandId(product.brand_id ?? '')
+
+    setVariantDrafts((variants ?? []).map(variant => ({
+      ...(duplicate ? {} : { id: variant.id }),
+      sku: duplicate ? '' : (variant.sku ?? ''),
+      barcode: duplicate ? '' : (variant.barcode ?? ''),
+      size: variant.size ?? '',
+      color: variant.color ?? '',
+      purchase_cost: String(variant.purchase_cost ?? 0),
+      sale_price: String(variant.sale_price ?? ''),
+      min_stock: String(variant.min_stock ?? 0),
+    })))
+
+    setEditingProductId(duplicate ? null : product.id)
+    if (duplicate) {
+      setProductName(`${product.name} - Copie`)
+    }
+    setShowProductForm(true)
+    setMessage(duplicate
+      ? 'Copie préparée : vérifiez les SKU et codes-barres avant l’enregistrement.'
+      : 'Produit chargé. Modifiez les champs puis enregistrez.')
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Impossible de charger le produit.')
+  } finally {
+    setLoading(false)
+  }
+}
+
+
+async function archiveProduct(product: ProductRow) {
+  if (!storeId || !user || !product.active) return
+
+  const confirmed = window.confirm(
+    `Archiver le produit « ${product.name} » ?\n\n` +
+    "Le produit sera désactivé avec ses variantes. " +
+    "L'historique des ventes et du stock sera conservé."
+  )
+
+  if (!confirmed) return
+
+  setLoading(true)
+  setError("")
+  setMessage("")
+
+  try {
+    const { error: archiveError } = await supabase.rpc(
+      "archive_product",
+      {
+        p_product_id: product.id,
+        p_store_id: storeId,
+      }
+    )
+
+    if (archiveError) {
+      throw new Error(archiveError.message)
+    }
+
+    await loadProducts()
+    setMessage(`Le produit « ${product.name} » a été archivé.`)
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? `Échec de l'archivage : ${err.message}`
+        : "Impossible d'archiver le produit."
+    )
+  } finally {
+    setLoading(false)
+  }
+}
+
+async function restoreProduct(product: ProductRow) {
+  if (!storeId || !user || product.active) return
+
+  const confirmed = window.confirm(
+    `Restaurer le produit « ${product.name} » ?\n\n` +
+    "Le produit et ses variantes seront réactivés."
+  )
+
+  if (!confirmed) return
+
+  setLoading(true)
+  setError("")
+  setMessage("")
+
+  try {
+    const { error: restoreError } = await supabase.rpc(
+      "restore_product",
+      {
+        p_product_id: product.id,
+        p_store_id: storeId,
+      }
+    )
+
+    if (restoreError) throw restoreError
+
+    await loadProducts()
+    setMessage(`Le produit « ${product.name} » a été restauré.`)
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? `Échec de la restauration : ${err.message}`
+        : "Impossible de restaurer le produit."
+    )
+  } finally {
+    setLoading(false)
+  }
+}
+
+async function saveProduct(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault()
+
+  if (!user || !storeId) {
+    setError('Connectez-vous et sélectionnez une boutique.')
+    return
+  }
+
+  if (!productName.trim() || variantDrafts.length === 0) {
+    setError('Le nom du produit et au moins une variante sont obligatoires.')
+    return
+  }
+
+  const seenSkus = new Set<string>()
+  const seenBarcodes = new Set<string>()
+
+  for (const variant of variantDrafts) {
+    const sku = variant.sku.trim()
+    const barcode = variant.barcode.trim()
+    const cost = Number(variant.purchase_cost)
+    const price = Number(variant.sale_price)
+    const minStock = Number(variant.min_stock)
+
+    if (!sku || !variant.sale_price.trim()) {
+      setError('Chaque variante doit avoir un SKU et un prix de vente.')
+      return
+    }
+
+    if (
+      !Number.isFinite(cost) || cost < 0 ||
+      !Number.isFinite(price) || price < 0 ||
+      !Number.isInteger(minStock) || minStock < 0
+    ) {
+      setError('Vérifiez les prix et le seuil de stock de chaque variante.')
+      return
+    }
+
+    if (seenSkus.has(sku)) {
+      setError(`Le SKU ${sku} est répété dans le formulaire.`)
+      return
+    }
+    seenSkus.add(sku)
+
+    if (barcode && seenBarcodes.has(barcode)) {
+      setError(`Le code-barres ${barcode} est répété dans le formulaire.`)
+      return
+    }
+    if (barcode) seenBarcodes.add(barcode)
+  }
+
+  setSavingProduct(true)
+  setError('')
+  setMessage('')
+
+
+  try {
+    const wasEditing = Boolean(editingProductId)
+    let savedProductId: string
+
+    const productPayload = {
+      store_id: storeId,
+      name: productName.trim(),
+      description: productDescription.trim() || null,
+      target_audience: targetAudience,
+      category_id: categoryId || null,
+      brand_id: brandId || null,
+    }
+
+    if (editingProductId) {
+      const { data: updatedProduct, error: productError } = await supabase
+        .from('products')
+        .update(productPayload)
+        .eq('id', editingProductId)
+        .eq('store_id', storeId)
+        .select('id')
+        .single()
+
+      if (productError) throw productError
+      if (!updatedProduct) {
+        throw new Error("Produit introuvable ou modification non autorisée.")
+      }
+
+      savedProductId = updatedProduct.id
+    } else {
+      const { data: newProduct, error: productError } = await supabase
+        .from('products')
+        .insert({ ...productPayload, active: true })
+        .select('id')
+        .single()
+
+      if (productError) throw productError
+      if (!newProduct) {
+        throw new Error("La création du produit a échoué.")
+      }
+
+      savedProductId = newProduct.id
+    }
+
+    const variantPayload = (variant: VariantDraft) => ({
+      store_id: storeId,
+      product_id: savedProductId,
+      sku: variant.sku.trim(),
+      barcode: variant.barcode.trim() || null,
+      size: variant.size.trim() || null,
+      color: variant.color.trim() || null,
+      purchase_cost: Number(variant.purchase_cost),
+      sale_price: Number(variant.sale_price),
+      min_stock: Number(variant.min_stock),
+    })
+
+    if (wasEditing) {
+      // Mettre à jour les variantes existantes sans changer leurs IDs.
+      for (const variant of variantDrafts.filter(v => v.id)) {
+        const { data: updatedVariant, error: updateError } = await supabase
+          .from('product_variants')
+          .update(variantPayload(variant))
+          .eq('id', variant.id!)
+          .eq('store_id', storeId)
+          .eq('product_id', savedProductId)
+          .select('id')
+          .maybeSingle()
+
+        if (updateError) throw updateError
+        if (!updatedVariant) {
+          throw new Error(
+            `Variante ${variant.sku} introuvable ou modification non autorisée.`
+          )
+        }
+      }
+    }
+
+    // En mode création/duplication, toutes les variantes sont nouvelles.
+    // En mode édition, seules les variantes sans ID sont insérées.
+    const variantsToInsert = wasEditing
+      ? variantDrafts.filter(v => !v.id)
+      : variantDrafts
+
+    if (variantsToInsert.length > 0) {
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .insert(
+          variantsToInsert.map(variant => ({
+            ...variantPayload(variant),
+            active: true,
+          }))
+        )
+
+      if (variantError) {
+        if (!wasEditing) {
+          // Nettoyage du produit créé si l'insertion des variantes échoue.
+          const { error: cleanupError } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', savedProductId)
+            .eq('store_id', storeId)
+
+          if (cleanupError) {
+            throw new Error(
+              `Variantes non enregistrées : ${variantError.message}. ` +
+              `Nettoyage échoué : ${cleanupError.message}. ` +
+              `Vérifiez le produit ${savedProductId}.`
+            )
+          }
+        }
+
+        throw variantError
+      }
+    }
+
+    resetProductForm()
+    setMessage(
+      wasEditing
+        ? 'Produit et variantes modifiés avec succès.'
+        : 'Produit et variantes enregistrés avec succès.'
+    )
+
+    await Promise.all([
+      loadProducts(),
+      loadProductOptions(),
+    ])
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'Impossible d’enregistrer le produit.'
+    )
+  } finally {
+    setSavingProduct(false)
+  }
+}
+
+  async function signOut() {
+    setError('')
+    const { error } = await supabase.auth.signOut()
+    if (error) setError(error.message)
+  }
+
+  async function loadLabelVariants() {
+  if (!storeId) {
+    setLabelVariants([])
+    setLabelError('Sélectionnez une boutique.')
+    return
+  }
+
+  setLabelLoading(true)
+  setLabelError('')
+
+  try {
+    const { data, error } = await supabase
+      .from('product_variants')
+      .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
+      .eq('store_id', storeId)
+      .eq('active', true)
+      .order('sku')
+
+    if (error) throw error
+
+    const activeProducts = new Set(
+      products.filter(product => product.active).map(product => product.id)
+    )
+
+    const variants = ((data ?? []) as POSVariant[])
+      .filter(variant => activeProducts.has(variant.product_id))
+
+    setLabelVariants(variants)
+
+    const images: Record<string, string> = {}
+    for (const variant of variants) {
+      const token = variant.qr_token || variant.sku
+      if (!token) continue
+      images[variant.id] = await QRCode.toDataURL(token, {
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      })
+    }
+    setLabelImages(images)
+  } catch (error) {
+    setLabelError(
+      error instanceof Error ? error.message : 'Impossible de charger les étiquettes.'
+    )
+  } finally {
+    setLabelLoading(false)
+  }
+}
+
+  const filteredProducts = products.filter(product =>
+    `${product.name} ${product.target_audience}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
+
+  if (!ready) {
+    
+
+  return (
+      <main className="center">
+        <RefreshCw className="spin" size={22} />
+        <span>Préparation de votre espace…</span>
+      </main>
+    )
+  }
+
+  return (
+    <main
+  className={`app ${dark ? 'dark' : ''}`}
+  style={{
+    '--primary': accentColors[accent].primary,
+    '--primary-hover': accentColors[accent].hover,
+  } as CSSProperties}
+>
+      <header className="topbar">
+        <a className="brand" href="#" aria-label="StylePro Manager">
+          <div className="brand-icon"><Shirt size={25} /></div>
+          <div className="brand-copy">
+            <strong>StylePro <span>Manager</span></strong>
+            <small>FASHION RETAIL MANAGEMENT</small>
+          </div>
+        </a>
+
+        <div className="header-actions">
+          <span className="system-status">
+            <span className="status-dot" /> Système opérationnel
+          </span>
+          <button
+            className="icon-button"
+            onClick={() => setThemeMode(dark ? 'light' : 'dark')}
+            aria-label={dark ? 'Activer le mode clair' : 'Activer le mode sombre'}
+            title={dark ? 'Mode clair' : 'Mode sombre'}
+          >
+            {dark ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
+          {user && (
+            <button className="secondary-button" onClick={signOut}>
+              <LogOut size={17} /> <span>Déconnexion</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {!user ? (
+        <section className="login-layout">
+          <div className="login-presentation">
+            <div className="presentation-badge">
+              <ShieldCheck size={16} /> GESTION COMMERCIALE
+            </div>
+            <h1>Votre boutique.<br /><span>Votre réussite.</span></h1>
+            <p>
+              Gérez vos articles, votre stock et vos ventes depuis un espace
+              professionnel conçu pour simplifier votre quotidien.
+            </p>
+            <div className="feature-list">
+              <div><Package /><span><strong>Stock centralisé</strong><small>Articles, tailles et couleurs</small></span></div>
+              <div><TrendingUp /><span><strong>Suivi commercial</strong><small>Indicateurs et performance</small></span></div>
+              <div><LockKeyhole /><span><strong>Accès sécurisé</strong><small>Authentification Supabase</small></span></div>
+            </div>
+            <div className="presentation-footer">STYLEPRO MANAGER <span>•</span> ÉDITION BOUTIQUE</div>
+          </div>
+
+          <div className="login-side">
+            <div className="auth-card">
+              <div className="mobile-brand"><div className="brand-icon"><Shirt /></div><strong>StylePro Manager</strong></div>
+              <div className="auth-heading-icon"><LockKeyhole size={23} /></div>
+              <p className="eyebrow">ESPACE PRIVÉ</p>
+              <h2>{authMode === 'login' ? 'Bon retour parmi nous' : 'Créer votre compte'}</h2>
+              <p className="auth-description">
+                {authMode === 'login'
+                  ? 'Connectez-vous pour accéder à votre espace de gestion.'
+                  : 'Créez un compte avec votre adresse e-mail.'}
+              </p>
+
+              {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
+              {message && <div className="alert success">{message}</div>}
+
+              <form onSubmit={submitAuth} className="form">
+                <label>
+                  {authMode === 'login' ? 'Nom d’utilisateur ou e-mail' : 'Adresse e-mail'}
+                  <div className="input-wrap">
+                    <Users size={18} className="input-icon" />
+                    <input
+                      type={authMode === 'signup' ? 'email' : 'text'}
+                      autoComplete={authMode === 'signup' ? 'email' : 'username'}
+                      placeholder={authMode === 'login' ? 'admin ou nom@exemple.com' : 'vous@exemple.com'}
+                      required
+                      value={login}
+                      onChange={event => setLogin(event.target.value)}
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  Mot de passe
+                  <div className="input-wrap">
+                    <LockKeyhole size={18} className="input-icon" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      minLength={authMode === 'signup' ? 8 : undefined}
+                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                      placeholder="Saisissez votre mot de passe"
+                      required
+                      value={password}
+                      onChange={event => setPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowPassword(value => !value)}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </label>
+
+                <button className="primary-button login-submit" disabled={loading}>
+                  {loading
+                    ? <><RefreshCw size={18} className="spin" /> Connexion en cours…</>
+                    : <>{authMode === 'login' ? 'Se connecter' : 'Créer mon compte'} <ChevronRight size={18} /></>}
+                </button>
+              </form>
+
+              <div className="auth-switch">
+                {authMode === 'login' ? 'Vous n’avez pas encore de compte ?' : 'Vous avez déjà un compte ?'}
+                <button onClick={() => {
+                  setAuthMode(mode => mode === 'login' ? 'signup' : 'login')
+                  setError('')
+                  setMessage('')
+                  setLogin('')
+                  setPassword('')
+                }}>
+                  {authMode === 'login' ? 'Créer un compte' : 'Se connecter'}
+                </button>
+              </div>
+              <div className="auth-security"><ShieldCheck size={16} /> Connexion sécurisée par Supabase</div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="workspace">
+          <aside className="sidebar">
+            <p className="sidebar-caption">MENU PRINCIPAL</p>
+            <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}><LayoutDashboard size={18} /> Tableau de bord</button>
+            <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}><Package size={18} /> Catalogue</button>
+
+<button
+  type="button"
+  className={`nav-item ${currentView === 'labels' ? 'active' : ''}`}
+  onClick={() => {
+    setCurrentView('labels')
+    void loadLabelVariants()
+  }}
+>
+  <Package size={18} />
+  Étiquettes QR
+</button>
+            <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}><Package size={18} /> Stock</button>
+            <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}><ShoppingBag size={18} /> Ventes / Caisse</button>
+            <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}><Users size={18} /> Clients</button>
+            <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}><TrendingUp size={18} /> Statistiques</button>
+            <button
+  type="button"
+  className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
+  onClick={() => setSettingsOpen(value => !value)}
+>
+  <Settings size={17} />
+  Paramètres
+  <ChevronRight size={15} className={settingsOpen ? 'rotate-chevron' : ''} />
+</button>
+            <div className="sidebar-user">
+              <div className="avatar">{(user.email?.[0] ?? 'A').toUpperCase()}</div>
+              <div className="sidebar-user-info"><strong>Compte connecté</strong><small>{user.email}</small></div>
+            </div>
+          </aside>
+
+          <section className="dashboard-content">
+            {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
+            {message && <div className="alert success">{message}</div>}
+
+            {currentView === 'stock' ? (
+              <section className="panel">
+                <div className="panel-heading">
+                  <form className="form-grid" onSubmit={saveStockMovement}>
+  <h3 style={{ gridColumn: '1 / -1' }}>Nouveau mouvement de stock</h3>
+
+  <label>Article
+    <select
+      required
+      value={movementVariant}
+      onChange={e => setMovementVariant(e.target.value)}
+    >
+      <option value="">Choisir un article</option>
+      {posVariants.map(v => (
+        <option key={v.id} value={v.id}>
+          {products.find(p => p.id === v.product_id)?.name ?? v.sku}
+          {' — '}{v.sku}
+          {' (Stock: '}{posStocks[v.id] ?? 0}{')'}
+        </option>
+      ))}
+    </select>
+  </label>
+
+  <label>Type
+    <select
+      value={movementType}
+      onChange={e => setMovementType(e.target.value as 'in' | 'out' | 'adjustment')}
+    >
+      <option value="in">Entrée</option>
+      <option value="out">Sortie</option>
+      <option value="adjustment">Correction inventaire</option>
+    </select>
+  </label>
+
+  <label>{movementType === 'adjustment' ? 'Quantité réelle' : 'Quantité'}
+    <input
+      type="number"
+      min="1"
+      step="1"
+      required
+      value={movementQty}
+      onChange={e => setMovementQty(e.target.value)}
+    />
+  </label>
+
+  <label>Coût unitaire (DZD)
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      value={movementCost}
+      onChange={e => setMovementCost(e.target.value)}
+    />
+  </label>
+
+  <label style={{ gridColumn: '1 / -1' }}>Motif
+    <input
+      value={movementReason}
+      onChange={e => setMovementReason(e.target.value)}
+      placeholder="Réception, retour, inventaire..."
+    />
+  </label>
+
+  <button type="submit" className="primary-button" disabled={movementBusy}>
+    {movementBusy ? 'Enregistrement...' : 'Enregistrer le mouvement'}
+  </button>
+</form>
+<h3>Historique des mouvements</h3>
+<div className="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Variation</th>
+        <th>Motif</th>
+      </tr>
+    </thead>
+    <tbody>
+  {movementHistory.length === 0 ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: 'center', padding: '24px' }}>
+        Aucun mouvement enregistré pour le moment.
+      </td>
+    </tr>
+  ) : (
+    movementHistory.map(m => (
+      <tr key={m.id}>
+        <td>{new Date(m.created_at).toLocaleString('fr-DZ')}</td>
+        <td>{m.movement_type}</td>
+        <td>
+          {Number(m.quantity_delta) > 0 ? '+' : ''}
+          {m.quantity_delta}
+        </td>
+        <td>{m.reason || '—'}</td>
+      </tr>
+    ))
+  )}
+</tbody>
+  </table>
+</div>
+                  <div className="panel-title"><Package size={22}/><div><h2>Gestion du stock</h2><p>Quantités calculées depuis les mouvements enregistrés.</p></div></div>
+                  <button type="button" className="secondary-button" onClick={() => void Promise.all([loadPOSData(), loadMovementHistory()]).catch(e => setError(e instanceof Error ? e.message : String(e)))}><RefreshCw size={16}/> Actualiser</button>
+                </div>
+                <div className="table-wrap"><table>
+                  <thead><tr><th>Article</th><th>SKU</th><th>Code-barres</th><th>Taille</th><th>Couleur</th><th>Prix</th><th>Quantité</th><th>État</th></tr></thead>
+                  <tbody>{posVariants.map(v => {
+                    const product = products.find(p => p.id === v.product_id)
+                    const qty = posStocks[v.id] ?? 0
+                    return <tr key={v.id}>
+                      <td>{product?.name ?? 'Article'}</td><td>{v.sku}</td><td>{v.barcode || '—'}</td>
+                      <td>{v.size || '—'}</td><td>{v.color || '—'}</td>
+                      <td>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</td>
+                      <td><strong>{qty}</strong></td>
+                      <td><span className={qty <= 0 ? 'stock-status stock-out' : qty <= 3 ? 'stock-status stock-low' : 'stock-status stock-ok'}>{qty <= 0 ? 'Rupture' : qty <= 3 ? 'Stock faible' : 'Disponible'}</span></td>
+                    </tr>
+                  })}</tbody>
+                </table></div>
+                {!posVariants.length && <div className="empty-state"><Package size={28}/><p>Aucune variante active. Vérifiez le catalogue.</p></div>}
+              </section>
+            
+) : currentView === 'labels' ? (
+  <section className="panel label-page">
+    <div className="label-hero">
+      <div className="label-hero-icon"><Package size={25} /></div>
+      <div className="label-hero-copy">
+        <h2>Étiquettes QR</h2>
+        <p>Préparez et imprimez les étiquettes de vos articles.</p>
+      </div>
+      <div className="label-count">
+        <strong>{selectedLabelIds.length}</strong>
+        <span>sélectionnée(s)</span>
+      </div>
+    </div>
+
+    {labelError && <div className="label-alert">{labelError}</div>}
+    {labelLoading && <div className="label-loading">Chargement des variantes...</div>}
+
+    <div className="label-toolbar">
+      <div className="label-search-wrap">
+        <Search size={18} />
+        <input
+          type="search"
+          value={labelSearch}
+          onChange={e => setLabelSearch(e.target.value)}
+          placeholder="Rechercher un article, SKU, taille..."
+          aria-label="Rechercher une variante"
+        />
+        {labelSearch && (
+          <button type="button" className="label-clear-btn" onClick={() => setLabelSearch('')}>
+            Effacer
+          </button>
+        )}
+      </div>
+      <div className="label-toolbar-actions">
+        <button
+          type="button"
+          className="label-btn label-btn-light"
+          onClick={() => {
+            const visibleIds = labelVariants.filter(v => {
+              const product = products.find(p => p.id === v.product_id)
+              const q = labelSearch.trim().toLowerCase()
+              return !q || [product?.name, v.sku, v.barcode, v.size, v.color]
+                .some(x => String(x ?? '').toLowerCase().includes(q))
+            }).map(v => v.id)
+            setSelectedLabelIds(old => [...new Set([...old, ...visibleIds])])
+          }}
+        >
+          <CheckSquare size={17} /> Tout sélectionner
+        </button>
+        <button
+          type="button"
+          className="label-btn label-btn-light"
+          onClick={() => setSelectedLabelIds([])}
+        >
+          <Square size={17} /> Réinitialiser
+        </button>
+        <button
+          type="button"
+          className="label-btn label-btn-primary"
+          disabled={selectedLabelIds.length === 0 || labelLoading}
+          onClick={() => {
+            document.documentElement.dataset.labelPaper = labelPaperSize
+            document.documentElement.style.setProperty(
+              '--label-print-columns',
+              String(labelColumns)
+            )
+            window.print()
+          }}
+        >
+          <Printer size={17} /> Imprimer la sélection ({selectedLabelIds.length})
+        </button>
+      </div>
+    </div>
+
+    <div className="label-print-settings">
+      <label>Format d'impression
+        <select value={labelPaperSize} onChange={e => setLabelPaperSize(e.target.value)}>
+          <option value="A4">A4</option>
+          <option value="50x30">Étiquette 50 × 30 mm</option>
+          <option value="70x40">Étiquette 70 × 40 mm</option>
+        </select>
+      </label>
+
+      <label>Colonnes A4
+        <select value={labelColumns} onChange={e => setLabelColumns(Number(e.target.value))}>
+          <option value={2}>2 colonnes</option>
+          <option value={3}>3 colonnes</option>
+          <option value={4}>4 colonnes</option>
+        </select>
+      </label>
+
+      <label>Copies par article
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={labelCopies}
+          onChange={e => setLabelCopies(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+        />
+      </label>
+
+      <div className="label-print-toggles">
+        <span>Informations à afficher</span>
+        <label><input type="checkbox" checked={showLabelName} onChange={e => setShowLabelName(e.target.checked)} /> Nom</label>
+        <label><input type="checkbox" checked={showLabelSku} onChange={e => setShowLabelSku(e.target.checked)} /> Référence</label>
+        <label><input type="checkbox" checked={showLabelPrice} onChange={e => setShowLabelPrice(e.target.checked)} /> Prix</label>
+        <label><input type="checkbox" checked={showLabelColor} onChange={e => setShowLabelColor(e.target.checked)} /> Couleur</label>
+        <label><input type="checkbox" checked={showLabelSize} onChange={e => setShowLabelSize(e.target.checked)} /> Taille</label>
+      </div>
+    </div>
+
+    <section className="label-live-preview">
+      <div className="label-preview-heading">
+        <div>
+          <span className="label-preview-eyebrow">APERÇU EN DIRECT</span>
+          <h3>Aperçu avant impression</h3>
+          <p>Prévisualisation selon le format et les informations choisis.</p>
+        </div>
+        <span className="label-preview-format">
+          {labelPaperSize === 'A4' ? 'Feuille A4' : `${labelPaperSize.replace('x', ' × ')} mm`}
+        </span>
+      </div>
+
+      {(() => {
+        const previewId = selectedLabelIds[0]
+        const v = labelVariants.find(item => item.id === previewId)
+        const product = v ? products.find(item => item.id === v.product_id) : undefined
+        return v ? (
+          <div className={`label-preview-stage label-preview-${labelPaperSize}`}>
+            <article className="label-preview-card">
+              <div className="label-preview-qr">
+                {labelImages[v.id] ? (
+                  <img src={labelImages[v.id]} alt={`Aperçu QR ${v.sku}`} />
+                ) : (
+                  <span>QR indisponible</span>
+                )}
+              </div>
+              <div className="label-preview-info">
+                {showLabelName && <strong>{product?.name ?? 'Article'}</strong>}
+                {showLabelSku && <span>Réf. {v.sku}</span>}
+                {showLabelColor && v.color && <span>Couleur : {v.color}</span>}
+                {showLabelSize && v.size && <span>Taille : {v.size}</span>}
+                {showLabelPrice && (
+                  <b>{Number(v.sale_price).toLocaleString('fr-DZ', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })} DA</b>
+                )}
+              </div>
+            </article>
+          </div>
+        ) : (
+          <div className="label-preview-empty">
+            Sélectionnez une étiquette dans la liste pour voir son aperçu ici.
+          </div>
+        )
+      })()}
+
+      <p className="label-preview-note">
+        {selectedLabelIds.length
+          ? `${selectedLabelIds.length} variante(s) sélectionnée(s) · ${selectedLabelIds.length * labelCopies} étiquette(s) à imprimer`
+          : 'Aucune étiquette sélectionnée'}
+      </p>
+    </section>
+
+    <div className="label-results-heading">
+      <span>{labelVariants.filter(v => {
+        const product = products.find(p => p.id === v.product_id)
+        const q = labelSearch.trim().toLowerCase()
+        return !q || [product?.name, v.sku, v.barcode, v.size, v.color]
+          .some(x => String(x ?? '').toLowerCase().includes(q))
+      }).length} variante(s)</span>
+      <span>Cliquez sur une carte pour la sélectionner</span>
+    </div>
+
+    <div className="label-grid">
+      {labelVariants
+        .filter(v => {
+          const product = products.find(p => p.id === v.product_id)
+          const q = labelSearch.trim().toLowerCase()
+          return !q || [product?.name, v.sku, v.barcode, v.size, v.color]
+            .some(x => String(x ?? '').toLowerCase().includes(q))
+        })
+        .map(v => {
+          const product = products.find(p => p.id === v.product_id)
+          const selected = selectedLabelIds.includes(v.id)
+          return (
+            <article
+              className={`qr-label ${selected ? 'qr-label-selected' : ''}`}
+              key={v.id}
+              onClick={() => setSelectedLabelIds(old =>
+                selected ? old.filter(id => id !== v.id) : [...old, v.id]
+              )}
+            >
+              <div className="qr-card-top">
+                <span className={`qr-selection-mark ${selected ? 'checked' : ''}`}>
+                  {selected ? <Check size={14} /> : null}
+                </span>
+                <span className="qr-card-tag">{selected ? 'Sélectionné' : 'Étiquette QR'}</span>
+              </div>
+              <div className="qr-code-frame">
+                {labelImages[v.id] ? (
+                  <img src={labelImages[v.id]} alt={`QR ${v.sku}`} />
+                ) : (
+                  <div className="qr-placeholder">QR indisponible</div>
+                )}
+              </div>
+              <strong className="qr-product-name">{product?.name ?? 'Article'}</strong>
+              <span className="qr-sku">Réf. {v.sku}</span>
+              {(v.size || v.color) && (
+                <div className="qr-variant-details">
+                  {v.size && <span>{v.size}</span>}
+                  {v.color && <span>{v.color}</span>}
+                </div>
+              )}
+              <div className="qr-price">{Number(v.sale_price).toLocaleString('fr-DZ', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })} <small>DA</small></div>
+            </article>
+          )
+        })}
+    </div>
+
+    <div className="label-print-only-grid">
+      {selectedLabelIds.flatMap(id => {
+        const v = labelVariants.find(item => item.id === id)
+        if (!v) return []
+        const product = products.find(item => item.id === v.product_id)
+
+        return Array.from({ length: labelCopies }, (_, copyIndex) => (
+          <article className="qr-label qr-label-print" key={`${v.id}-${copyIndex}`}>
+            <div className="qr-code-frame">
+              {labelImages[v.id] ? (
+                <img src={labelImages[v.id]} alt={`QR ${v.sku}`} />
+              ) : (
+                <div className="qr-placeholder">QR indisponible</div>
+              )}
+            </div>
+            {showLabelName && (
+              <strong className="qr-product-name">{product?.name ?? 'Article'}</strong>
+            )}
+            {showLabelSku && <span className="qr-sku">Réf. {v.sku}</span>}
+            {(showLabelSize && v.size) || (showLabelColor && v.color) ? (
+              <div className="qr-variant-details">
+                {showLabelSize && v.size && <span>{v.size}</span>}
+                {showLabelColor && v.color && <span>{v.color}</span>}
+              </div>
+            ) : null}
+            {showLabelPrice && (
+              <div className="qr-price">
+                {Number(v.sale_price).toLocaleString('fr-DZ', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })} <small>DA</small>
+              </div>
+            )}
+          </article>
+        ))
+      })}
+    </div>
+
+    {!labelLoading && labelVariants.length === 0 && !labelError && (
+      <div className="label-empty">
+        <Package size={32} />
+        <strong>Aucune variante disponible</strong>
+        <span>Ajoutez des variantes actives dans le catalogue.</span>
+      </div>
+    )}
+  </section>
+) : currentView === 'sales' ? (
+              <section className="panel pos-panel">
+                <div className="panel-heading">
+                  <div className="panel-title"><ShoppingBag size={22}/><div><h2>Ventes / Caisse</h2><p>Ajoutez les articles puis validez la vente.</p></div></div>
+                  <button type="button" className="secondary-button" onClick={() => void loadPOSData().catch(e => setError(e.message))} disabled={posBusy}><RefreshCw size={16}/> Actualiser</button>
+                </div>
+                {lastReceipt && <div className="alert success">Reçu #{lastReceipt.sale_number} — {lastReceipt.total.toLocaleString('fr-DZ')} DZD</div>}
+                <div className="pos-scanner-tools">
+  <label className="field">
+    Scanner USB / recherche
+    <input
+      value={scannerCode}
+      onChange={e => setScannerCode(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          handleScannedCode(scannerCode)
+          setScannerCode('')
+        }
+      }}
+      placeholder="Scannez un code puis Entrée"
+      autoComplete="off"
+    />
+  </label>
+
+  {!cameraOpen ? (
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={() => void startPOSCamera()}
+    >
+      Ouvrir la caméra
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={() => void stopPOSCamera()}
+    >
+      Fermer la caméra
+    </button>
+  )}
+
+  {scannerMessage && (
+    <p role="status" className="scanner-message">
+      {scannerMessage}
+    </p>
+  )}
+
+  <div
+    id={scannerElementId}
+    style={{
+      display: cameraOpen ? 'block' : 'none',
+      width: '100%',
+      maxWidth: 420
+    }}
+  />
+</div>
+
+<label className="field">
+  Recherche article
+  <input
+    value={posSearch}
+    onChange={e => setPosSearch(e.target.value)}
+    placeholder="Nom, SKU ou code-barres"
+  />
+</label>
+                <label className="field">Client (facultatif)
+                  <select value={posCustomerId} onChange={e => setPosCustomerId(e.target.value)}>
+                    <option value="">Client de passage</option>
+                    {posCustomers.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.phone ? ` — ${c.phone}` : ''}</option>)}
+                  </select>
+                </label>
+                <div className="pos-layout">
+                  <div className="pos-products"><h3>Articles actifs</h3>
+                    {posVariants.filter(v => {
+                      const p = products.find(x => x.id === v.product_id && x.active)
+                      const q = posSearch.trim().toLowerCase()
+                      return p && (!q || p.name.toLowerCase().includes(q) || v.sku.toLowerCase().includes(q) || (v.barcode ?? '').toLowerCase().includes(q))
+                    }).map(v => {
+                      const p = products.find(x => x.id === v.product_id)
+                      const stock = posStocks[v.id] ?? 0
+                      return <button type="button" className="pos-product" key={v.id} disabled={stock <= 0} onClick={() => addPOSItem(v)}>
+                        <span><strong>{p?.name}</strong><small>{v.sku}{v.size ? ` · ${v.size}` : ''}{v.color ? ` · ${v.color}` : ''} · Stock: {stock}</small></span>
+                        <strong>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</strong>
+                      </button>
+                    })}
+                    {!posVariants.length && <div className="empty-state"><Package size={26}/><p>Aucune variante active trouvée.</p></div>}
+                  </div>
+                  <div className="pos-cart"><h3>Panier ({posCart.reduce((n,i) => n + i.quantity, 0)})</h3>
+                    {!posCart.length ? <div className="empty-state"><ShoppingBag size={26}/><p>Ajoutez des articles au panier.</p></div> :
+                      posCart.map(i => <div className="pos-cart-row" key={i.variant_id}>
+                        <div className="pos-cart-info"><strong>{i.name}</strong><small>{i.sku} · {i.unit_price.toLocaleString('fr-DZ')} DZD</small></div>
+                        <div className="pos-quantity">
+                          <button type="button" className="secondary-button" onClick={() => setPosCart(cart => cart.flatMap(x => x.variant_id !== i.variant_id ? [x] : x.quantity > 1 ? [{...x, quantity:x.quantity-1}] : []))}>−</button>
+                          <strong>{i.quantity}</strong>
+                          <button type="button" className="secondary-button" disabled={i.quantity >= i.stock} onClick={() => setPosCart(cart => cart.map(x => x.variant_id === i.variant_id && x.quantity < x.stock ? {...x, quantity:x.quantity+1} : x))}>+</button>
+                        </div>
+                        <strong>{(i.unit_price*i.quantity).toLocaleString('fr-DZ')} DZD</strong>
+                      </div>)}
+                    <div className="pos-total"><span>Total à payer</span><strong>{posCart.reduce((n,i) => n + i.unit_price*i.quantity, 0).toLocaleString('fr-DZ', {minimumFractionDigits:2})} DZD</strong></div>
+                    <button type="button" className="primary-button pos-checkout" disabled={posBusy || !posCart.length} onClick={() => void finishPOS()}>{posBusy ? 'Validation…' : 'Valider la vente'}</button>
+                    <button type="button" className="secondary-button" disabled={posBusy || !posCart.length} onClick={() => setPosCart([])}>Vider le panier</button>
+                  </div>
+                </div>
+              </section>
+            ) : currentView === 'customers' ? (
+              <section className="panel"><div className="panel-title"><Users size={20}/><div><h2>Clients</h2><p>Clients enregistrés dans votre boutique.</p></div></div>
+                {!posCustomers.length ? <div className="empty-state"><Users size={28}/><p>Aucun client trouvé.</p></div> :
+                  <div className="table-wrap"><table><thead><tr><th>Nom</th><th>Téléphone</th></tr></thead><tbody>{posCustomers.map(c => <tr key={c.id}><td>{c.full_name}</td><td>{c.phone || '—'}</td></tr>)}</tbody></table></div>}
+              </section>
+            ) : currentView === 'statistics' ? (
+              <section className="panel"><div className="panel-title"><TrendingUp size={20}/><div><h2>Statistiques</h2><p>Les indicateurs de ventes seront ajoutés dans une prochaine étape.</p></div></div></section>
+            ) : (
+              <>
+              <div className="welcome">
+              {settingsOpen && (
+  <section className="panel appearance-panel">
+    <div className="panel-title">
+      <Settings size={21} />
+      <div>
+        <h2>Thème & Apparence</h2>
+        <p>Personnalisez l'apparence de votre espace de travail.</p>
+      </div>
+    </div>
+
+    <label className="field appearance-field">
+      Thème de l'interface
+      <select
+        value={themeMode}
+        onChange={event => setThemeMode(event.target.value as ThemeMode)}
+      >
+        <option value="light">Clair — Beige</option>
+        <option value="dark">Sombre</option>
+        <option value="system">Système — automatique</option>
+      </select>
+    </label>
+
+    <p className="palette-label">Couleur principale</p>
+    <div className="palette-options">
+      {([
+        ['beige', '#a9875b', 'Beige'],
+        ['green', '#397568', 'Vert'],
+        ['blue', '#466b9d', 'Bleu'],
+        ['burgundy', '#914c60', 'Bordeaux'],
+        ['slate', '#626b78', 'Gris ardoise'],
+      ] as const).map(([value, color, label]) => (
+        <button
+          type="button"
+          key={value}
+          className={`palette-choice ${accent === value ? 'chosen' : ''}`}
+          onClick={() => setAccent(value)}
+          aria-label={`Choisir la couleur ${label}`}
+          title={label}
+        >
+          <span style={{ backgroundColor: color }} />
+          {accent === value && <span className="palette-check">✓</span>}
+          <small>{label}</small>
+        </button>
+      ))}
+    </div>
+
+    <p className="appearance-note">
+      Vos préférences sont enregistrées automatiquement dans ce navigateur.
+    </p>
+  </section>
+)}
+              <div>
+                <p className="eyebrow">VOTRE ESPACE DE TRAVAIL</p>
+                <h1>Tableau de bord</h1>
+                <p className="muted">Gérez votre boutique depuis un seul endroit.</p>
+              </div>
+              <div className="secure-label"><ShieldCheck size={17} /> Session authentifiée</div>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card"><div className="stat-icon blue"><Store /></div><span>Boutiques</span><strong>{stores.length}</strong><small>Accessible(s) par votre compte</small></div>
+              <div className="stat-card"><div className="stat-icon violet"><Package /></div><span>Articles au catalogue</span><strong>{products.length}</strong><small>Dans la boutique sélectionnée</small></div>
+              <div className="stat-card"><div className="stat-icon green"><TrendingUp /></div><span>Articles actifs</span><strong>{products.filter(item => item.active).length}</strong><small>Produits disponibles au catalogue</small></div>
+            </div>
+
+            <section className="panel">
+              <div className="panel-heading">
+                <div className="panel-title"><Store size={20} /><div><h2>Mes boutiques</h2><p>Choisissez une boutique ou créez-en une nouvelle.</p></div></div>
+              </div>
+
+              {stores.length > 0 && (
+                <label className="field">
+                  Boutique active
+                  <select value={storeId} onChange={event => setStoreId(event.target.value)}>
+                    {stores.map(store => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.currency}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              <form onSubmit={createStore} className="inline-form">
+                <input
+                  aria-label="Nom de la boutique"
+                  placeholder="Ex. Boutique Élégance"
+                  value={storeName}
+                  onChange={event => setStoreName(event.target.value)}
+                  required
+                  maxLength={150}
+                />
+                <button className="primary-button" disabled={loading}>
+                  <Plus size={17} /> Créer une boutique
+                </button>
+              </form>
+            </section>
+
+            <section className="panel catalogue-panel">
+              <div className="catalogue-header">
+                
+                <div className="panel-title"><Package size={20} /><div><h2>Catalogue des articles</h2><p>Articles enregistrés dans Supabase.</p></div></div>
+                <button className="secondary-button" onClick={() => void loadProducts()} disabled={loading || !storeId}>
+                  <RefreshCw size={16} /> Actualiser
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    setError('')
+                    setMessage('')
+                    setShowProductForm(value => !value)
+                  }}
+                  disabled={!storeId || savingProduct}
+                >
+                  <Plus size={16} /> Nouveau produit
+                </button>
+              </div>
+
+
+              {showProductForm && (
+                <form className="product-create-form" onSubmit={saveProduct}>
+                  <div className="panel-title">
+                    <Plus size={20} />
+                    <div>
+                      <h2>{editingProductId ? 'Modifier le produit' : 'Nouveau produit'}</h2>
+                      <p>Informations de l’article et déclinaisons par taille ou couleur.</p>
+                    </div>
+                  </div>
+
+                  <div className="product-form-grid">
+                    <label>
+                      Nom du produit *
+                      <input
+                        value={productName}
+                        onChange={e => setProductName(e.target.value)}
+                        placeholder="Ex. T-shirt classique"
+                        maxLength={150}
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Public cible *
+                      <select
+                        value={targetAudience}
+                        onChange={e => setTargetAudience(e.target.value)}
+                        required
+                      >
+                        <option value="women">Femme</option>
+                        <option value="men">Homme</option>
+                        <option value="unisex">Mixte</option>
+                        <option value="children">Enfant</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      Catégorie
+                      <select value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                        <option value="">Sans catégorie</option>
+                        {categories.map(category => (
+                          <option key={category.id} value={category.id}>{category.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      Marque
+                      <select value={brandId} onChange={e => setBrandId(e.target.value)}>
+                        <option value="">Sans marque</option>
+                        {brands.map(brand => (
+                          <option key={brand.id} value={brand.id}>{brand.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="product-form-full">
+                      Description
+                      <textarea
+                        value={productDescription}
+                        onChange={e => setProductDescription(e.target.value)}
+                        placeholder="Description du produit"
+                        rows={3}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="product-variants-heading">
+                    <div>
+                      <h3>Tailles, couleurs et prix</h3>
+                      <p>Ajoutez une ligne par déclinaison avec un SKU unique.</p>
+                    </div>
+                    <div className="product-variant-actions">
+                      <button type="button" className="secondary-button" onClick={addVariantDraft}>
+                        <Plus size={16} /> Déclinaison vierge
+                      </button>
+                      <button type="button" className="secondary-button" onClick={() => duplicateVariantDraft(0)} disabled={variantDrafts.length === 0}>
+                        Dupliquer la première
+                      </button>
+                    </div>
+                  </div>
+
+                  {variantDrafts.map((variant, index) => (
+                    <div className="product-variant-row" key={index}>
+                      <label>
+                        SKU *
+                        <input
+                          value={variant.sku}
+                          onChange={e => updateVariantDraft(index, 'sku', e.target.value)}
+                          placeholder="TSH-BLK-M"
+                          required
+                        />
+                      </label>
+
+                      <label>
+                        Code-barres
+                        <input
+                          value={variant.barcode}
+                          onChange={e => updateVariantDraft(index, 'barcode', e.target.value)}
+                          placeholder="EAN / code-barres"
+                        />
+                      </label>
+
+                      <label>
+                        Taille
+                        <input
+                          value={variant.size}
+                          onChange={e => updateVariantDraft(index, 'size', e.target.value)}
+                          placeholder="S, M, L, 38..."
+                        />
+                      </label>
+
+                      <label>
+                        Couleur
+                        <input
+                          value={variant.color}
+                          onChange={e => updateVariantDraft(index, 'color', e.target.value)}
+                          placeholder="Noir, blanc..."
+                        />
+                      </label>
+
+                      <label>
+                        Prix d’achat *
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.purchase_cost}
+                          onChange={e => updateVariantDraft(index, 'purchase_cost', e.target.value)}
+                          required
+                        />
+                      </label>
+
+                      <label>
+                        Prix de vente *
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={variant.sale_price}
+                          onChange={e => updateVariantDraft(index, 'sale_price', e.target.value)}
+                          required
+                        />
+                      </label>
+                      <div className="variant-margin">
+                        <span>Marge brute estimée</span>
+                        <strong>
+                          {(Number(variant.sale_price || 0) - Number(variant.purchase_cost || 0)).toFixed(2)}
+                        </strong>
+                        <small>
+                          {Number(variant.sale_price) > 0
+                            ? `Taux : ${((Number(variant.sale_price) - Number(variant.purchase_cost)) / Number(variant.sale_price) * 100).toFixed(1)} %`
+                            : 'Saisissez un prix de vente'}
+                        </small>
+                      </div>
+
+                      <label>
+                        Stock minimum
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={variant.min_stock}
+                          onChange={e => updateVariantDraft(index, 'min_stock', e.target.value)}
+                          required
+                        />
+                      </label>
+                    </div>
+                  ))}
+
+                  <div className="product-form-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={resetProductForm}
+                      disabled={savingProduct}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="primary-button"
+                      disabled={savingProduct || !storeId}
+                    >
+                      {savingProduct ? 'Enregistrement…' : 'Enregistrer le produit'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="catalogue-tools">
+                <div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher un article…" /></div>
+              </div>
+
+              {!storeId ? (
+                <div className="empty-state"><Store size={34} /><strong>Aucune boutique sélectionnée</strong><p>Créez une boutique ou vérifiez vos accès.</p></div>
+              ) : loading ? (
+                <div className="empty-state"><RefreshCw size={25} className="spin" /><p>Chargement des données…</p></div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="empty-state"><Package size={34} /><strong>Aucun article trouvé</strong><p>Le catalogue est vide ou aucun résultat ne correspond à votre recherche.</p></div>
+              ) : (
+                <div className="table-wrap"><table>
+                  <thead><tr><th>Article</th><th>Public</th><th>Statut</th><th>Actions</th></tr></thead>
+                  <tbody>{filteredProducts.map(product => (
+                    <tr key={product.id}>
+                      <td><div className="product-name"><div className="product-mini-icon"><Shirt size={17} /></div><strong>{product.name}</strong></div></td>
+                      <td>{product.target_audience || 'Non défini'}</td>
+                      <td><span className={product.active ? 'status-pill active-pill' : 'status-pill inactive-pill'}>{product.active ? 'Actif' : 'Archivé'}</span></td>
+                      <td>
+                        <div className="product-variant-actions">
+                          <button type="button" className="secondary-button" onClick={() => void openProductEditor(product.id)} disabled={loading || savingProduct}>
+                            <Pencil size={15} /> Modifier
+                          </button>
+                          <button type="button" className="secondary-button" onClick={() => void openProductEditor(product.id, true)} disabled={loading || savingProduct}>
+                            <Copy size={15} /> Dupliquer
+                          </button>
+                          {product.active && (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => void archiveProduct(product)}
+                              disabled={loading || savingProduct}
+                            >
+                              <Package size={15} /> Archiver
+                            </button>
+                          )}
+                          {!product.active && (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => void restoreProduct(product)}
+                              disabled={loading || savingProduct}
+                            >
+                              <RotateCcw size={15} /> Restaurer
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              )}
+            </section>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+
+      <footer className="footer">
+        <span>© {new Date().getFullYear()} StylePro Manager</span>
+        <span>Gestion commerciale <i>•</i> Sécurisée par Supabase</span>
+      </footer>
+    </main>
+  )
+}

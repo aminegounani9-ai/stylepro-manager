@@ -1,0 +1,851 @@
+
+import { useCallback, useEffect, useState } from 'react'
+import type { FormEvent, CSSProperties } from 'react'
+import type { User } from '@supabase/supabase-js'
+import {
+  Shirt, Store, Package, LogOut, Plus, Sun, Moon,
+  RefreshCw, ShieldCheck, AlertCircle, Eye, EyeOff,
+  LayoutDashboard, ShoppingBag, Settings, Users,
+  TrendingUp, Search, ChevronRight, LockKeyhole
+} from 'lucide-react'
+import { supabase } from './lib/supabase'
+import './stylepro.css'
+
+type StoreRow = {
+  id: string
+  name: string
+  currency: string
+}
+
+type ProductRow = {
+  id: string
+  name: string
+  target_audience: string
+  active: boolean
+}
+
+
+type CategoryRow = {
+  id: string
+  name: string
+}
+
+type BrandRow = {
+  id: string
+  name: string
+}
+
+type ProductVariantRow = {
+  id: string
+  product_id: string
+  sku: string
+  barcode: string | null
+  size: string | null
+  color: string | null
+  purchase_cost: number
+  sale_price: number
+  min_stock: number
+  active: boolean
+}
+
+type VariantDraft = {
+  sku: string
+  barcode: string
+  size: string
+  color: string
+  purchase_cost: string
+  sale_price: string
+  min_stock: string
+}
+
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [ready, setReady] = useState(false)
+  const [login, setLogin] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [storeName, setStoreName] = useState('')
+  const [stores, setStores] = useState<StoreRow[]>([])
+  const [storeId, setStoreId] = useState('')
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  type ThemeMode = 'light' | 'dark' | 'system'
+type AccentName = 'beige' | 'green' | 'blue' | 'burgundy' | 'slate'
+
+const [themeMode, setThemeMode] = useState<ThemeMode>(
+  () => (localStorage.getItem('stylepro-theme') as ThemeMode) || 'light'
+)
+const [accent, setAccent] = useState<AccentName>(
+  () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
+)
+const [settingsOpen, setSettingsOpen] = useState(false)
+
+const dark =
+  themeMode === 'dark' ||
+  (themeMode === 'system' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+const accentColors: Record<AccentName, { primary: string; hover: string }> = {
+  beige: { primary: '#a9875b', hover: '#896a43' },
+  green: { primary: '#397568', hover: '#285c51' },
+  blue: { primary: '#466b9d', hover: '#34547f' },
+  burgundy: { primary: '#914c60', hover: '#75394b' },
+  slate: { primary: '#626b78', hover: '#48515e' },
+}
+
+useEffect(() => {
+  localStorage.setItem('stylepro-theme', themeMode)
+}, [themeMode])
+
+useEffect(() => {
+  localStorage.setItem('stylepro-accent', accent)
+}, [accent])
+  const [search, setSearch] = useState('')
+
+
+  
+const [, setCategories] = useState<CategoryRow[]>([])
+const [, setBrands] = useState<BrandRow[]>([])
+
+
+const [showProductForm, setShowProductForm] = useState(false)
+const [savingProduct, setSavingProduct] = useState(false)
+
+const [productName, setProductName] = useState('')
+const [productDescription, setProductDescription] = useState('')
+const [targetAudience, setTargetAudience] = useState('women')
+const [categoryId, setCategoryId] = useState('')
+const [brandId, setBrandId] = useState('')
+
+const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
+  {
+    sku: '',
+    barcode: '',
+    size: '',
+    color: '',
+    purchase_cost: '0',
+    sale_price: '',
+    min_stock: '0',
+  },
+])
+
+  useEffect(() => {
+    let alive = true
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!alive) return
+      if (error) setError(error.message)
+      setUser(data.session?.user ?? null)
+      setReady(true)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+        setError('')
+        setMessage('')
+      }
+    )
+
+    return () => {
+      alive = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  const loadStores = useCallback(async () => {
+    if (!user) return
+
+    setLoading(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id,name,currency')
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      setError(`Chargement des boutiques : ${error.message}`)
+      setLoading(false)
+      return
+    }
+
+    const rows = (data ?? []) as StoreRow[]
+    setStores(rows)
+    setStoreId(previous =>
+      rows.some(row => row.id === previous) ? previous : rows[0]?.id ?? ''
+    )
+    setLoading(false)
+  }, [user])
+
+  const loadProducts = useCallback(async () => {
+    if (!storeId) {
+      setProducts([])
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,target_audience,active')
+      .eq('store_id', storeId)
+      .order('name')
+
+    if (error) {
+      setError(`Chargement des articles : ${error.message}`)
+    } else {
+      setProducts((data ?? []) as ProductRow[])
+    }
+
+    setLoading(false)
+  }, [storeId])
+
+  useEffect(() => {
+    if (user) void loadStores()
+    else {
+      setStores([])
+      setStoreId('')
+      setProducts([])
+    }
+  }, [user, loadStores])
+
+  useEffect(() => {
+    if (user && storeId) void loadProducts()
+    else setProducts([])
+  }, [user, storeId, loadProducts])
+
+  
+const loadProductOptions = useCallback(async () => {
+  if (!storeId) {
+    setCategories([])
+    setBrands([])
+    return
+  }
+
+  const [categoryResult, brandResult] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id,name')
+      .eq('store_id', storeId)
+      .order('name'),
+    supabase
+      .from('brands')
+      .select('id,name')
+      .eq('store_id', storeId)
+      .order('name'),
+  ])
+
+  if (categoryResult.error) {
+    setError(`Chargement des catégories : ${categoryResult.error.message}`)
+    return
+  }
+
+  if (brandResult.error) {
+    setError(`Chargement des marques : ${brandResult.error.message}`)
+    return
+  }
+
+  setCategories(categoryResult.data ?? [])
+  setBrands(brandResult.data ?? [])
+}, [storeId])
+
+  useEffect(() => {
+    if (user && storeId) {
+      void loadProductOptions()
+    } else {
+      setCategories([])
+      setBrands([])
+    }
+  }, [user, storeId, loadProductOptions])
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    setLoading(true)
+
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: login.trim(),
+          password,
+        })
+
+        if (error) throw error
+
+        setMessage(
+          data.session
+            ? 'Compte créé et connecté.'
+            : 'Compte créé. Vérifie ton e-mail pour confirmer ton inscription.'
+        )
+      } else {
+        const identifier = login.trim()
+        const email = identifier.toLowerCase() === 'admin'
+          ? ADMIN_EMAIL?.trim()
+          : identifier
+
+        if (!email) {
+          throw new Error(
+            'Configure VITE_ADMIN_EMAIL dans .env.local pour utiliser le nom admin.'
+          )
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (error) throw error
+        setMessage('Connexion réussie.')
+        setPassword('')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de connexion.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function createStore(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!storeName.trim()) return
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const { data, error } = await supabase.rpc('create_store', {
+        p_name: storeName.trim(),
+        p_currency: 'DZD',
+      })
+
+      if (error) throw error
+
+      const createdId = data as string
+      setStoreName('')
+      await loadStores()
+      setStoreId(createdId)
+      setMessage('Boutique créée avec succès.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Création impossible.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  
+function addVariantDraft() {
+  setVariantDrafts(current => [
+    ...current,
+    {
+      sku: '',
+      barcode: '',
+      size: '',
+      color: '',
+      purchase_cost: '0',
+      sale_price: '',
+      min_stock: '0',
+    },
+  ])
+}
+
+function updateVariantDraft(
+  index: number,
+  field: keyof VariantDraft,
+  value: string
+) {
+  setVariantDrafts(current =>
+    current.map((variant, i) =>
+      i === index ? { ...variant, [field]: value } : variant
+    )
+  )
+}
+
+function resetProductForm() {
+  setProductName('')
+  setProductDescription('')
+  setTargetAudience('women')
+  setCategoryId('')
+  setBrandId('')
+  setVariantDrafts([{
+    sku: '',
+    barcode: '',
+    size: '',
+    color: '',
+    purchase_cost: '0',
+    sale_price: '',
+    min_stock: '0',
+  }])
+  setShowProductForm(false)
+}
+
+async function saveProduct(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault()
+
+  if (!user || !storeId) {
+    setError('Connectez-vous et sélectionnez une boutique.')
+    return
+  }
+
+  if (!productName.trim() || variantDrafts.length === 0) {
+    setError('Le nom du produit et au moins une variante sont obligatoires.')
+    return
+  }
+
+  const seenSkus = new Set<string>()
+  const seenBarcodes = new Set<string>()
+
+  for (const variant of variantDrafts) {
+    const sku = variant.sku.trim()
+    const barcode = variant.barcode.trim()
+    const cost = Number(variant.purchase_cost)
+    const price = Number(variant.sale_price)
+    const minStock = Number(variant.min_stock)
+
+    if (!sku || !variant.sale_price.trim()) {
+      setError('Chaque variante doit avoir un SKU et un prix de vente.')
+      return
+    }
+
+    if (
+      !Number.isFinite(cost) || cost < 0 ||
+      !Number.isFinite(price) || price < 0 ||
+      !Number.isInteger(minStock) || minStock < 0
+    ) {
+      setError('Vérifiez les prix et le seuil de stock de chaque variante.')
+      return
+    }
+
+    if (seenSkus.has(sku)) {
+      setError(`Le SKU ${sku} est répété dans le formulaire.`)
+      return
+    }
+    seenSkus.add(sku)
+
+    if (barcode && seenBarcodes.has(barcode)) {
+      setError(`Le code-barres ${barcode} est répété dans le formulaire.`)
+      return
+    }
+    if (barcode) seenBarcodes.add(barcode)
+  }
+
+  setSavingProduct(true)
+  setError('')
+  setMessage('')
+
+
+  try {
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .insert({
+        store_id: storeId,
+        name: productName.trim(),
+        description: productDescription.trim() || null,
+        target_audience: targetAudience,
+        category_id: categoryId || null,
+        brand_id: brandId || null,
+        active: true,
+      })
+      .select('id')
+      .single()
+
+    if (productError) throw productError
+
+
+    const rows = variantDrafts.map(variant => ({
+      store_id: storeId,
+      product_id: product.id,
+      sku: variant.sku.trim(),
+      barcode: variant.barcode.trim() || null,
+      size: variant.size.trim() || null,
+      color: variant.color.trim() || null,
+      purchase_cost: Number(variant.purchase_cost),
+      sale_price: Number(variant.sale_price),
+      min_stock: Number(variant.min_stock),
+      active: true,
+    }))
+
+    const { error: variantError } = await supabase
+      .from('product_variants')
+      .insert(rows)
+
+    if (variantError) {
+      // Tentative de nettoyage si la création des variantes échoue.
+      const { error: cleanupError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', product.id)
+        .eq('store_id', storeId)
+
+      if (cleanupError) {
+        throw new Error(
+          `Variantes non enregistrées : ${variantError.message}. ` +
+          `Le nettoyage a échoué : ${cleanupError.message}. ` +
+          `Vérifiez le produit ${product.id}.`
+        )
+      }
+
+      throw variantError
+    }
+
+    resetProductForm()
+    setMessage('Produit et variantes enregistrés avec succès.')
+
+    await Promise.all([
+      loadProducts(),
+      loadProductOptions(),
+    ])
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'Impossible d’enregistrer le produit.'
+    )
+  } finally {
+    setSavingProduct(false)
+  }
+}
+
+  async function signOut() {
+    setError('')
+    const { error } = await supabase.auth.signOut()
+    if (error) setError(error.message)
+  }
+
+  const filteredProducts = products.filter(product =>
+    `${product.name} ${product.target_audience}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
+
+  if (!ready) {
+    return (
+      <main className="center">
+        <RefreshCw className="spin" size={22} />
+        <span>Préparation de votre espace…</span>
+      </main>
+    )
+  }
+
+  return (
+    <main
+  className={`app ${dark ? 'dark' : ''}`}
+  style={{
+    '--primary': accentColors[accent].primary,
+    '--primary-hover': accentColors[accent].hover,
+  } as CSSProperties}
+>
+      <header className="topbar">
+        <a className="brand" href="#" aria-label="StylePro Manager">
+          <div className="brand-icon"><Shirt size={25} /></div>
+          <div className="brand-copy">
+            <strong>StylePro <span>Manager</span></strong>
+            <small>FASHION RETAIL MANAGEMENT</small>
+          </div>
+        </a>
+
+        <div className="header-actions">
+          <span className="system-status">
+            <span className="status-dot" /> Système opérationnel
+          </span>
+          <button
+            className="icon-button"
+            onClick={() => setThemeMode(dark ? 'light' : 'dark')}
+            aria-label={dark ? 'Activer le mode clair' : 'Activer le mode sombre'}
+            title={dark ? 'Mode clair' : 'Mode sombre'}
+          >
+            {dark ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
+          {user && (
+            <button className="secondary-button" onClick={signOut}>
+              <LogOut size={17} /> <span>Déconnexion</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {!user ? (
+        <section className="login-layout">
+          <div className="login-presentation">
+            <div className="presentation-badge">
+              <ShieldCheck size={16} /> GESTION COMMERCIALE
+            </div>
+            <h1>Votre boutique.<br /><span>Votre réussite.</span></h1>
+            <p>
+              Gérez vos articles, votre stock et vos ventes depuis un espace
+              professionnel conçu pour simplifier votre quotidien.
+            </p>
+            <div className="feature-list">
+              <div><Package /><span><strong>Stock centralisé</strong><small>Articles, tailles et couleurs</small></span></div>
+              <div><TrendingUp /><span><strong>Suivi commercial</strong><small>Indicateurs et performance</small></span></div>
+              <div><LockKeyhole /><span><strong>Accès sécurisé</strong><small>Authentification Supabase</small></span></div>
+            </div>
+            <div className="presentation-footer">STYLEPRO MANAGER <span>•</span> ÉDITION BOUTIQUE</div>
+          </div>
+
+          <div className="login-side">
+            <div className="auth-card">
+              <div className="mobile-brand"><div className="brand-icon"><Shirt /></div><strong>StylePro Manager</strong></div>
+              <div className="auth-heading-icon"><LockKeyhole size={23} /></div>
+              <p className="eyebrow">ESPACE PRIVÉ</p>
+              <h2>{authMode === 'login' ? 'Bon retour parmi nous' : 'Créer votre compte'}</h2>
+              <p className="auth-description">
+                {authMode === 'login'
+                  ? 'Connectez-vous pour accéder à votre espace de gestion.'
+                  : 'Créez un compte avec votre adresse e-mail.'}
+              </p>
+
+              {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
+              {message && <div className="alert success">{message}</div>}
+
+              <form onSubmit={submitAuth} className="form">
+                <label>
+                  {authMode === 'login' ? 'Nom d’utilisateur ou e-mail' : 'Adresse e-mail'}
+                  <div className="input-wrap">
+                    <Users size={18} className="input-icon" />
+                    <input
+                      type={authMode === 'signup' ? 'email' : 'text'}
+                      autoComplete={authMode === 'signup' ? 'email' : 'username'}
+                      placeholder={authMode === 'login' ? 'admin ou nom@exemple.com' : 'vous@exemple.com'}
+                      required
+                      value={login}
+                      onChange={event => setLogin(event.target.value)}
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  Mot de passe
+                  <div className="input-wrap">
+                    <LockKeyhole size={18} className="input-icon" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      minLength={authMode === 'signup' ? 8 : undefined}
+                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                      placeholder="Saisissez votre mot de passe"
+                      required
+                      value={password}
+                      onChange={event => setPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowPassword(value => !value)}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </label>
+
+                <button className="primary-button login-submit" disabled={loading}>
+                  {loading
+                    ? <><RefreshCw size={18} className="spin" /> Connexion en cours…</>
+                    : <>{authMode === 'login' ? 'Se connecter' : 'Créer mon compte'} <ChevronRight size={18} /></>}
+                </button>
+              </form>
+
+              <div className="auth-switch">
+                {authMode === 'login' ? 'Vous n’avez pas encore de compte ?' : 'Vous avez déjà un compte ?'}
+                <button onClick={() => {
+                  setAuthMode(mode => mode === 'login' ? 'signup' : 'login')
+                  setError('')
+                  setMessage('')
+                  setLogin('')
+                  setPassword('')
+                }}>
+                  {authMode === 'login' ? 'Créer un compte' : 'Se connecter'}
+                </button>
+              </div>
+              <div className="auth-security"><ShieldCheck size={16} /> Connexion sécurisée par Supabase</div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="workspace">
+          <aside className="sidebar">
+            <p className="sidebar-caption">MENU PRINCIPAL</p>
+            <div className="nav-item active"><LayoutDashboard size={18} /> Tableau de bord</div>
+            <div className="nav-item"><Package size={18} /> Catalogue</div>
+            <div className="nav-item"><ShoppingBag size={18} /> Ventes <span className="nav-soon">À venir</span></div>
+            <div className="nav-item"><Users size={18} /> Clients <span className="nav-soon">À venir</span></div>
+            <div className="nav-item"><TrendingUp size={18} /> Statistiques <span className="nav-soon">À venir</span></div>
+            <button
+  type="button"
+  className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
+  onClick={() => setSettingsOpen(value => !value)}
+>
+  <Settings size={17} />
+  Paramètres
+  <ChevronRight size={15} className={settingsOpen ? 'rotate-chevron' : ''} />
+</button>
+            <div className="sidebar-user">
+              <div className="avatar">{(user.email?.[0] ?? 'A').toUpperCase()}</div>
+              <div className="sidebar-user-info"><strong>Compte connecté</strong><small>{user.email}</small></div>
+            </div>
+          </aside>
+
+          <section className="dashboard-content">
+            {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
+            {message && <div className="alert success">{message}</div>}
+
+            <div className="welcome">
+              {settingsOpen && (
+  <section className="panel appearance-panel">
+    <div className="panel-title">
+      <Settings size={21} />
+      <div>
+        <h2>Thème & Apparence</h2>
+        <p>Personnalisez l'apparence de votre espace de travail.</p>
+      </div>
+    </div>
+
+    <label className="field appearance-field">
+      Thème de l'interface
+      <select
+        value={themeMode}
+        onChange={event => setThemeMode(event.target.value as ThemeMode)}
+      >
+        <option value="light">Clair — Beige</option>
+        <option value="dark">Sombre</option>
+        <option value="system">Système — automatique</option>
+      </select>
+    </label>
+
+    <p className="palette-label">Couleur principale</p>
+    <div className="palette-options">
+      {([
+        ['beige', '#a9875b', 'Beige'],
+        ['green', '#397568', 'Vert'],
+        ['blue', '#466b9d', 'Bleu'],
+        ['burgundy', '#914c60', 'Bordeaux'],
+        ['slate', '#626b78', 'Gris ardoise'],
+      ] as const).map(([value, color, label]) => (
+        <button
+          type="button"
+          key={value}
+          className={`palette-choice ${accent === value ? 'chosen' : ''}`}
+          onClick={() => setAccent(value)}
+          aria-label={`Choisir la couleur ${label}`}
+          title={label}
+        >
+          <span style={{ backgroundColor: color }} />
+          {accent === value && <span className="palette-check">✓</span>}
+          <small>{label}</small>
+        </button>
+      ))}
+    </div>
+
+    <p className="appearance-note">
+      Vos préférences sont enregistrées automatiquement dans ce navigateur.
+    </p>
+  </section>
+)}
+              <div>
+                <p className="eyebrow">VOTRE ESPACE DE TRAVAIL</p>
+                <h1>Tableau de bord</h1>
+                <p className="muted">Gérez votre boutique depuis un seul endroit.</p>
+              </div>
+              <div className="secure-label"><ShieldCheck size={17} /> Session authentifiée</div>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card"><div className="stat-icon blue"><Store /></div><span>Boutiques</span><strong>{stores.length}</strong><small>Accessible(s) par votre compte</small></div>
+              <div className="stat-card"><div className="stat-icon violet"><Package /></div><span>Articles au catalogue</span><strong>{products.length}</strong><small>Dans la boutique sélectionnée</small></div>
+              <div className="stat-card"><div className="stat-icon green"><TrendingUp /></div><span>Articles actifs</span><strong>{products.filter(item => item.active).length}</strong><small>Produits disponibles au catalogue</small></div>
+            </div>
+
+            <section className="panel">
+              <div className="panel-heading">
+                <div className="panel-title"><Store size={20} /><div><h2>Mes boutiques</h2><p>Choisissez une boutique ou créez-en une nouvelle.</p></div></div>
+              </div>
+
+              {stores.length > 0 && (
+                <label className="field">
+                  Boutique active
+                  <select value={storeId} onChange={event => setStoreId(event.target.value)}>
+                    {stores.map(store => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.currency}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              <form onSubmit={createStore} className="inline-form">
+                <input
+                  aria-label="Nom de la boutique"
+                  placeholder="Ex. Boutique Élégance"
+                  value={storeName}
+                  onChange={event => setStoreName(event.target.value)}
+                  required
+                  maxLength={150}
+                />
+                <button className="primary-button" disabled={loading}>
+                  <Plus size={17} /> Créer une boutique
+                </button>
+              </form>
+            </section>
+
+            <section className="panel catalogue-panel">
+              <div className="catalogue-header">
+                
+                <div className="panel-title"><Package size={20} /><div><h2>Catalogue des articles</h2><p>Articles enregistrés dans Supabase.</p></div></div>
+                <button className="secondary-button" onClick={() => void loadProducts()} disabled={loading || !storeId}>
+                  <RefreshCw size={16} /> Actualiser
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    setError('')
+                    setMessage('')
+                    setShowProductForm(value => !value)
+                  }}
+                  disabled={!storeId || savingProduct}
+                >
+                  <Plus size={16} /> Nouveau produit
+                </button>
+              </div>
+
+              <div className="catalogue-tools">
+                <div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher un article…" /></div>
+              </div>
+
+              {!storeId ? (
+                <div className="empty-state"><Store size={34} /><strong>Aucune boutique sélectionnée</strong><p>Créez une boutique ou vérifiez vos accès.</p></div>
+              ) : loading ? (
+                <div className="empty-state"><RefreshCw size={25} className="spin" /><p>Chargement des données…</p></div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="empty-state"><Package size={34} /><strong>Aucun article trouvé</strong><p>Le catalogue est vide ou aucun résultat ne correspond à votre recherche.</p></div>
+              ) : (
+                <div className="table-wrap"><table>
+                  <thead><tr><th>Article</th><th>Public</th><th>Statut</th></tr></thead>
+                  <tbody>{filteredProducts.map(product => (
+                    <tr key={product.id}>
+                      <td><div className="product-name"><div className="product-mini-icon"><Shirt size={17} /></div><strong>{product.name}</strong></div></td>
+                      <td>{product.target_audience || 'Non défini'}</td>
+                      <td><span className={product.active ? 'status-pill active-pill' : 'status-pill inactive-pill'}>{product.active ? 'Actif' : 'Archivé'}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              )}
+            </section>
+          </section>
+        </div>
+      )}
+
+      <footer className="footer">
+        <span>© {new Date().getFullYear()} StylePro Manager</span>
+        <span>Gestion commerciale <i>•</i> Sécurisée par Supabase</span>
+      </footer>
+    </main>
+  )
+}
