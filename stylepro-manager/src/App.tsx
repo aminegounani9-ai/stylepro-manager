@@ -34,10 +34,13 @@ import {
   QrCode,
   Boxes,
   ShoppingCart,
+  Factory,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import MobileScanner from './MobileScanner'
+import AtelierModule from './AtelierModule'
 import './stylepro.css'
+import './atelier.css'
 
 
 type PromotionRow = {
@@ -225,6 +228,7 @@ export default function App() {
   | 'statistics'
   | 'labels'
   | 'promotions'
+  | 'atelier'
 >('dashboard')
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
   const [promotionProductIdsByPromotion, setPromotionProductIdsByPromotion] = useState<Record<string, string[]>>({})
@@ -2498,6 +2502,11 @@ const loadPromotions = useCallback(async () => {
               <Users size={19} /> <span>Clients</span>
             </button>
 
+            <p className="sidebar-group-label">PRODUCTION</p>
+            <button type="button" className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`} onClick={() => { setCurrentView('atelier'); setError(''); setMessage('') }}>
+              <Factory size={19} /> <span>Atelier / Production</span>
+            </button>
+
             <p className="sidebar-group-label">ANALYSE</p>
             <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
               <TrendingUp size={19} /> <span>Statistiques</span>
@@ -2527,7 +2536,9 @@ const loadPromotions = useCallback(async () => {
             {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
             {message && <div className="alert success">{message}</div>}
 
-            {currentView === 'stock' ? (
+            {currentView === 'atelier' ? (
+              <AtelierModule storeId={storeId} userId={user.id} />
+            ) : currentView === 'stock' ? (
               <section className="panel">
                 <div className="panel-heading">
                   <form className="form-grid" onSubmit={saveStockMovement}>
