@@ -119,9 +119,18 @@ export default function LivraisonModule({ storeId, userId }: Props) {
     const valid = lines.filter(l => l.variant_id && Number(l.quantity) > 0 && Number(l.unit_price) >= 0)
     if (!recipientName.trim()) return setError('Le destinataire est obligatoire.')
     if (!valid.length) return setError('Ajoutez au moins un article.')
+    const requestedBySource = new Map<string, number>()
     for (const l of valid) {
       if (!Number.isInteger(Number(l.quantity))) return setError('Les quantités doivent être des entiers.')
-      if (Number(l.quantity) > available(l.variant_id, l.location_id)) return setError('Stock insuffisant pour ' + (variantById(l.variant_id)?.sku || 'un article') + '.')
+      const sourceKey = l.variant_id + ':' + l.location_id
+      requestedBySource.set(sourceKey, (requestedBySource.get(sourceKey) || 0) + Number(l.quantity))
+    }
+    for (const [sourceKey, requested] of requestedBySource) {
+      const parts = sourceKey.split(':')
+      if (requested > available(parts[0], parts[1])) {
+        const variant = variantById(parts[0])
+        return setError('Stock insuffisant pour ' + (variant?.sku || 'un article') + ' dans cet emplacement.')
+      }
     }
     setSaving(true)
     try {
