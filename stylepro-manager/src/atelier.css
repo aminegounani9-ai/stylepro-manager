@@ -1,0 +1,1785 @@
+
+/* =========================================================
+   STYLEPRO MANAGER — ATELIER MODULE
+   Theme: Beige / Cream / Brown + Dark Mode
+   Responsive: Desktop / Tablet / Mobile
+   ========================================================= */
+
+   .atelier-module {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: var(--text-primary, #302a24);
+  }
+  
+  /* HERO */
+  
+  .atelier-hero,
+  .atelier-card {
+    background: var(--surface, #fbf8f3);
+    border: 1px solid var(--border, #e8dfd3);
+    border-radius: 18px;
+    box-shadow: 0 5px 20px rgba(70, 48, 27, 0.045);
+  }
+  
+  .atelier-hero {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    padding: 23px;
+  }
+  
+  .atelier-hero-icon,
+  .atelier-section-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    background: #eee3d5;
+    color: #765638;
+    border-radius: 14px;
+  }
+  
+  .atelier-hero-icon {
+    width: 55px;
+    height: 55px;
+  }
+  
+  .atelier-section-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .atelier-hero-copy {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .atelier-eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #987653;
+  }
+  
+  .atelier-hero h1 {
+    font-size: 25px;
+    margin: 3px 0;
+    color: var(--text-primary, #302a24);
+  }
+  
+  .atelier-hero p,
+  .atelier-section-heading p,
+  .atelier-size-header p {
+    margin: 4px 0 0;
+    color: var(--text-muted, #82776b);
+    font-size: 13px;
+  }
+  
+  /* CARDS AND HEADINGS */
+  
+  .atelier-card {
+    padding: 22px;
+    min-width: 0;
+  }
+  
+  .atelier-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 19px;
+  }
+  
+  .atelier-section-heading > div:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .atelier-section-heading h2 {
+    font-size: 17px;
+    margin: 0;
+  }
+  
+  .atelier-section-heading p {
+    line-height: 1.45;
+  }
+  
+  /* FORMS */
+  
+  .atelier-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+  }
+  
+  .atelier-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    color: var(--text-primary, #393129);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
+  .atelier-field input,
+  .atelier-field select,
+  .atelier-search input,
+  .atelier-size-table input,
+  .atelier-custom-size input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--border, #ded3c6);
+    border-radius: 9px;
+    background: var(--input-bg, #fffdfa);
+    color: var(--text-primary, #302a24);
+    padding: 11px 12px;
+    font: inherit;
+    font-weight: 400;
+    outline: none;
+  }
+  
+  .atelier-field input:focus,
+  .atelier-field select:focus,
+  .atelier-size-table input:focus,
+  .atelier-search input:focus {
+    border-color: #a17b54;
+    box-shadow: 0 0 0 3px rgba(161, 123, 84, 0.12);
+  }
+  
+  .atelier-input-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .atelier-input-icon input {
+    flex: 1;
+  }
+  
+  .atelier-notes-field {
+    grid-column: 1 / -1;
+  }
+  
+  /* SUPPLIERS */
+  
+  .atelier-inline-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 13px;
+    padding: 17px;
+    margin-top: 18px;
+    background: var(--surface-soft, #f5efe7);
+    border-radius: 13px;
+  }
+  
+  .atelier-inline-form .atelier-primary-button {
+    align-self: end;
+  }
+  
+  .atelier-supplier-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 15px;
+  }
+  
+  .atelier-supplier-details > div {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px;
+    background: var(--surface-soft, #f5efe7);
+    border-radius: 10px;
+    color: #866744;
+    min-width: 0;
+  }
+  
+  .atelier-supplier-details span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  
+  .atelier-supplier-details small {
+    font-size: 10px;
+    color: var(--text-muted, #887d70);
+  }
+  
+  .atelier-supplier-details strong {
+    font-size: 12px;
+    color: var(--text-primary, #393129);
+    overflow-wrap: anywhere;
+  }
+  
+  /* BUTTONS */
+  
+  .atelier-primary-button,
+  .atelier-secondary-button,
+  .atelier-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 9px;
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.18s;
+  }
+  
+  .atelier-primary-button {
+    background: #765638;
+    color: white;
+    border: 1px solid #765638;
+  }
+  
+  .atelier-primary-button:hover {
+    background: #62452b;
+  }
+  
+  .atelier-secondary-button {
+    background: var(--surface-soft, #f5efe7);
+    color: var(--text-primary, #514435);
+    border: 1px solid var(--border, #e1d6c9);
+  }
+  
+  .atelier-secondary-button:hover {
+    border-color: #ad8b68;
+    background: #eee4d8;
+  }
+  
+  .atelier-icon-button {
+    padding: 8px;
+    background: transparent;
+    color: #806747;
+    border: 1px solid var(--border, #e1d6c9);
+  }
+  
+  .atelier-icon-button:hover {
+    background: #f1e8dd;
+  }
+  
+  .atelier-primary-button:disabled,
+  .atelier-secondary-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  
+  /* AUTOMATIC NUMBER AND COUNTERS */
+  
+  .atelier-auto-number,
+  .atelier-count,
+  .atelier-model-stat {
+    background: #efe5d9;
+    color: #765638;
+    border-radius: 30px;
+    padding: 7px 11px;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  
+  /* MODEL COUNT */
+  
+  .atelier-model-count {
+    max-width: 260px;
+    margin: 20px 0;
+  }
+  
+  .atelier-model-count .atelier-field span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  
+  /* MODEL CARD */
+  
+  .atelier-model-card {
+    margin: 17px 0;
+    padding: 18px;
+    border: 1px solid var(--border, #e4d9cc);
+    border-radius: 14px;
+    background: var(--surface-soft, #faf6f0);
+  }
+  
+  .atelier-model-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+  }
+  
+  .atelier-model-title > div > span {
+    font-size: 9px;
+    letter-spacing: 1.3px;
+    color: #9a7956;
+    font-weight: 800;
+  }
+  
+  .atelier-model-title h3,
+  .atelier-size-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0 0;
+    font-size: 14px;
+  }
+  
+  /* SIZES */
+  
+  .atelier-size-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 18px 0 12px;
+  }
+  
+  .atelier-size-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  
+  .atelier-size-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 11px;
+    border: 1px solid var(--border, #dfd4c8);
+    border-radius: 8px;
+    background: var(--surface, #fffdfa);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  
+  .atelier-size-chip input {
+    accent-color: #765638;
+  }
+  
+  .atelier-size-chip.selected {
+    border-color: #a98763;
+    background: #f0e6da;
+    color: #674a2e;
+  }
+  
+  /* SIZE TABLE */
+  
+  .atelier-size-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 13px;
+  }
+  
+  .atelier-size-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 780px;
+    font-size: 11px;
+  }
+  
+  .atelier-size-table th {
+    text-align: left;
+    padding: 10px;
+    background: var(--surface-soft, #eee6dc);
+    color: var(--text-muted, #766a5e);
+    font-size: 10px;
+  }
+  
+  .atelier-size-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border, #e8dfd5);
+  }
+  
+  .atelier-size-table input {
+    padding: 8px;
+    min-width: 85px;
+  }
+  
+  .atelier-line-total {
+    font-weight: 800;
+    white-space: nowrap;
+    color: #765638;
+  }
+  
+  /* MODEL SUMMARY */
+  
+  .atelier-model-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 13px;
+    color: var(--text-muted, #82776b);
+    font-size: 11px;
+  }
+  
+  .atelier-model-summary b {
+    color: var(--text-primary, #302a24);
+    margin-left: 4px;
+  }
+  
+  /* FINANCIAL SUMMARY */
+  
+  .atelier-cost-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 18px 0;
+  }
+  
+  .atelier-cost-strip > div {
+    padding: 13px;
+    background: var(--surface-soft, #f2ebe2);
+    border: 1px solid var(--border, #e9dfd4);
+    border-radius: 10px;
+    min-width: 0;
+  }
+  
+  .atelier-cost-strip small {
+    display: block;
+    color: var(--text-muted, #83786c);
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  
+  .atelier-cost-strip strong {
+    font-size: 13px;
+    color: var(--text-primary, #493b2d);
+    overflow-wrap: anywhere;
+  }
+  
+  /* FORM ACTIONS */
+  
+  .atelier-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 19px;
+  }
+  
+  /* ALERTS */
+  
+  .atelier-alert {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 15px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+  
+  .atelier-alert.error {
+    background: #fff0ed;
+    color: #a43f30;
+    border: 1px solid #f1c8c0;
+  }
+  
+  .atelier-alert.success {
+    background: #edf7ed;
+    color: #356a3d;
+    border: 1px solid #cde5cf;
+  }
+  
+  /* HISTORY */
+  
+  .atelier-history-toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  
+  .atelier-search {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1;
+    max-width: 560px;
+    padding-left: 12px;
+    border: 1px solid var(--border, #ded3c6);
+    border-radius: 10px;
+    color: #927656;
+  }
+  
+  .atelier-search input {
+    border: 0;
+    box-shadow: none !important;
+    background: transparent;
+  }
+  
+  .atelier-production-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  
+  .atelier-production-row {
+    display: grid;
+    grid-template-columns: 65px minmax(150px, 1fr) repeat(3, minmax(95px, auto)) auto;
+    align-items: center;
+    gap: 13px;
+    padding: 13px;
+    border: 1px solid var(--border, #e8dfd5);
+    border-radius: 12px;
+    background: var(--surface, #fffdfa);
+  }
+  
+  .atelier-production-number {
+    font-size: 13px;
+    font-weight: 900;
+    color: #806044;
+  }
+  
+  .atelier-production-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  
+  .atelier-production-main strong {
+    font-size: 13px;
+  }
+  
+  .atelier-production-main span,
+  .atelier-production-main small {
+    font-size: 10px;
+    color: var(--text-muted, #82776b);
+    overflow-wrap: anywhere;
+  }
+  
+  .atelier-production-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .atelier-production-metric small {
+    font-size: 9px;
+    color: var(--text-muted, #82776b);
+  }
+  
+  .atelier-production-metric strong {
+    font-size: 11px;
+  }
+  
+  .atelier-row-actions {
+    display: flex;
+    gap: 5px;
+  }
+  
+  .atelier-expanded {
+    grid-column: 1 / -1;
+    padding: 14px;
+    margin-top: 5px;
+    border-top: 1px solid var(--border, #e8dfd5);
+  }
+  
+  .atelier-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .atelier-detail-grid span {
+    font-size: 11px;
+    color: var(--text-muted, #82776b);
+  }
+  
+  .atelier-detail-grid b {
+    display: block;
+    color: var(--text-primary, #302a24);
+    margin-top: 3px;
+  }
+  
+  .atelier-model-history {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--border, #dfd5c9);
+    font-size: 11px;
+  }
+  
+  .atelier-model-history code {
+    background: #eee4d8;
+    color: #765638;
+    padding: 4px 7px;
+    border-radius: 5px;
+  }
+  
+  .atelier-model-history small {
+    color: var(--text-muted, #82776b);
+  }
+  
+  /* EMPTY STATE AND FOOTER */
+  
+  .atelier-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 9px;
+    padding: 35px;
+    color: var(--text-muted, #82776b);
+    font-size: 12px;
+  }
+  
+  .atelier-footnote {
+    font-size: 11px;
+    color: var(--text-muted, #82776b);
+    text-align: center;
+    margin: 0 0 8px;
+  }
+  
+  /* LOADING ANIMATION */
+  
+  .atelier-spin {
+    animation: atelier-spin 1s linear infinite;
+  }
+  
+  @keyframes atelier-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* =========================================================
+     DARK MODE
+     ========================================================= */
+  
+  .dark .atelier-hero,
+  .dark .atelier-card,
+  .dark .atelier-production-row {
+    background: var(--surface, #211f1c);
+    border-color: var(--border, #403a33);
+  }
+  
+  .dark .atelier-model-card,
+  .dark .atelier-inline-form,
+  .dark .atelier-cost-strip > div,
+  .dark .atelier-supplier-details > div {
+    background: var(--surface-soft, #29251f);
+    border-color: var(--border, #403a33);
+  }
+  
+  .dark .atelier-field input,
+  .dark .atelier-field select,
+  .dark .atelier-size-table input,
+  .dark .atelier-search input {
+    background: #211f1c;
+    color: #eee6dc;
+    border-color: #494137;
+  }
+  
+  .dark .atelier-size-chip {
+    background: #25211d;
+    border-color: #494137;
+    color: #eee6dc;
+  }
+  
+  .dark .atelier-size-chip.selected {
+    background: #493927;
+    border-color: #96734e;
+  }
+  
+  .dark .atelier-cost-strip strong,
+  .dark .atelier-supplier-details strong,
+  .dark .atelier-model-summary b {
+    color: #eee6dc;
+  }
+  
+  .dark .atelier-size-table th {
+    background: #393128;
+    color: #d1c3b2;
+  }
+  
+  .dark .atelier-alert.error {
+    background: #3a211e;
+    color: #ffb8ac;
+    border-color: #704039;
+  }
+  
+  .dark .atelier-alert.success {
+    background: #203325;
+    color: #b9e5c0;
+    border-color: #365a3e;
+  }
+  
+  /* =========================================================
+     TABLET
+     ========================================================= */
+  
+  @media (max-width: 1050px) {
+    .atelier-cost-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  
+    .atelier-production-row {
+      grid-template-columns: 55px minmax(130px, 1fr) repeat(2, minmax(85px, auto)) auto;
+    }
+  
+    .atelier-production-metric:nth-of-type(5) {
+      display: none;
+    }
+  }
+  
+  /* =========================================================
+     MOBILE
+     ========================================================= */
+  
+  @media (max-width: 700px) {
+    .atelier-hero {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding: 17px;
+    }
+  
+    .atelier-hero-copy {
+      min-width: calc(100% - 75px);
+    }
+  
+    .atelier-hero > .atelier-secondary-button {
+      margin-left: 72px;
+    }
+  
+    .atelier-card {
+      padding: 15px;
+    }
+  
+    .atelier-section-heading {
+      flex-wrap: wrap;
+    }
+  
+    .atelier-section-heading > button {
+      margin-left: 52px;
+    }
+  
+    .atelier-form-grid,
+    .atelier-inline-form {
+      grid-template-columns: 1fr;
+    }
+  
+    .atelier-notes-field {
+      grid-column: auto;
+    }
+  
+    .atelier-supplier-details {
+      grid-template-columns: 1fr;
+    }
+  
+    .atelier-size-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  
+    .atelier-production-row {
+      grid-template-columns: 52px minmax(0, 1fr) auto;
+      gap: 9px;
+    }
+  
+    .atelier-production-metric {
+      display: none !important;
+    }
+  
+    .atelier-expanded {
+      grid-column: 1 / -1;
+    }
+  
+    .atelier-detail-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  
+    .atelier-cost-strip {
+      grid-template-columns: 1fr 1fr;
+    }
+  
+    .atelier-model-summary {
+      gap: 9px 14px;
+    }
+  
+    .atelier-form-actions {
+      flex-wrap: wrap;
+    }
+  
+    .atelier-form-actions button {
+      flex: 1;
+    }
+  }
+  
+  
+/* =========================================================
+   ATELIER — RESTORE PROFESSIONAL LAYOUT
+   Compatible with current AtelierModule.tsx
+   ========================================================= */
+
+.atelier-module {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 22px;
+  }
+  
+  .atelier-module *,
+  .atelier-module *::before,
+  .atelier-module *::after {
+    box-sizing: border-box;
+  }
+  
+  .atelier-module label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    color: var(--text-primary, #393129);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
+  .atelier-module input:not([type="checkbox"]),
+  .atelier-module select,
+  .atelier-module textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid var(--border, #ded3c6);
+    border-radius: 9px;
+    background: var(--input-bg, #fffdfa);
+    color: var(--text-primary, #302a24);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .18s, box-shadow .18s;
+  }
+  
+  .atelier-module input:focus,
+  .atelier-module select:focus,
+  .atelier-module textarea:focus {
+    border-color: #a17b54;
+    box-shadow: 0 0 0 3px rgba(161,123,84,.12);
+  }
+  
+  .atelier-module textarea {
+    min-height: 85px;
+    resize: vertical;
+  }
+  
+  .atelier-module .atelier-card {
+    padding: 23px;
+    overflow: hidden;
+  }
+  
+  .atelier-module .atelier-section-heading {
+    min-width: 0;
+  }
+  
+  .atelier-module .atelier-form-grid {
+    margin: 15px 0;
+    align-items: end;
+  }
+  
+  .atelier-module .atelier-full {
+    grid-column: 1 / -1;
+  }
+  
+  .atelier-module .atelier-model-history {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    gap: 13px;
+    margin: 17px 0;
+    padding: 19px;
+    border: 1px solid var(--border, #e4d9cc);
+    border-radius: 14px;
+    background: var(--surface-soft, #faf6f0);
+  }
+  
+  .atelier-module .atelier-model-history h3 {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--text-primary, #302a24);
+    font-size: 15px;
+  }
+  
+  .atelier-module .atelier-size-options {
+    align-items: center;
+    padding: 13px;
+    border-radius: 11px;
+    background: var(--surface-soft, #f5efe7);
+  }
+  
+  .atelier-module .atelier-size-options > strong {
+    width: 100%;
+    margin-top: 5px;
+    color: #765638;
+    font-size: 11px;
+  }
+  
+  .atelier-module .atelier-size-options label {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 11px;
+    border: 1px solid var(--border, #dfd4c8);
+    border-radius: 8px;
+    background: var(--surface, #fffdfa);
+    cursor: pointer;
+  }
+  
+  .atelier-module .atelier-size-options input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #765638;
+  }
+  
+  .atelier-module .atelier-detail-grid {
+    padding: 17px;
+    border: 1px solid var(--border, #e8dfd5);
+    border-radius: 12px;
+    background: var(--surface-soft, #f5efe7);
+  }
+  
+  .atelier-module .atelier-detail-grid span {
+    padding: 5px;
+  }
+  
+  .atelier-module .atelier-detail-grid b {
+    font-size: 13px;
+  }
+  
+  .atelier-module form > .atelier-primary-button {
+    margin-top: 18px;
+  }
+  
+  .atelier-module .atelier-production-row {
+    grid-template-columns: 65px minmax(150px, 1fr) repeat(3, minmax(95px, auto)) auto;
+  }
+  
+  .atelier-module .atelier-row-actions {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  .atelier-module .atelier-stock-integrated {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #e7f2e7;
+    color: #356a3d;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  
+  .atelier-module .atelier-expanded {
+    width: 100%;
+    min-width: 0;
+    background: var(--surface-soft, #faf6f0);
+    border-radius: 10px;
+  }
+  
+  .atelier-module .atelier-model-history code {
+    overflow-wrap: anywhere;
+  }
+  
+  .dark .atelier-module label {
+    color: #e8dfd4;
+  }
+  
+  .dark .atelier-module input:not([type="checkbox"]),
+  .dark .atelier-module select,
+  .dark .atelier-module textarea {
+    background: #211f1c;
+    color: #eee6dc;
+    border-color: #494137;
+  }
+  
+  .dark .atelier-module .atelier-model-history,
+  .dark .atelier-module .atelier-detail-grid,
+  .dark .atelier-module .atelier-size-options {
+    background: #29251f;
+    border-color: #403a33;
+  }
+  
+  .dark .atelier-module .atelier-size-options label {
+    background: #211f1c;
+    color: #eee6dc;
+  }
+  
+  .dark .atelier-module .atelier-stock-integrated {
+    background: #203325;
+    color: #b9e5c0;
+  }
+  
+  @media (max-width: 1050px) {
+    .atelier-module .atelier-production-row {
+      grid-template-columns: 55px minmax(130px, 1fr) repeat(2, minmax(85px, auto));
+    }
+  
+    .atelier-module .atelier-row-actions {
+      grid-column: 2 / -1;
+      justify-content: flex-start;
+    }
+  
+    .atelier-module .atelier-model-history {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  
+  @media (max-width: 700px) {
+    .atelier-module {
+      gap: 15px;
+    }
+  
+    .atelier-module .atelier-card {
+      padding: 15px;
+    }
+  
+    .atelier-module .atelier-section-heading {
+      align-items: flex-start;
+    }
+  
+    .atelier-module .atelier-section-heading > button {
+      margin-left: 0;
+    }
+  
+    .atelier-module .atelier-form-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .atelier-module .atelier-full {
+      grid-column: auto;
+    }
+  
+    .atelier-module .atelier-model-history {
+      grid-template-columns: 1fr 1fr;
+      padding: 13px;
+    }
+  
+    .atelier-module .atelier-model-history h3 {
+      grid-column: 1 / -1;
+    }
+  
+    .atelier-module .atelier-detail-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      padding: 11px;
+    }
+  
+    .atelier-module .atelier-production-row {
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 9px;
+    }
+  
+    .atelier-module .atelier-row-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+    }
+  
+    .atelier-module .atelier-row-actions button {
+      flex: 0 0 auto;
+    }
+  
+    .atelier-module .atelier-history-toolbar {
+      flex-direction: column;
+    }
+  
+    .atelier-module .atelier-search {
+      max-width: none;
+    }
+  }
+  
+  
+/* =====================================================
+   ATELIER — COMPACT PROFESSIONAL REDESIGN
+   Fournisseurs / Nouvelle production / Models
+   ===================================================== */
+
+.atelier-module {
+    gap: 16px !important;
+  }
+  
+  /* CARDS */
+  .atelier-module .atelier-card {
+    padding: 19px 21px !important;
+    border-radius: 15px !important;
+  }
+  
+  /* SECTION HEADINGS */
+  .atelier-module .atelier-section-heading {
+    margin-bottom: 14px !important;
+    gap: 10px !important;
+  }
+  
+  .atelier-module .atelier-section-heading h2 {
+    font-size: 16px !important;
+    font-weight: 750;
+  }
+  
+  .atelier-module .atelier-section-icon {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+  }
+  
+  /* FOURNISSEURS */
+  .atelier-module .atelier-inline-form {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 13px !important;
+    margin-top: 12px !important;
+    border-radius: 11px !important;
+  }
+  
+  .atelier-module .atelier-inline-form input,
+  .atelier-module .atelier-inline-form select {
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  
+  .atelier-module .atelier-supplier-details {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+    margin-top: 11px !important;
+  }
+  
+  .atelier-module .atelier-supplier-details > div {
+    padding: 10px !important;
+    border-radius: 9px !important;
+  }
+  
+  /* NOUVELLE PRODUCTION */
+  .atelier-module .atelier-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: end !important;
+    margin: 12px 0 !important;
+  }
+  
+  .atelier-module .atelier-form-grid label {
+    gap: 5px !important;
+    font-size: 11px !important;
+  }
+  
+  .atelier-module .atelier-form-grid input,
+  .atelier-module .atelier-form-grid select {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+  }
+  
+  .atelier-module .atelier-form-grid textarea {
+    min-height: 65px !important;
+    padding: 9px 10px !important;
+  }
+  
+  .atelier-module .atelier-full,
+  .atelier-module .atelier-notes-field {
+    grid-column: 1 / -1 !important;
+  }
+  
+  /* MODEL COUNT */
+  .atelier-module .atelier-model-count {
+    max-width: 220px !important;
+    margin: 13px 0 !important;
+  }
+  
+  .atelier-module .atelier-model-count input,
+  .atelier-module .atelier-model-count select {
+    height: 36px !important;
+  }
+  
+  /* MODEL CARDS */
+  .atelier-module .atelier-model-card,
+  .atelier-module .atelier-model-history {
+    display: block !important;
+    width: 100% !important;
+    margin: 12px 0 !important;
+    padding: 14px 16px !important;
+    border: 1px solid var(--border, #e4d9cc) !important;
+    border-radius: 12px !important;
+    background: var(--surface-soft, #faf6f0) !important;
+  }
+  
+  /* MODEL HEADER */
+  .atelier-module .atelier-model-title {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    margin-bottom: 11px !important;
+    padding-bottom: 9px !important;
+    border-bottom: 1px solid var(--border, #e4d9cc);
+  }
+  
+  .atelier-module .atelier-model-title h3 {
+    font-size: 13px !important;
+    margin: 2px 0 0 !important;
+  }
+  
+  .atelier-module .atelier-model-title > div > span {
+    font-size: 9px !important;
+  }
+  
+  /* MODEL INPUTS — compact aligned grid */
+  .atelier-module .atelier-model-card .atelier-form-grid,
+  .atelier-module .atelier-model-history .atelier-form-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 8px 0 12px !important;
+  }
+  
+  .atelier-module .atelier-model-card label,
+  .atelier-module .atelier-model-history label {
+    font-size: 10px !important;
+    gap: 4px !important;
+  }
+  
+  .atelier-module .atelier-model-card input,
+  .atelier-module .atelier-model-card select,
+  .atelier-module .atelier-model-history input,
+  .atelier-module .atelier-model-history select {
+    height: 35px !important;
+    min-height: 35px !important;
+    padding: 7px 9px !important;
+    font-size: 11px !important;
+  }
+  
+  /* SIZE SECTION */
+  .atelier-module .atelier-size-header {
+    margin: 12px 0 8px !important;
+  }
+  
+  .atelier-module .atelier-size-header h3 {
+    font-size: 12px !important;
+  }
+  
+  .atelier-module .atelier-size-options {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 9px !important;
+    margin: 8px 0 !important;
+    border-radius: 9px !important;
+  }
+  
+  .atelier-module .atelier-size-options label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 6px 9px !important;
+    border: 1px solid var(--border, #dfd4c8);
+    border-radius: 7px !important;
+    font-size: 10px !important;
+  }
+  
+  /* SIZE TABLE */
+  .atelier-module .atelier-size-table-wrap {
+    margin-top: 9px !important;
+    border: 1px solid var(--border, #e4d9cc);
+    border-radius: 9px;
+  }
+  
+  .atelier-module .atelier-size-table {
+    min-width: 650px !important;
+    font-size: 10px !important;
+  }
+  
+  .atelier-module .atelier-size-table th {
+    padding: 8px !important;
+    font-size: 9px !important;
+  }
+  
+  .atelier-module .atelier-size-table td {
+    padding: 6px !important;
+  }
+  
+  .atelier-module .atelier-size-table input {
+    min-width: 65px !important;
+    height: 32px !important;
+    padding: 6px 7px !important;
+    font-size: 10px !important;
+  }
+  
+  /* MODEL TOTALS */
+  .atelier-module .atelier-model-summary {
+    gap: 10px 17px !important;
+    margin-top: 10px !important;
+    padding-top: 9px;
+    border-top: 1px dashed var(--border, #dfd5c9);
+    font-size: 10px !important;
+  }
+  
+  /* COST SUMMARY */
+  .atelier-module .atelier-cost-strip {
+    gap: 8px !important;
+    margin: 13px 0 !important;
+  }
+  
+  .atelier-module .atelier-cost-strip > div {
+    padding: 10px !important;
+    border-radius: 9px !important;
+  }
+  
+  .atelier-module .atelier-cost-strip small {
+    font-size: 9px !important;
+  }
+  
+  .atelier-module .atelier-cost-strip strong {
+    font-size: 12px !important;
+  }
+  
+  /* BUTTONS */
+  .atelier-module .atelier-primary-button,
+  .atelier-module .atelier-secondary-button {
+    min-height: 35px !important;
+    padding: 8px 12px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+  }
+  
+  /* DARK MODE */
+  .dark .atelier-module .atelier-model-card,
+  .dark .atelier-module .atelier-model-history {
+    background: #29251f !important;
+    border-color: #403a33 !important;
+  }
+  
+  /* TABLET */
+  @media (max-width: 900px) {
+    .atelier-module .atelier-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  
+    .atelier-module .atelier-inline-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+  
+  /* MOBILE */
+  @media (max-width: 600px) {
+    .atelier-module .atelier-card {
+      padding: 13px !important;
+    }
+  
+    .atelier-module .atelier-form-grid,
+    .atelier-module .atelier-model-card .atelier-form-grid,
+    .atelier-module .atelier-model-history .atelier-form-grid,
+    .atelier-module .atelier-inline-form {
+      grid-template-columns: 1fr !important;
+    }
+  
+    .atelier-module .atelier-supplier-details {
+      grid-template-columns: 1fr !important;
+    }
+  
+    .atelier-module .atelier-model-card,
+    .atelier-module .atelier-model-history {
+      padding: 11px !important;
+    }
+  
+    .atelier-module .atelier-size-table {
+      min-width: 600px !important;
+    }
+  
+    .atelier-module .atelier-cost-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+ 
+  
+/* =========================================================
+   STYLEPRO ATELIER — PREMIUM PROFESSIONAL FINISH
+   Beige / Sand / Espresso
+   ========================================================= */
+
+.atelier-module {
+    --atelier-brown: #795638;
+    --atelier-brown-dark: #59402b;
+    --atelier-gold: #b18a5e;
+    --atelier-sand: #eee4d7;
+    --atelier-line: #e6ddd1;
+    --atelier-muted: #897e72;
+    --atelier-shadow: 0 8px 25px rgba(67, 47, 29, .055);
+    color: var(--text-primary, #302a24);
+  }
+  
+  /* HERO */
+  .atelier-module .atelier-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e6d9c9;
+    background: linear-gradient(115deg, #f8f2e9 0%, #fffdfa 65%, #eee2d3 100%);
+    box-shadow: var(--atelier-shadow);
+  }
+  
+  .atelier-module .atelier-hero::after {
+    content: "";
+    position: absolute;
+    right: -45px;
+    top: -65px;
+    width: 180px;
+    height: 180px;
+    border: 1px solid rgba(121, 86, 56, .12);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  
+  .atelier-module .atelier-hero-icon {
+    background: linear-gradient(145deg, #8b6947, #61452e);
+    color: #fffaf3;
+    box-shadow: 0 5px 14px rgba(89, 64, 43, .18);
+  }
+  
+  .atelier-module .atelier-eyebrow {
+    color: #a17a51;
+    letter-spacing: 1.8px;
+  }
+  
+  .atelier-module .atelier-hero h1 {
+    letter-spacing: -.5px;
+    font-weight: 800;
+  }
+  
+  /* MAIN CARDS */
+  .atelier-module .atelier-card {
+    border: 1px solid var(--atelier-line);
+    background: var(--surface, #fffdfa);
+    border-radius: 15px;
+    box-shadow: var(--atelier-shadow);
+    transition: box-shadow .2s ease, border-color .2s ease;
+  }
+  
+  .atelier-module .atelier-card:hover {
+    border-color: #d7c4ae;
+    box-shadow: 0 10px 28px rgba(67, 47, 29, .075);
+  }
+  
+  /* SECTION TITLES */
+  .atelier-module .atelier-section-heading {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee7de;
+  }
+  
+  .atelier-module .atelier-section-icon {
+    background: linear-gradient(145deg, #f1e7da, #e7d7c5);
+    color: #765638;
+    border: 1px solid #e5d7c7;
+  }
+  
+  .atelier-module .atelier-section-heading h2 {
+    color: #493b2d;
+    letter-spacing: -.2px;
+  }
+  
+  /* LABELS */
+  .atelier-module label {
+    color: #645747;
+    font-weight: 700;
+    letter-spacing: .1px;
+  }
+  
+  /* INPUTS */
+  .atelier-module input:not([type="checkbox"]),
+  .atelier-module select,
+  .atelier-module textarea {
+    border: 1px solid #e2d8cb;
+    border-radius: 8px;
+    background: #fffefa;
+    color: #3d342b;
+    transition: all .18s ease;
+  }
+  
+  .atelier-module input::placeholder,
+  .atelier-module textarea::placeholder {
+    color: #b1a79b;
+  }
+  
+  .atelier-module input:hover,
+  .atelier-module select:hover,
+  .atelier-module textarea:hover {
+    border-color: #c5aa8c;
+  }
+  
+  .atelier-module input:focus,
+  .atelier-module select:focus,
+  .atelier-module textarea:focus {
+    border-color: #9b754e;
+    box-shadow: 0 0 0 3px rgba(155, 117, 78, .11);
+    background: #fff;
+  }
+  
+  /* SUPPLIER SECTION */
+  .atelier-module .atelier-inline-form {
+    background: #f7f2eb;
+    border: 1px solid #e9dfd2;
+  }
+  
+  .atelier-module .atelier-supplier-details > div {
+    background: #f8f4ee;
+    border: 1px solid #eee5da;
+    transition: transform .18s ease, background .18s ease;
+  }
+  
+  .atelier-module .atelier-supplier-details > div:hover {
+    transform: translateY(-2px);
+    background: #f1e8dc;
+  }
+  
+  /* MODEL CARDS */
+  .atelier-module .atelier-model-card,
+  .atelier-module .atelier-model-history {
+    position: relative;
+    border: 1px solid #e5d9ca !important;
+    background: linear-gradient(145deg, #fcfaf6, #f7f1e9) !important;
+    box-shadow: 0 3px 12px rgba(67, 47, 29, .035);
+  }
+  
+  .atelier-module .atelier-model-title {
+    border-bottom: 1px solid #e8ded1;
+  }
+  
+  .atelier-module .atelier-model-title h3 {
+    color: #59432e;
+    font-weight: 800;
+  }
+  
+  .atelier-module .atelier-model-title > div > span {
+    color: #a17b53;
+  }
+  
+  /* SIZE SELECTORS */
+  .atelier-module .atelier-size-options {
+    background: #f4eee6;
+    border: 1px solid #e9dfd3;
+  }
+  
+  .atelier-module .atelier-size-options label {
+    background: #fffdfa;
+    border: 1px solid #e4d9cc;
+    color: #655340;
+    transition: all .15s ease;
+  }
+  
+  .atelier-module .atelier-size-options label:hover {
+    border-color: #b28c64;
+    background: #f6eee4;
+  }
+  
+  .atelier-module .atelier-size-options input:checked {
+    accent-color: #795638;
+  }
+  
+  /* TABLE */
+  .atelier-module .atelier-size-table-wrap {
+    border: 1px solid #e7ddd1;
+    background: #fffdfa;
+    box-shadow: 0 2px 8px rgba(67, 47, 29, .025);
+  }
+  
+  .atelier-module .atelier-size-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  
+  .atelier-module .atelier-size-table th {
+    background: #eee5da;
+    color: #695744;
+    font-weight: 800;
+    letter-spacing: .3px;
+  }
+  
+  .atelier-module .atelier-size-table td {
+    background: transparent;
+    border-bottom: 1px solid #eee8df;
+  }
+  
+  .atelier-module .atelier-size-table tbody tr:hover td {
+    background: #faf6f0;
+  }
+  
+  .atelier-module .atelier-line-total {
+    color: #765638;
+    font-weight: 800;
+  }
+  
+  /* FINANCIAL SUMMARY */
+  .atelier-module .atelier-cost-strip > div {
+    background: linear-gradient(145deg, #faf6f0, #f1e8dc);
+    border: 1px solid #e7dbcd;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  
+  .atelier-module .atelier-cost-strip > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(67, 47, 29, .07);
+  }
+  
+  .atelier-module .atelier-cost-strip strong {
+    color: #60462f;
+    font-weight: 800;
+  }
+  
+  /* BUTTONS */
+  .atelier-module .atelier-primary-button {
+    background: linear-gradient(135deg, #866444, #62452e);
+    border: 1px solid #62452e;
+    color: #fff;
+    box-shadow: 0 3px 9px rgba(98, 69, 46, .15);
+    transition: all .2s ease;
+  }
+  
+  .atelier-module .atelier-primary-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #987650, #705034);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 13px rgba(98, 69, 46, .2);
+  }
+  
+  .atelier-module .atelier-secondary-button {
+    background: #f6f1e9;
+    border: 1px solid #e3d7c9;
+    color: #634d37;
+    transition: all .18s ease;
+  }
+  
+  .atelier-module .atelier-secondary-button:hover:not(:disabled) {
+    background: #eee3d6;
+    border-color: #cbb398;
+  }
+  
+  .atelier-module .atelier-icon-button {
+    background: #faf6f0;
+    border: 1px solid #e6dbcf;
+    color: #806044;
+  }
+  
+  .atelier-module .atelier-icon-button:hover {
+    background: #eee3d6;
+    color: #59402b;
+  }
+  
+  /* HISTORY */
+  .atelier-module .atelier-production-row {
+    border: 1px solid #e8dfd4;
+    background: #fffdfa;
+    transition: all .18s ease;
+  }
+  
+  .atelier-module .atelier-production-row:hover {
+    border-color: #cdb79e;
+    box-shadow: 0 4px 14px rgba(67, 47, 29, .06);
+  }
+  
+  .atelier-module .atelier-production-number {
+    color: #896746;
+    background: #f1e8dd;
+    border-radius: 8px;
+    padding: 7px;
+    text-align: center;
+  }
+  
+  .atelier-module .atelier-expanded {
+    background: #f8f4ee;
+    border-radius: 10px;
+  }
+  
+  /* ALERTS */
+  .atelier-module .atelier-alert {
+    border-radius: 9px;
+    font-weight: 600;
+  }
+  
+  /* DARK MODE */
+  .dark .atelier-module .atelier-hero {
+    background: linear-gradient(115deg, #302920, #24211d);
+    border-color: #514333;
+  }
+  
+  .dark .atelier-module .atelier-section-heading {
+    border-color: #403a33;
+  }
+  
+  .dark .atelier-module .atelier-section-heading h2,
+  .dark .atelier-module .atelier-model-title h3 {
+    color: #eee3d5;
+  }
+  
+  .dark .atelier-module label {
+    color: #d8cabb;
+  }
+  
+  .dark .atelier-module .atelier-model-card,
+  .dark .atelier-module .atelier-model-history {
+    background: linear-gradient(145deg, #2c2822, #25221e) !important;
+    border-color: #494035 !important;
+  }
+  
+  .dark .atelier-module .atelier-inline-form,
+  .dark .atelier-module .atelier-size-options,
+  .dark .atelier-module .atelier-expanded {
+    background: #29251f;
+    border-color: #494035;
+  }
+  
+  .dark .atelier-module .atelier-supplier-details > div,
+  .dark .atelier-module .atelier-cost-strip > div {
+    background: #302a23;
+    border-color: #494035;
+  }
+  
+  .dark .atelier-module .atelier-cost-strip strong,
+  .dark .atelier-module .atelier-line-total {
+    color: #e4c49e;
+  }
+  
+  .dark .atelier-module .atelier-size-table-wrap {
+    background: #24211d;
+    border-color: #494035;
+  }
+  
+  .dark .atelier-module .atelier-size-table th {
+    background: #393128;
+    color: #e5d6c4;
+  }
+  
+  .dark .atelier-module .atelier-size-table tbody tr:hover td {
+    background: #302a23;
+  }
+  
+  .dark .atelier-module .atelier-production-row {
+    background: #25221e;
+    border-color: #494035;
+  }
+  
+  .dark .atelier-module .atelier-production-row:hover {
+    border-color: #92734f;
+  }
+  
+  .dark .atelier-module .atelier-primary-button {
+    background: linear-gradient(135deg, #96734f, #725237);
+    border-color: #96734f;
+  }
+  
+  .dark .atelier-module .atelier-secondary-button,
+  .dark .atelier-module .atelier-icon-button {
+    background: #302a23;
+    color: #e5d6c4;
+    border-color: #514333;
+  }
+  

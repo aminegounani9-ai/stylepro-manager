@@ -34,9 +34,12 @@ import {
   QrCode,
   Boxes,
   ShoppingCart,
+  Factory,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import MobileScanner from './MobileScanner'
+import AtelierModule from './AtelierModule'
+import './atelier.css'
 import './stylepro.css'
 
 
@@ -205,6 +208,11 @@ function loadLabelSettings(): Partial<LabelSettings> {
   }
 }
 
+const STOCK_LOCATIONS = {
+  boutique: '5f2ccda1-58c1-4282-997b-309698834ad7',
+  reserve: 'd67f391c-a873-4b56-a8db-0e709117eae6'
+} as const
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
@@ -218,6 +226,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<
   | 'dashboard'
   | 'catalogue'
+  | 'atelier'  
   | 'stock'
   | 'sales'
   | 'returns'
@@ -240,7 +249,7 @@ export default function App() {
   const [promotionActive, setPromotionActive] = useState(false)
   const [promotionProductIds, setPromotionProductIds] = useState<string[]>([])
   const [promotionSearch, setPromotionSearch] = useState('')
-
+  const [stockLocation, setStockLocation] = useState<'boutique' | 'reserve'>('boutique')
   const [labelVariants, setLabelVariants] = useState<POSVariant[]>([])
   const [labelSearch, setLabelSearch] = useState('')
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
@@ -261,13 +270,23 @@ export default function App() {
   const [posVariants, setPosVariants] = useState<POSVariant[]>([])
   const [posCustomers, setPosCustomers] = useState<POSCustomer[]>([])
   const [posStocks, setPosStocks] = useState<Record<string, number>>({})
+  const [stockByLocation, setStockByLocation] = useState<
+  Record<string, { boutique: number; reserve: number }>
+>({})
   const [movementVariant, setMovementVariant] = useState('')
   const [movementType, setMovementType] = useState<'in' | 'out' | 'adjustment'>('in')
   const [movementQty, setMovementQty] = useState('1')
   const [movementCost, setMovementCost] = useState('')
   const [movementReason, setMovementReason] = useState('')
   const [movementBusy, setMovementBusy] = useState(false)
+  const [transferVariant, setTransferVariant] = useState('')
+  const [transferFrom, setTransferFrom] = useState<'boutique' | 'reserve'>('reserve')
+  const [transferTo, setTransferTo] = useState<'boutique' | 'reserve'>('boutique')
+  const [transferQty, setTransferQty] = useState('1')
+  const [transferReason, setTransferReason] = useState('')
+  const [transferBusy, setTransferBusy] = useState(false)
   const [movementHistory, setMovementHistory] = useState<any[]>([])
+  const [historyExpanded, setHistoryExpanded] = useState(false)
   const [stockSearch, setStockSearch] = useState('')
   const [stockFilter, setStockFilter] = useState<
   'all' | 'low' | 'out' | 'available'
@@ -622,6 +641,7 @@ const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
 const [imagePreviewUrl, setImagePreviewUrl] = useState('')
 const [existingImageUrl, setExistingImageUrl] = useState('')
 
+
 const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
   {
     sku: '',
@@ -751,6 +771,9 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
           (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
       }
 
+    
+
+     
       const lowStock = (variantsResult.data ?? [])
         .map(v => ({
           id: v.id,
@@ -838,31 +861,91 @@ const loadProductOptions = useCallback(async () => {
     }
   }, [user, storeId, loadProductOptions])
 
-  const loadPOSData = useCallback(async () => {
-    if (!storeId) return
-    const [vr, mr, cr] = await Promise.all([
-      supabase.from('product_variants')
-        .select('id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active')
-        .eq('store_id', storeId).eq('active', true).order('sku'),
-      supabase.from('stock_movements')
-        .select('variant_id,quantity_delta').eq('store_id', storeId),
-      supabase.from('customers')
-        .select('id,full_name,phone').eq('store_id', storeId).order('full_name')
-    ])
-    if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
-    if (mr.error) throw new Error(`Stock : ${mr.error.message}`)
-    if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+  const BOUTIQUE_LOCATION_ID =
+  '5f2ccda1-58c1-4282-997b-309698834ad7'
 
-    const activeIds = new Set(products.filter(p => p.active).map(p => p.id))
-    setPosVariants(((vr.data ?? []) as POSVariant[]).filter(v => activeIds.has(v.product_id)))
-    setPosCustomers((cr.data ?? []) as POSCustomer[])
-    const stocks: Record<string, number> = {}
-    for (const m of mr.data ?? []) {
-      stocks[m.variant_id] = (stocks[m.variant_id] ?? 0) + Number(m.quantity_delta)
+  const RESERVE_LOCATION_ID =
+  'd67f391c-a873-4b56-a8db-0e709117eae6'
+
+
+const loadPOSData = useCallback(async () => {
+  if (!storeId) return
+
+  const [vr, mr, cr] = await Promise.all([
+    supabase.from('product_variants')
+      .select('id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active')
+      .eq('store_id', storeId)
+      .eq('active', true)
+      .order('sku'),
+
+    supabase.from('stock_movements')
+      .select('variant_id,location_id,quantity_delta')
+      .eq('store_id', storeId)
+      .in('location_id', [
+        BOUTIQUE_LOCATION_ID,
+        RESERVE_LOCATION_ID
+      ]),
+
+    supabase.from('customers')
+      .select('id,full_name,phone')
+      .eq('store_id', storeId)
+      .order('full_name')
+  ])
+
+  if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
+  if (mr.error) throw new Error(`Stock : ${mr.error.message}`)
+  if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+
+  const activeIds = new Set(
+    products.filter(p => p.active).map(p => p.id)
+  )
+
+  setPosVariants(
+    ((vr.data ?? []) as POSVariant[])
+      .filter(v => activeIds.has(v.product_id))
+  )
+
+  setPosCustomers((cr.data ?? []) as POSCustomer[])
+
+  const boutiqueStocks: Record<string, number> = {}
+  const reserveStocks: Record<string, number> = {}
+
+  for (const m of mr.data ?? []) {
+    const quantity = Number(m.quantity_delta)
+
+    if (m.location_id === BOUTIQUE_LOCATION_ID) {
+      boutiqueStocks[m.variant_id] =
+        (boutiqueStocks[m.variant_id] ?? 0) + quantity
     }
-    setPosStocks(stocks)
-    setPosCart(cart => cart.map(item => ({...item, stock: stocks[item.variant_id] ?? 0})))
-  }, [storeId, products])
+
+    if (m.location_id === RESERVE_LOCATION_ID) {
+      reserveStocks[m.variant_id] =
+        (reserveStocks[m.variant_id] ?? 0) + quantity
+    }
+  }
+
+  const allStocks: Record<
+    string,
+    { boutique: number; reserve: number }
+  > = {}
+
+  for (const variant of (vr.data ?? []) as POSVariant[]) {
+    allStocks[variant.id] = {
+      boutique: boutiqueStocks[variant.id] ?? 0,
+      reserve: reserveStocks[variant.id] ?? 0
+    }
+  }
+
+  setPosStocks(boutiqueStocks)
+  setStockByLocation(allStocks)
+
+  setPosCart(cart =>
+    cart.map(item => ({
+      ...item,
+      stock: boutiqueStocks[item.variant_id] ?? 0
+    }))
+  )
+}, [storeId, products])
 
   useEffect(() => {
   if (
@@ -881,7 +964,7 @@ const loadProductOptions = useCallback(async () => {
 
   const { data, error } = await supabase
     .from('stock_movements')
-    .select('id,variant_id,movement_type,quantity_delta,unit_cost,reason,created_at')
+    .select('id,variant_id,location_id,movement_type,quantity_delta,unit_cost,reason,created_at')
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
     .limit(100)
@@ -900,28 +983,13 @@ useEffect(() => {
 
 async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
   e.preventDefault()
+
   if (!user || !storeId || !movementVariant) return
 
   const qty = Number(movementQty)
-  const current = posStocks[movementVariant] ?? 0
 
   if (!Number.isInteger(qty) || qty <= 0) {
     setError('La quantité doit être un entier positif.')
-    return
-  }
-
-  const delta =
-    movementType === 'in' ? qty :
-    movementType === 'out' ? -qty :
-    qty - current
-
-  if (current + delta < 0) {
-    setError('Stock insuffisant.')
-    return
-  }
-
-  if (movementType === 'adjustment' && delta === 0) {
-    setError('Le stock est déjà correct.')
     return
   }
 
@@ -929,18 +997,61 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
   setError('')
 
   try {
-    const { error } = await supabase.from('stock_movements').insert({
-      store_id: storeId,
-      variant_id: movementVariant,
-      movement_type:
-       movementType === 'in' ? 'purchase' :
-       movementType === 'out' ? 'damage' :
-       'adjustment',
-      quantity_delta: delta,
-      unit_cost: movementCost ? Number(movementCost) : null,
-      reason: movementReason || 'Mouvement manuel',
-      created_by: user.id
-    })
+    const locationId = STOCK_LOCATIONS[stockLocation]
+
+    const { data: movements, error: stockError } = await supabase
+      .from('stock_movements')
+      .select('quantity_delta')
+      .eq('store_id', storeId)
+      .eq('variant_id', movementVariant)
+      .eq('location_id', locationId)
+
+    if (stockError) throw stockError
+
+    const current = (movements ?? []).reduce(
+      (total, movement) => total + Number(movement.quantity_delta),
+      0
+    )
+
+    const delta =
+      movementType === 'in' ? qty :
+      movementType === 'out' ? -qty :
+      qty - current
+
+    if (current + delta < 0) {
+      throw new Error('Stock insuffisant dans ce magasin.')
+    }
+
+    if (movementType === 'adjustment' && delta === 0) {
+      throw new Error('Le stock est déjà correct.')
+    }
+
+    const unitCost = movementCost.trim()
+      ? Number(movementCost)
+      : null
+
+    if (
+      unitCost !== null &&
+      (!Number.isFinite(unitCost) || unitCost < 0)
+    ) {
+      throw new Error('Prix d’achat invalide.')
+    }
+
+    const { error } = await supabase
+      .from('stock_movements')
+      .insert({
+        store_id: storeId,
+        variant_id: movementVariant,
+        location_id: locationId,
+        movement_type:
+          movementType === 'in' ? 'purchase' :
+          movementType === 'out' ? 'damage' :
+          'adjustment',
+        quantity_delta: delta,
+        unit_cost: unitCost,
+        reason: movementReason || 'Mouvement manuel',
+        created_by: user.id
+      })
 
     if (error) throw error
 
@@ -950,15 +1061,206 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
 
     await loadPOSData()
     await loadMovementHistory()
+
   } catch (err) {
     setError(
-  err instanceof Error
-    ? `Erreur de mouvement : ${err.message}`
-    : `Erreur de mouvement : ${JSON.stringify(err)}`
-)
+      err instanceof Error
+        ? `Erreur de mouvement : ${err.message}`
+        : 'Erreur de mouvement.'
+    )
   } finally {
     setMovementBusy(false)
   }
+}
+
+async function saveStockTransfer(e: FormEvent<HTMLFormElement>) {
+  e.preventDefault()
+
+  if (!user || !storeId || !transferVariant) {
+    setError('Veuillez sélectionner un article.')
+    return
+  }
+
+  const qty = Number(transferQty)
+
+  if (!Number.isInteger(qty) || qty <= 0) {
+    setError('La quantité doit être un entier positif.')
+    return
+  }
+
+  if (transferFrom === transferTo) {
+    setError('Les emplacements doivent être différents.')
+    return
+  }
+
+  const sourceLocationId = STOCK_LOCATIONS[transferFrom]
+  const destinationLocationId = STOCK_LOCATIONS[transferTo]
+
+  const availableStock =
+    stockByLocation[transferVariant]?.[transferFrom] ?? 0
+
+  if (qty > availableStock) {
+    setError(
+      `Stock insuffisant. Disponible : ${availableStock}`
+    )
+    return
+  }
+
+  setTransferBusy(true)
+  setError('')
+  setMessage('')
+
+  try {
+    const { error: transferError } = await supabase.rpc(
+      'transfer_stock',
+      {
+        p_store_id: storeId,
+        p_variant_id: transferVariant,
+        p_from_location_id: sourceLocationId,
+        p_to_location_id: destinationLocationId,
+        p_quantity: qty,
+        p_reason: transferReason.trim() || 'Transfert interne'
+      }
+    )
+
+    if (transferError) throw transferError
+
+    setTransferQty('1')
+    setTransferReason('')
+    setTransferVariant('')
+
+    await Promise.all([
+      loadPOSData(),
+      loadMovementHistory()
+    ])
+
+    setMessage('Transfert de stock effectué avec succès.')
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? `Erreur de transfert : ${err.message}`
+        : 'Impossible d’effectuer le transfert.'
+    )
+  } finally {
+    setTransferBusy(false)
+  }
+}
+
+function exportMovementHistoryPDF() {
+  const rows = movementHistory.map(m => {
+    const variant = posVariants.find(v => v.id === m.variant_id)
+    const product = products.find(p => p.id === variant?.product_id)
+
+    return {
+      date: new Date(m.created_at).toLocaleString('fr-DZ'),
+      article: product?.name || variant?.sku || 'Article inconnu',
+      sku: variant?.sku || '',
+      type: m.movement_type,
+      quantity:
+        `${Number(m.quantity_delta) > 0 ? '+' : ''}${m.quantity_delta}`,
+      reason: m.reason || '—'
+    }
+  })
+
+  const escapeHTML = (value: string) =>
+    value.replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[char]!)
+
+  const reportWindow = window.open('', '_blank')
+
+  if (!reportWindow) {
+    setError('Autorisez les fenêtres pop-up pour exporter le PDF.')
+    return
+  }
+
+  reportWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>Rapport des mouvements de stock</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 30px;
+          color: #292929;
+        }
+        h1 { font-size: 22px; margin-bottom: 5px; }
+        .subtitle { color: #666; margin-bottom: 25px; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 9px;
+          text-align: left;
+        }
+        th {
+          background: #eee7dc;
+        }
+        tr { page-break-inside: avoid; }
+        .footer {
+          margin-top: 25px;
+          font-size: 11px;
+          color: #666;
+        }
+        @media print {
+          body { padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Rapport des mouvements de stock</h1>
+      <div class="subtitle">
+        StylePro Manager — Généré le ${escapeHTML(new Date().toLocaleString('fr-DZ'))}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Article</th>
+            <th>SKU</th>
+            <th>Type</th>
+            <th>Variation</th>
+            <th>Motif</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td>${escapeHTML(row.date)}</td>
+              <td>${escapeHTML(row.article)}</td>
+              <td>${escapeHTML(row.sku)}</td>
+              <td>${escapeHTML(row.type)}</td>
+              <td>${escapeHTML(row.quantity)}</td>
+              <td>${escapeHTML(row.reason)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="footer">
+        Nombre total de mouvements : ${rows.length}
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.print();
+        };
+      <\/script>
+    </body>
+    </html>
+  `)
+
+  reportWindow.document.close()
 }
 
 function handleScannedCode(rawCode: string) {
@@ -2477,6 +2779,18 @@ const loadPromotions = useCallback(async () => {
             <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
               <Shirt size={19} /> <span>Catalogue articles</span>
             </button>
+            <button
+  type="button"
+  className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
+  onClick={() => {
+    setCurrentView('atelier')
+    setError('')
+    setMessage('')
+  }}
+>
+  <Factory size={19} />
+  <span>Atelier / Production</span>
+</button>
             <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
               <Tag size={19} /> <span>Promotions</span>
             </button>
@@ -2527,11 +2841,26 @@ const loadPromotions = useCallback(async () => {
             {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
             {message && <div className="alert success">{message}</div>}
 
-            {currentView === 'stock' ? (
+            {currentView === 'atelier' ? (
+  <AtelierModule storeId={storeId} userId={user.id} />
+) : currentView === 'stock' ? (
               <section className="panel">
                 <div className="panel-heading">
                   <form className="form-grid" onSubmit={saveStockMovement}>
   <h3 style={{ gridColumn: '1 / -1' }}>Nouveau mouvement de stock</h3>
+
+  <label>
+  Emplacement
+  <select
+    value={stockLocation}
+    onChange={e =>
+      setStockLocation(e.target.value as 'boutique' | 'reserve')
+    }
+  >
+    <option value="boutique">🏪 Stock Boutique</option>
+    <option value="reserve">📦 Stock Réserve</option>
+  </select>
+</label>
 
   <label>Article
     <select
@@ -2544,7 +2873,7 @@ const loadPromotions = useCallback(async () => {
         <option key={v.id} value={v.id}>
           {products.find(p => p.id === v.product_id)?.name ?? v.sku}
           {' — '}{v.sku}
-          {' (Stock: '}{posStocks[v.id] ?? 0}{')'}
+          {' (Stock Boutique: '}{posStocks[v.id] ?? 0}{')'}
         </option>
       ))}
     </select>
@@ -2593,40 +2922,170 @@ const loadPromotions = useCallback(async () => {
   <button type="submit" className="primary-button" disabled={movementBusy}>
     {movementBusy ? 'Enregistrement...' : 'Enregistrer le mouvement'}
   </button>
-</form>
-<h3>Historique des mouvements</h3>
-<div className="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Type</th>
-        <th>Variation</th>
-        <th>Motif</th>
-      </tr>
-    </thead>
-    <tbody>
-  {movementHistory.length === 0 ? (
-    <tr>
-      <td colSpan={4} style={{ textAlign: 'center', padding: '24px' }}>
-        Aucun mouvement enregistré pour le moment.
-      </td>
-    </tr>
-  ) : (
-    movementHistory.map(m => (
-      <tr key={m.id}>
-        <td>{new Date(m.created_at).toLocaleString('fr-DZ')}</td>
-        <td>{m.movement_type}</td>
-        <td>
-          {Number(m.quantity_delta) > 0 ? '+' : ''}
-          {m.quantity_delta}
-        </td>
-        <td>{m.reason || '—'}</td>
-      </tr>
-    ))
+  </form>
+
+<div className="stock-transfer-section">
+  <h3>⇄ Transfert entre emplacements</h3>
+
+  <form className="form-grid" onSubmit={saveStockTransfer}>
+    <label>
+      Article
+      <select
+        required
+        value={transferVariant}
+        onChange={e => setTransferVariant(e.target.value)}
+      >
+        <option value="">Choisir un article</option>
+        {posVariants.map(v => (
+          <option key={v.id} value={v.id}>
+            {products.find(p => p.id === v.product_id)?.name ?? v.sku}
+            {' — '}{v.sku}
+            {' | Boutique : '}{stockByLocation[v.id]?.boutique ?? 0}
+            {' | Réserve : '}{stockByLocation[v.id]?.reserve ?? 0}
+          </option>
+        ))}
+      </select>
+    </label>
+
+    <label>
+      Source
+      <select
+        value={transferFrom}
+        onChange={e => {
+          const value = e.target.value as 'boutique' | 'reserve'
+          setTransferFrom(value)
+          setTransferTo(value === 'boutique' ? 'reserve' : 'boutique')
+        }}
+      >
+        <option value="boutique">🏪 Boutique</option>
+        <option value="reserve">📦 Réserve</option>
+      </select>
+    </label>
+
+    <label>
+      Destination
+      <select
+        value={transferTo}
+        onChange={e =>
+          setTransferTo(e.target.value as 'boutique' | 'reserve')
+        }
+      >
+        <option value="boutique">🏪 Boutique</option>
+        <option value="reserve">📦 Réserve</option>
+      </select>
+    </label>
+
+    <label>
+      Quantité
+      <input
+        type="number"
+        min="1"
+        step="1"
+        required
+        value={transferQty}
+        onChange={e => setTransferQty(e.target.value)}
+      />
+    </label>
+
+    <label>
+      Motif
+      <input
+        value={transferReason}
+        onChange={e => setTransferReason(e.target.value)}
+        placeholder="Réapprovisionnement boutique..."
+      />
+    </label>
+
+    {transferVariant && (
+      <div style={{ gridColumn: '1 / -1' }}>
+        <p>Boutique : <strong>{stockByLocation[transferVariant]?.boutique ?? 0}</strong></p>
+        <p>Réserve : <strong>{stockByLocation[transferVariant]?.reserve ?? 0}</strong></p>
+        <p>Disponible à la source : <strong>{stockByLocation[transferVariant]?.[transferFrom] ?? 0}</strong></p>
+      </div>
+    )}
+
+    <button
+      type="submit"
+      className="primary-button"
+      disabled={transferBusy || !transferVariant}
+    >
+      {transferBusy ? 'Transfert en cours...' : '⇄ Confirmer le transfert'}
+    </button>
+  </form>
+</div>
+
+<div className="movement-history-section">
+
+  <div className="movement-history-heading">
+    <div>
+      <h3>Historique des mouvements</h3>
+      <p>
+        {movementHistory.length} mouvement(s) enregistré(s)
+      </p>
+    </div>
+
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={exportMovementHistoryPDF}
+      disabled={movementHistory.length === 0}
+    >
+      Exporter PDF
+    </button>
+  </div>
+
+  <div className="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Variation</th>
+          <th>Motif</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {movementHistory.length === 0 ? (
+          <tr>
+            <td colSpan={4} style={{ textAlign: 'center', padding: '24px' }}>
+              Aucun mouvement enregistré.
+            </td>
+          </tr>
+        ) : (
+          (historyExpanded
+            ? movementHistory
+            : movementHistory.slice(0, 6)
+          ).map(m => (
+            <tr key={m.id}>
+              <td>{new Date(m.created_at).toLocaleString('fr-DZ')}</td>
+              <td>{m.movement_type}</td>
+              <td>
+                {Number(m.quantity_delta) > 0 ? '+' : ''}
+                {m.quantity_delta}
+              </td>
+              <td>{m.reason || '—'}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  {movementHistory.length > 6 && (
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={() => setHistoryExpanded(value => !value)}
+      style={{ marginTop: '12px' }}
+    >
+      {historyExpanded
+        ? 'Réduire ▲'
+        : `Afficher plus (${movementHistory.length - 6} autres) ▼`
+      }
+    </button>
   )}
-</tbody>
-  </table>
+
 </div>
                   <div className="panel-title"><Package size={22}/><div><h2>Gestion du stock</h2><p>Quantités calculées depuis les mouvements enregistrés.</p></div></div>
                   <button type="button" className="secondary-button" onClick={() => void Promise.all([loadPOSData(), loadMovementHistory()]).catch(e => setError(e instanceof Error ? e.message : String(e)))}><RefreshCw size={16}/> Actualiser</button>
@@ -2688,42 +3147,56 @@ const loadPromotions = useCallback(async () => {
         <th>Couleur</th>
         <th>Prix de vente</th>
         <th>Coût d'achat</th>
-        <th>Stock</th>
-        <th>Minimum</th>
-        <th>État</th>
+        <th>Boutique</th>
+        <th>Réserve</th>
+        <th>Total</th>
+        <th>Stock minimum</th>
+        <th>Statut</th>
       </tr>
     </thead>
     <tbody>
-      {filteredStockVariants.map(v => {
-        const product = products.find(p => p.id === v.product_id)
-        const qty = posStocks[v.id] ?? 0
-        const minimum = Number(v.min_stock ?? 0)
-        const isOut = qty <= 0
-        const isLow = !isOut && qty <= minimum
+    {filteredStockVariants.map(v => {
+  const product = products.find(p => p.id === v.product_id)
 
-        return (
-          <tr key={v.id}>
-            <td>{product?.name ?? 'Article'}</td>
-            <td>{v.sku}</td>
-            <td>{v.barcode || '—'}</td>
-            <td>{v.size || '—'}</td>
-            <td>{v.color || '—'}</td>
-            <td>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</td>
-            <td>{Number(v.purchase_cost).toLocaleString('fr-DZ')} DZD</td>
-            <td><strong>{qty}</strong></td>
-            <td>{minimum}</td>
-            <td>
-              <span className={
-                isOut
-                  ? 'stock-status stock-out'
-                  : isLow
-                    ? 'stock-status stock-low'
-                    : 'stock-status stock-ok'
-              }>
-                {isOut ? 'Rupture' : isLow ? 'Stock faible' : 'Disponible'}
-              </span>
-            </td>
-          </tr>
+  const boutiqueQty = stockByLocation[v.id]?.boutique ?? 0
+  const reserveQty = stockByLocation[v.id]?.reserve ?? 0
+  const totalQty = boutiqueQty + reserveQty
+
+  const qty = boutiqueQty
+  const minimum = Number(v.min_stock ?? 0)
+
+  const isOut = qty <= 0
+  const isLow = !isOut && qty <= minimum
+
+  return (
+    <tr key={v.id}>
+    <td>{product?.name ?? 'Article'}</td>
+    <td>{v.sku}</td>
+    <td>{v.barcode || '—'}</td>
+    <td>{v.size || '—'}</td>
+    <td>{v.color || '—'}</td>
+  
+    <td>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</td>
+    <td>{Number(v.purchase_cost).toLocaleString('fr-DZ')} DZD</td>
+  
+    <td><strong>{boutiqueQty}</strong></td>
+    <td><strong>{reserveQty}</strong></td>
+    <td><strong>{totalQty}</strong></td>
+  
+    <td>{minimum}</td>
+  
+    <td>
+      <span className={
+        isOut
+          ? 'stock-status stock-out'
+          : isLow
+            ? 'stock-status stock-low'
+            : 'stock-status stock-ok'
+      }>
+        {isOut ? 'Rupture' : isLow ? 'Stock faible' : 'Disponible'}
+      </span>
+    </td>
+  </tr>
         )
       })}
       {filteredStockVariants.length === 0 && (

@@ -4227,3 +4227,59 @@ button:focus-visible {
     margin-top: 10px;
   }
 }
+
+.atelier-stock-integrated {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  background: #e5efe6;
+  color: #28643a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.movement-history-section {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--border-color, #e5ded3);
+  border-radius: 14px;
+  background: var(--card-background, #fffdf9);
+}
+
+.movement-history-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.movement-history-heading h3 {
+  margin: 0 0 5px;
+}
+
+.movement-history-heading p {
+  margin: 0;
+  font-size: 13px;
+  opacity: .7;
+}
+
+.movement-history-section .table-wrap {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.movement-history-section table {
+  width: 100%;
+  min-width: 600px;
+}
+
+.movement-history-section thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
