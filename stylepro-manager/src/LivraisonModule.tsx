@@ -131,20 +131,22 @@ export default function LivraisonModule({ storeId, userId }: Props) {
         delivery_address: address.trim() || null, notes: notes.trim() || null, status: 'draft',
       }).select('id').single()
       if (e1) throw e1
-      const { data: inserted, error: e2 } = await supabase.from('delivery_items').insert(valid.map(l => ({
-        store_id: storeId, delivery_id: delivery.id, variant_id: l.variant_id,
-        quantity: Number(l.quantity), unit_price: Number(l.unit_price),
-      }))).select('id,variant_id')
-      if (e2) throw e2
-      if (!inserted || inserted.length !== valid.length) throw new Error('Certaines lignes ne sont pas enregistrées. Vérifiez le brouillon.')
-      // Map returned rows by variant with FIFO queues; never assume database return order.
-      const queues = new Map<string, DraftLine[]>()
-      valid.forEach(l => queues.set(l.variant_id, [...(queues.get(l.variant_id) || []), l]))
-      const allocationRows = inserted.map(item => {
-        const source = queues.get(item.variant_id)?.shift()
-        if (!source) throw new Error('Correspondance de ligne/source stock introuvable.')
-        return { store_id: storeId, delivery_id: delivery.id, delivery_item_id: item.id, location_id: source.location_id, storage_position_id: null, quantity_dispatched: Number(source.quantity), quantity_returned: 0 }
-      })
+      const allocationRows = []
+      // Insert each item separately so repeated variants keep their exact source allocation.
+      for (const line of valid) {
+        const selectedVariant = variantById(line.variant_id)
+        const { data: insertedItem, error: itemError } = await supabase.from('delivery_items').insert({
+          store_id: storeId, delivery_id: delivery.id, variant_id: line.variant_id,
+          quantity: Number(line.quantity), unit_price: Number(line.unit_price),
+          unit_cost: Number(selectedVariant?.sale_price ?? line.unit_price),
+        }).select('id').single()
+        if (itemError) throw itemError
+        allocationRows.push({
+          store_id: storeId, delivery_id: delivery.id, delivery_item_id: insertedItem.id,
+          location_id: line.location_id, storage_position_id: null,
+          quantity_dispatched: Number(line.quantity), quantity_returned: 0,
+        })
+      }
       const { error: e3 } = await supabase.from('delivery_item_allocations').insert(allocationRows)
       if (e3) throw e3
       setNotice('Brouillon enregistré. Aucun stock n’a été déduit.')
