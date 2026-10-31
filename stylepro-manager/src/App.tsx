@@ -39,6 +39,7 @@ import {
 import { supabase } from './lib/supabase'
 import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
+import LivraisonModule from './LivraisonModule'
 import './atelier.css'
 import './stylepro.css'
 
@@ -226,7 +227,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState<
   | 'dashboard'
   | 'catalogue'
-  | 'atelier'  
+  | 'atelier'
+  | 'livraisons'
   | 'stock'
   | 'sales'
   | 'returns'
@@ -2799,6 +2801,9 @@ const loadPromotions = useCallback(async () => {
             </button>
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
+            <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
+              <Truck size={19} /> <span>Livraisons</span>
+            </button>
             <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
               <Boxes size={19} /> <span>Gestion du stock</span>
             </button>
@@ -2843,7 +2848,9 @@ const loadPromotions = useCallback(async () => {
 
             {currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} />
-) : currentView === 'stock' ? (
+) : currentView === 'livraisons' ? (
+              <LivraisonModule storeId={storeId} userId={user.id} />
+            ) : currentView === 'stock' ? (
               <section className="panel">
                 <div className="panel-heading">
                   <form className="form-grid" onSubmit={saveStockMovement}>
