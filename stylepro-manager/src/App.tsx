@@ -150,7 +150,6 @@ type VariantDraft = {
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
 
-
 const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
 
 type LabelSettings = {
@@ -219,7 +218,8 @@ export default function App() {
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [storeName, setStoreName] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
@@ -661,12 +661,19 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
       if (!alive) return
       if (error) setError(error.message)
       setUser(data.session?.user ?? null)
+      if (window.location.hash.includes('type=recovery')) setAuthMode('reset')
       setReady(true)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setUser(session?.user ?? null)
+        if (event === 'PASSWORD_RECOVERY') setAuthMode('reset')
+        if (event === 'SIGNED_IN') {
+          setAuthMode('login')
+          setPassword('')
+          setConfirmPassword('')
+        }
         setError('')
         setMessage('')
       }
@@ -1685,19 +1692,26 @@ async function stopPOSCamera() {
     setLoading(true)
 
     try {
-      if (authMode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email: login.trim(),
-          password,
+      if (authMode === 'forgot') {
+        const email = login.trim()
+        if (!email || !email.includes('@')) {
+          throw new Error('Saisissez une adresse e-mail valide.')
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
         })
-
         if (error) throw error
-
-        setMessage(
-          data.session
-            ? 'Compte créé et connecté.'
-            : 'Compte créé. Vérifie ton e-mail pour confirmer ton inscription.'
-        )
+        setMessage('Si cette adresse est associée à un compte, un lien de réinitialisation sera envoyé.')
+      } else if (authMode === 'reset') {
+        if (password.length < 8) throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.')
+        if (password !== confirmPassword) throw new Error('Les deux mots de passe ne correspondent pas.')
+        const { error } = await supabase.auth.updateUser({ password })
+        if (error) throw error
+        setPassword('')
+        setConfirmPassword('')
+        setAuthMode('login')
+        setMessage('Mot de passe modifié avec succès. Vous pouvez vous connecter.')
+        window.history.replaceState(null, '', window.location.pathname)
       } else {
         const identifier = login.trim()
         const email = identifier.toLowerCase() === 'admin'
@@ -1705,22 +1719,19 @@ async function stopPOSCamera() {
           : identifier
 
         if (!email) {
-          throw new Error(
-            'Configure VITE_ADMIN_EMAIL dans .env.local pour utiliser le nom admin.'
-          )
+          throw new Error('Configurez VITE_ADMIN_EMAIL dans .env.local ou utilisez votre adresse e-mail.')
         }
 
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
-
         if (error) throw error
         setMessage('Connexion réussie.')
         setPassword('')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de connexion.')
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
     } finally {
       setLoading(false)
     }
@@ -2691,73 +2702,98 @@ const loadPromotions = useCallback(async () => {
               <div className="mobile-brand"><div className="brand-icon"><Shirt /></div><strong>StylePro Manager</strong></div>
               <div className="auth-heading-icon"><LockKeyhole size={23} /></div>
               <p className="eyebrow">ESPACE PRIVÉ</p>
-              <h2>{authMode === 'login' ? 'Bon retour parmi nous' : 'Créer votre compte'}</h2>
+              <h2>
+                {authMode === 'login' ? 'Bon retour parmi nous' : authMode === 'forgot' ? 'Mot de passe oublié ?' : 'Créer un nouveau mot de passe'}
+              </h2>
               <p className="auth-description">
                 {authMode === 'login'
                   ? 'Connectez-vous pour accéder à votre espace de gestion.'
-                  : 'Créez un compte avec votre adresse e-mail.'}
+                  : authMode === 'forgot'
+                    ? 'Saisissez votre adresse e-mail pour recevoir un lien sécurisé.'
+                    : 'Choisissez un nouveau mot de passe pour votre compte.'}
               </p>
 
               {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
               {message && <div className="alert success">{message}</div>}
 
               <form onSubmit={submitAuth} className="form">
-                <label>
-                  {authMode === 'login' ? 'Nom d’utilisateur ou e-mail' : 'Adresse e-mail'}
-                  <div className="input-wrap">
-                    <Users size={18} className="input-icon" />
-                    <input
-                      type={authMode === 'signup' ? 'email' : 'text'}
-                      autoComplete={authMode === 'signup' ? 'email' : 'username'}
-                      placeholder={authMode === 'login' ? 'admin ou nom@exemple.com' : 'vous@exemple.com'}
-                      required
-                      value={login}
-                      onChange={event => setLogin(event.target.value)}
-                    />
-                  </div>
-                </label>
+                {authMode !== 'reset' && (
+                  <label>
+                    Adresse e-mail
+                    <div className="input-wrap">
+                      <Users size={18} className="input-icon" />
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        placeholder="vous@exemple.com"
+                        required
+                        value={login}
+                        onChange={event => setLogin(event.target.value)}
+                      />
+                    </div>
+                  </label>
+                )}
 
-                <label>
-                  Mot de passe
-                  <div className="input-wrap">
-                    <LockKeyhole size={18} className="input-icon" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      minLength={authMode === 'signup' ? 8 : undefined}
-                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                      placeholder="Saisissez votre mot de passe"
-                      required
-                      value={password}
-                      onChange={event => setPassword(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setShowPassword(value => !value)}
-                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </label>
+                {authMode !== 'forgot' && (
+                  <label>
+                    {authMode === 'reset' ? 'Nouveau mot de passe' : 'Mot de passe'}
+                    <div className="input-wrap">
+                      <LockKeyhole size={18} className="input-icon" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        minLength={authMode === 'reset' ? 8 : undefined}
+                        autoComplete={authMode === 'reset' ? 'new-password' : 'current-password'}
+                        placeholder={authMode === 'reset' ? 'Minimum 8 caractères' : 'Saisissez votre mot de passe'}
+                        required
+                        value={password}
+                        onChange={event => setPassword(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowPassword(value => !value)}
+                        aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </label>
+                )}
+
+                {authMode === 'reset' && (
+                  <label>
+                    Confirmer le nouveau mot de passe
+                    <div className="input-wrap">
+                      <LockKeyhole size={18} className="input-icon" />
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={confirmPassword}
+                        onChange={event => setConfirmPassword(event.target.value)}
+                        placeholder="Répétez le nouveau mot de passe"
+                      />
+                    </div>
+                  </label>
+                )}
 
                 <button className="primary-button login-submit" disabled={loading}>
                   {loading
-                    ? <><RefreshCw size={18} className="spin" /> Connexion en cours…</>
-                    : <>{authMode === 'login' ? 'Se connecter' : 'Créer mon compte'} <ChevronRight size={18} /></>}
+                    ? <><RefreshCw size={18} className="spin" /> Traitement en cours…</>
+                    : <>{authMode === 'login' ? 'Se connecter' : authMode === 'forgot' ? 'Envoyer le lien' : 'Enregistrer le mot de passe'} <ChevronRight size={18} /></>}
                 </button>
               </form>
 
               <div className="auth-switch">
-                {authMode === 'login' ? 'Vous n’avez pas encore de compte ?' : 'Vous avez déjà un compte ?'}
-                <button onClick={() => {
-                  setAuthMode(mode => mode === 'login' ? 'signup' : 'login')
+                <button type="button" onClick={() => {
+                  setAuthMode('login')
                   setError('')
                   setMessage('')
-                  setLogin('')
                   setPassword('')
+                  setConfirmPassword('')
                 }}>
-                  {authMode === 'login' ? 'Créer un compte' : 'Se connecter'}
+                  {authMode === 'login' ? 'Mot de passe oublié ?' : 'Retour à la connexion'}
                 </button>
               </div>
               <div className="auth-security"><ShieldCheck size={16} /> Connexion sécurisée par Supabase</div>
