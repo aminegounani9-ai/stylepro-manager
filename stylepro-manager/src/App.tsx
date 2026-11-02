@@ -995,8 +995,13 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
 
   const qty = Number(movementQty)
 
-  if (!Number.isInteger(qty) || qty <= 0) {
-    setError('La quantité doit être un entier positif.')
+  const minimumQuantity = movementType === 'adjustment' ? 0 : 1
+  if (!Number.isInteger(qty) || qty < minimumQuantity) {
+    setError(
+      movementType === 'adjustment'
+        ? 'La quantité réelle doit être un entier positif ou zéro.'
+        : 'La quantité doit être un entier strictement positif.'
+    )
     return
   }
 
@@ -2932,7 +2937,7 @@ const loadPromotions = useCallback(async () => {
   <label>{movementType === 'adjustment' ? 'Quantité réelle' : 'Quantité'}
     <input
       type="number"
-      min="1"
+      min={movementType === 'adjustment' ? '0' : '1'}
       step="1"
       required
       value={movementQty}
