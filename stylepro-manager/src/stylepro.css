@@ -4396,3 +4396,28 @@ button:focus-visible {
 .app.dark .dashboard-expense-bar { background:linear-gradient(180deg,#8bb8e8,#527cae); }
 .app.dark :is(.product-mini-icon,.stat-icon,.auth-heading-icon) { background:#26364a; color:#e4c99e; }
 .app.dark :is(.atelier-module *,.livraison-module *) { border-color:var(--border); }
+
+
+/* Dedicated settings page */
+.settings-page { display: grid; gap: 20px; }
+.settings-page .welcome { margin-bottom: 0; }
+.settings-page .appearance-panel { display: grid; gap: 18px; }
+.settings-page .panel-title { display: flex; align-items: flex-start; gap: 12px; }
+.settings-page .panel-title > svg { color: var(--primary); flex: 0 0 auto; margin-top: 3px; }
+.settings-page .panel-title h2 { margin: 0; color: var(--text); }
+.settings-page .panel-title p { margin: 5px 0 0; color: var(--muted); }
+.settings-page .appearance-field { max-width: 420px; }
+.settings-page .palette-label { margin: 0; color: var(--text); font-weight: 750; }
+.settings-page .settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.settings-page .appearance-note { margin: 0; color: var(--muted); font-size: 12px; }
+.settings-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.settings-info-grid > div { min-width: 0; }
+.settings-info-grid strong { display: block; overflow-wrap: anywhere; margin-top: 18px; color: var(--text); }
+.settings-page .alert.info { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); color: var(--text); }
+.settings-page .alert.info svg { flex: 0 0 auto; color: var(--primary); }
+.app.dark .settings-page .panel,
+.app.dark .settings-page .settings-info-grid { color: var(--text); }
+@media (max-width: 720px) {
+  .settings-info-grid { grid-template-columns: 1fr; }
+  .settings-page .settings-actions { align-items: flex-start; flex-direction: column; }
+}

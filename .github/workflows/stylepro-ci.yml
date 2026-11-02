@@ -1,0 +1,45 @@
+name: StylePro quality checks
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stylepro-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app build and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stylepro-manager
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: stylepro-manager/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: TypeScript and production build
+        run: npm run build
+
+      - name: ESLint
+        run: npm run lint
