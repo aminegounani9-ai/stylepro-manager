@@ -271,6 +271,32 @@ export default function LivraisonModule({ storeId, userId }: Props) {
   async function submitReturn(event: FormEvent) {
     event.preventDefault()
     if (!selected) return
+    if (returnSaving) return
+    if (!['confirmed', 'dispatched', 'partially_returned'].includes(selected.status)) {
+      return setError('Ce bon ne peut pas recevoir de retour dans son état actuel.')
+    }
+
+    for (const line of returnLines) {
+      const quantity = Number(line.quantity)
+      if (!Number.isFinite(quantity) || quantity < 0 || (quantity > 0 && !Number.isSafeInteger(quantity))) {
+        return setError('Les quantités de retour doivent être des entiers positifs ou zéro.')
+      }
+      if (quantity > 0 && !['new', 'damaged', 'defective'].includes(line.condition)) {
+        return setError('État de retour invalide.')
+      }
+      if (quantity > 0 && line.condition === 'new') {
+        if (line.location_id !== BOUTIQUE && line.location_id !== RESERVE) {
+          return setError('Destination de retour invalide.')
+        }
+        if (line.storage_position_id) {
+          const position = positions.find(p => p.id === line.storage_position_id)
+          if (line.location_id !== RESERVE || !position || position.location_id !== RESERVE) {
+            return setError('La position choisie ne correspond pas à la réserve.')
+          }
+        }
+      }
+    }
+
     const payload = returnLines.filter(l => Number(l.quantity) > 0).map(l => ({
       delivery_item_id: l.delivery_item_id, quantity: Number(l.quantity), condition: l.condition,
       location_id: l.condition === 'new' ? l.location_id : null,
@@ -279,9 +305,10 @@ export default function LivraisonModule({ storeId, userId }: Props) {
     if (!payload.length) return setError('Saisissez une quantité à retourner.')
     for (const l of payload) {
       const item = items.find(i => i.id === l.delivery_item_id)
-      const dispatched = item?.allocations.reduce((s, a) => s + Number(a.quantity_dispatched), 0) || 0
-      const returned = item?.allocations.reduce((s, a) => s + Number(a.quantity_returned), 0) || 0
-      if (!Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > dispatched - returned) return setError('Quantité invalide ou supérieure au reste retournable.')
+      if (!item) return setError('Une ligne de retour ne correspond pas à ce bon.')
+      const dispatched = item.allocations.reduce((s, a) => s + Number(a.quantity_dispatched), 0)
+      const returned = item.allocations.reduce((s, a) => s + Number(a.quantity_returned), 0)
+      if (!Number.isSafeInteger(l.quantity) || l.quantity < 1 || l.quantity > dispatched - returned) return setError('Quantité invalide ou supérieure au reste retournable.')
     }
     setReturnSaving(true); setError(''); setNotice('')
     try {
