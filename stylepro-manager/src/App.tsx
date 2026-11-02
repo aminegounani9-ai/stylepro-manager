@@ -35,10 +35,13 @@ import {
   Boxes,
   ShoppingCart,
   Factory,
+  Truck,
+  Activity,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
+import LivraisonModule from './LivraisonModule'
 import './atelier.css'
 import './stylepro.css'
 
@@ -150,7 +153,6 @@ type VariantDraft = {
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
 
-
 const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
 
 type LabelSettings = {
@@ -219,7 +221,8 @@ export default function App() {
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [storeName, setStoreName] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
@@ -227,6 +230,7 @@ export default function App() {
   | 'dashboard'
   | 'catalogue'
   | 'atelier'  
+  | 'livraisons'
   | 'stock'
   | 'sales'
   | 'returns'
@@ -553,15 +557,15 @@ type AccentName = 'beige' | 'green' | 'blue' | 'burgundy' | 'slate'
 const [themeMode, setThemeMode] = useState<ThemeMode>(
   () => (localStorage.getItem('stylepro-theme') as ThemeMode) || 'light'
 )
+const [systemDark, setSystemDark] = useState(
+  () => window.matchMedia('(prefers-color-scheme: dark)').matches
+)
 const [accent, setAccent] = useState<AccentName>(
   () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
 )
 const [settingsOpen, setSettingsOpen] = useState(false)
 
-const dark =
-  themeMode === 'dark' ||
-  (themeMode === 'system' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches)
+const dark = themeMode === 'dark' || (themeMode === 'system' && systemDark)
 
 const accentColors: Record<AccentName, { primary: string; hover: string }> = {
   beige: { primary: '#a9875b', hover: '#896a43' },
@@ -578,6 +582,14 @@ useEffect(() => {
 useEffect(() => {
   localStorage.setItem('stylepro-accent', accent)
 }, [accent])
+
+useEffect(() => {
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const updateSystemTheme = () => setSystemDark(media.matches)
+  updateSystemTheme()
+  media.addEventListener?.('change', updateSystemTheme)
+  return () => media.removeEventListener?.('change', updateSystemTheme)
+}, [])
   const [search, setSearch] = useState('')
 
   
@@ -661,12 +673,19 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
       if (!alive) return
       if (error) setError(error.message)
       setUser(data.session?.user ?? null)
+      if (window.location.hash.includes('type=recovery')) setAuthMode('reset')
       setReady(true)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setUser(session?.user ?? null)
+        if (event === 'PASSWORD_RECOVERY') setAuthMode('reset')
+        if (event === 'SIGNED_IN') {
+          setAuthMode('login')
+          setPassword('')
+          setConfirmPassword('')
+        }
         setError('')
         setMessage('')
       }
@@ -753,20 +772,29 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
           supabase.from('product_variants')
             .select('id,sku,min_stock,active')
             .eq('store_id', storeId)
-            .eq('active', true),
-          supabase.from('stock_movements')
-            .select('variant_id,quantity_delta')
-            .eq('store_id', storeId)
+            .eq('active', true)
         ])
 
       const failed = [
         salesResult.error, expensesResult.error, returnsResult.error,
-        variantsResult.error, movementsResult.error
+        variantsResult.error
       ].find(Boolean)
       if (failed) throw new Error(failed.message)
 
+      const movementRows: Array<{ variant_id: string; quantity_delta: number }> = []
+      for (let offset = 0; ; offset += 1000) {
+        const page = await supabase.from('stock_movements')
+          .select('id,variant_id,quantity_delta')
+          .eq('store_id', storeId)
+          .order('id', { ascending: true })
+          .range(offset, offset + 999)
+        if (page.error) throw new Error(page.error.message)
+        movementRows.push(...(page.data ?? []))
+        if ((page.data ?? []).length < 1000) break
+      }
+
       const stock: Record<string, number> = {}
-      for (const movement of movementsResult.data ?? []) {
+      for (const movement of movementRows) {
         stock[movement.variant_id] =
           (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
       }
@@ -871,20 +899,12 @@ const loadProductOptions = useCallback(async () => {
 const loadPOSData = useCallback(async () => {
   if (!storeId) return
 
-  const [vr, mr, cr] = await Promise.all([
+  const [vr, cr] = await Promise.all([
     supabase.from('product_variants')
       .select('id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active')
       .eq('store_id', storeId)
       .eq('active', true)
       .order('sku'),
-
-    supabase.from('stock_movements')
-      .select('variant_id,location_id,quantity_delta')
-      .eq('store_id', storeId)
-      .in('location_id', [
-        BOUTIQUE_LOCATION_ID,
-        RESERVE_LOCATION_ID
-      ]),
 
     supabase.from('customers')
       .select('id,full_name,phone')
@@ -893,8 +913,20 @@ const loadPOSData = useCallback(async () => {
   ])
 
   if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
-  if (mr.error) throw new Error(`Stock : ${mr.error.message}`)
   if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+
+  const movementRows: Array<{ variant_id: string; location_id: string; quantity_delta: number }> = []
+  for (let offset = 0; ; offset += 1000) {
+    const page = await supabase.from('stock_movements')
+      .select('id,variant_id,location_id,quantity_delta')
+      .eq('store_id', storeId)
+      .in('location_id', [BOUTIQUE_LOCATION_ID, RESERVE_LOCATION_ID])
+      .order('id', { ascending: true })
+      .range(offset, offset + 999)
+    if (page.error) throw new Error(`Stock : ${page.error.message}`)
+    movementRows.push(...(page.data ?? []))
+    if ((page.data ?? []).length < 1000) break
+  }
 
   const activeIds = new Set(
     products.filter(p => p.active).map(p => p.id)
@@ -910,7 +942,7 @@ const loadPOSData = useCallback(async () => {
   const boutiqueStocks: Record<string, number> = {}
   const reserveStocks: Record<string, number> = {}
 
-  for (const m of mr.data ?? []) {
+  for (const m of movementRows) {
     const quantity = Number(m.quantity_delta)
 
     if (m.location_id === BOUTIQUE_LOCATION_ID) {
@@ -988,8 +1020,13 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
 
   const qty = Number(movementQty)
 
-  if (!Number.isInteger(qty) || qty <= 0) {
-    setError('La quantité doit être un entier positif.')
+  const minimumQuantity = movementType === 'adjustment' ? 0 : 1
+  if (!Number.isInteger(qty) || qty < minimumQuantity) {
+    setError(
+      movementType === 'adjustment'
+        ? 'La quantité réelle doit être un entier positif ou zéro.'
+        : 'La quantité doit être un entier strictement positif.'
+    )
     return
   }
 
@@ -999,16 +1036,21 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
   try {
     const locationId = STOCK_LOCATIONS[stockLocation]
 
-    const { data: movements, error: stockError } = await supabase
-      .from('stock_movements')
-      .select('quantity_delta')
-      .eq('store_id', storeId)
-      .eq('variant_id', movementVariant)
-      .eq('location_id', locationId)
+    const movements: Array<{ quantity_delta: number }> = []
+    for (let offset = 0; ; offset += 1000) {
+      const page = await supabase.from('stock_movements')
+        .select('id,quantity_delta')
+        .eq('store_id', storeId)
+        .eq('variant_id', movementVariant)
+        .eq('location_id', locationId)
+        .order('id', { ascending: true })
+        .range(offset, offset + 999)
+      if (page.error) throw page.error
+      movements.push(...(page.data ?? []))
+      if ((page.data ?? []).length < 1000) break
+    }
 
-    if (stockError) throw stockError
-
-    const current = (movements ?? []).reduce(
+    const current = movements.reduce(
       (total, movement) => total + Number(movement.quantity_delta),
       0
     )
@@ -1570,6 +1612,22 @@ async function stopPOSCamera() {
 
   async function submitReturn() {
     if (!storeId || !returnSale) return
+    if (returnBusy) return
+    if (returnSale.status !== 'completed') {
+      setError('Cette facture ne peut plus recevoir de retour.')
+      return
+    }
+
+    for (const line of returnLines) {
+      if (!Number.isSafeInteger(line.quantity) || line.quantity < 0) {
+        setError('Les quantités de retour doivent être des entiers positifs ou zéro.')
+        return
+      }
+      if (line.quantity > line.remaining) {
+        setError('La quantité demandée dépasse la quantité encore retournable.')
+        return
+      }
+    }
 
     const selected = returnLines.filter(line => line.quantity > 0)
     if (!selected.length) {
@@ -1650,6 +1708,18 @@ async function stopPOSCamera() {
 
   async function finishPOS() {
     if (!storeId || posCart.length === 0) { setError('Le panier est vide.'); return }
+    if (posCart.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > item.stock)) {
+      setError('Vérifiez les quantités : elles doivent être entières et ne pas dépasser le stock disponible.')
+      return
+    }
+    if (posPaymentMethod === 'cash' && posCashValue < posPaymentTotal) {
+      setError('Le montant reçu en espèces est insuffisant pour valider la vente.')
+      return
+    }
+    if (posPaymentMethod === 'mixed' && (posPaidValue < posPaymentTotal || posCashValue <= 0 || posCardValue <= 0)) {
+      setError('Le paiement mixte doit couvrir le total avec des montants positifs en espèces et par carte.')
+      return
+    }
     setPosBusy(true)
     setError('')
     setMessage('')
@@ -1670,6 +1740,9 @@ async function stopPOSCamera() {
       setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
       setPosCart([])
       setPosCustomerId('')
+      setPosCashReceived('')
+      setPosCardAmount('')
+      setPosPaymentMethod('cash')
       await Promise.all([loadPOSData(), loadProducts()])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de la vente.')
@@ -1685,19 +1758,26 @@ async function stopPOSCamera() {
     setLoading(true)
 
     try {
-      if (authMode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email: login.trim(),
-          password,
+      if (authMode === 'forgot') {
+        const email = login.trim()
+        if (!email || !email.includes('@')) {
+          throw new Error('Saisissez une adresse e-mail valide.')
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
         })
-
         if (error) throw error
-
-        setMessage(
-          data.session
-            ? 'Compte créé et connecté.'
-            : 'Compte créé. Vérifie ton e-mail pour confirmer ton inscription.'
-        )
+        setMessage('Si cette adresse est associée à un compte, un lien de réinitialisation sera envoyé.')
+      } else if (authMode === 'reset') {
+        if (password.length < 8) throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.')
+        if (password !== confirmPassword) throw new Error('Les deux mots de passe ne correspondent pas.')
+        const { error } = await supabase.auth.updateUser({ password })
+        if (error) throw error
+        setPassword('')
+        setConfirmPassword('')
+        setAuthMode('login')
+        setMessage('Mot de passe modifié avec succès. Vous pouvez vous connecter.')
+        window.history.replaceState(null, '', window.location.pathname)
       } else {
         const identifier = login.trim()
         const email = identifier.toLowerCase() === 'admin'
@@ -1705,22 +1785,19 @@ async function stopPOSCamera() {
           : identifier
 
         if (!email) {
-          throw new Error(
-            'Configure VITE_ADMIN_EMAIL dans .env.local pour utiliser le nom admin.'
-          )
+          throw new Error('Configurez VITE_ADMIN_EMAIL dans .env.local ou utilisez votre adresse e-mail.')
         }
 
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
-
         if (error) throw error
         setMessage('Connexion réussie.')
         setPassword('')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de connexion.')
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
     } finally {
       setLoading(false)
     }
@@ -2691,73 +2768,98 @@ const loadPromotions = useCallback(async () => {
               <div className="mobile-brand"><div className="brand-icon"><Shirt /></div><strong>StylePro Manager</strong></div>
               <div className="auth-heading-icon"><LockKeyhole size={23} /></div>
               <p className="eyebrow">ESPACE PRIVÉ</p>
-              <h2>{authMode === 'login' ? 'Bon retour parmi nous' : 'Créer votre compte'}</h2>
+              <h2>
+                {authMode === 'login' ? 'Bon retour parmi nous' : authMode === 'forgot' ? 'Mot de passe oublié ?' : 'Créer un nouveau mot de passe'}
+              </h2>
               <p className="auth-description">
                 {authMode === 'login'
                   ? 'Connectez-vous pour accéder à votre espace de gestion.'
-                  : 'Créez un compte avec votre adresse e-mail.'}
+                  : authMode === 'forgot'
+                    ? 'Saisissez votre adresse e-mail pour recevoir un lien sécurisé.'
+                    : 'Choisissez un nouveau mot de passe pour votre compte.'}
               </p>
 
               {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
               {message && <div className="alert success">{message}</div>}
 
               <form onSubmit={submitAuth} className="form">
-                <label>
-                  {authMode === 'login' ? 'Nom d’utilisateur ou e-mail' : 'Adresse e-mail'}
-                  <div className="input-wrap">
-                    <Users size={18} className="input-icon" />
-                    <input
-                      type={authMode === 'signup' ? 'email' : 'text'}
-                      autoComplete={authMode === 'signup' ? 'email' : 'username'}
-                      placeholder={authMode === 'login' ? 'admin ou nom@exemple.com' : 'vous@exemple.com'}
-                      required
-                      value={login}
-                      onChange={event => setLogin(event.target.value)}
-                    />
-                  </div>
-                </label>
+                {authMode !== 'reset' && (
+                  <label>
+                    Adresse e-mail
+                    <div className="input-wrap">
+                      <Users size={18} className="input-icon" />
+                      <input
+                        type={authMode === 'forgot' ? 'email' : 'text'}
+                        autoComplete={authMode === 'forgot' ? 'email' : 'username'}
+                        placeholder={authMode === 'login' ? 'admin ou vous@exemple.com' : 'vous@exemple.com'}
+                        required
+                        value={login}
+                        onChange={event => setLogin(event.target.value)}
+                      />
+                    </div>
+                  </label>
+                )}
 
-                <label>
-                  Mot de passe
-                  <div className="input-wrap">
-                    <LockKeyhole size={18} className="input-icon" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      minLength={authMode === 'signup' ? 8 : undefined}
-                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                      placeholder="Saisissez votre mot de passe"
-                      required
-                      value={password}
-                      onChange={event => setPassword(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setShowPassword(value => !value)}
-                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </label>
+                {authMode !== 'forgot' && (
+                  <label>
+                    {authMode === 'reset' ? 'Nouveau mot de passe' : 'Mot de passe'}
+                    <div className="input-wrap">
+                      <LockKeyhole size={18} className="input-icon" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        minLength={authMode === 'reset' ? 8 : undefined}
+                        autoComplete={authMode === 'reset' ? 'new-password' : 'current-password'}
+                        placeholder={authMode === 'reset' ? 'Minimum 8 caractères' : 'Saisissez votre mot de passe'}
+                        required
+                        value={password}
+                        onChange={event => setPassword(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowPassword(value => !value)}
+                        aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </label>
+                )}
+
+                {authMode === 'reset' && (
+                  <label>
+                    Confirmer le nouveau mot de passe
+                    <div className="input-wrap">
+                      <LockKeyhole size={18} className="input-icon" />
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={confirmPassword}
+                        onChange={event => setConfirmPassword(event.target.value)}
+                        placeholder="Répétez le nouveau mot de passe"
+                      />
+                    </div>
+                  </label>
+                )}
 
                 <button className="primary-button login-submit" disabled={loading}>
                   {loading
-                    ? <><RefreshCw size={18} className="spin" /> Connexion en cours…</>
-                    : <>{authMode === 'login' ? 'Se connecter' : 'Créer mon compte'} <ChevronRight size={18} /></>}
+                    ? <><RefreshCw size={18} className="spin" /> Traitement en cours…</>
+                    : <>{authMode === 'login' ? 'Se connecter' : authMode === 'forgot' ? 'Envoyer le lien' : 'Enregistrer le mot de passe'} <ChevronRight size={18} /></>}
                 </button>
               </form>
 
               <div className="auth-switch">
-                {authMode === 'login' ? 'Vous n’avez pas encore de compte ?' : 'Vous avez déjà un compte ?'}
-                <button onClick={() => {
-                  setAuthMode(mode => mode === 'login' ? 'signup' : 'login')
+                <button type="button" onClick={() => {
+                  setAuthMode(authMode === 'login' ? 'forgot' : 'login')
                   setError('')
                   setMessage('')
-                  setLogin('')
                   setPassword('')
+                  setConfirmPassword('')
                 }}>
-                  {authMode === 'login' ? 'Créer un compte' : 'Se connecter'}
+                  {authMode === 'login' ? 'Mot de passe oublié ?' : 'Retour à la connexion'}
                 </button>
               </div>
               <div className="auth-security"><ShieldCheck size={16} /> Connexion sécurisée par Supabase</div>
@@ -2799,6 +2901,9 @@ const loadPromotions = useCallback(async () => {
             </button>
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
+            <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
+              <Truck size={19} /> <span>Livraisons</span>
+            </button>
             <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
               <Boxes size={19} /> <span>Gestion du stock</span>
             </button>
@@ -2820,7 +2925,10 @@ const loadPromotions = useCallback(async () => {
             <button
               type="button"
               className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
-              onClick={() => setSettingsOpen(value => !value)}
+              onClick={() => {
+                setCurrentView('dashboard')
+                setSettingsOpen(value => !value)
+              }}
             >
               <Settings size={18} />
               <span>Paramètres</span>
@@ -2843,7 +2951,9 @@ const loadPromotions = useCallback(async () => {
 
             {currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} />
-) : currentView === 'stock' ? (
+) : currentView === 'livraisons' ? (
+              <LivraisonModule storeId={storeId} userId={user.id} />
+            ) : currentView === 'stock' ? (
               <section className="panel">
                 <div className="panel-heading">
                   <form className="form-grid" onSubmit={saveStockMovement}>
@@ -2873,7 +2983,7 @@ const loadPromotions = useCallback(async () => {
         <option key={v.id} value={v.id}>
           {products.find(p => p.id === v.product_id)?.name ?? v.sku}
           {' — '}{v.sku}
-          {' (Stock Boutique: '}{posStocks[v.id] ?? 0}{')'}
+          {' (Stock '}{stockLocation === 'boutique' ? 'Boutique: ' : 'Réserve: '}{stockByLocation[v.id]?.[stockLocation] ?? 0}{')'}
         </option>
       ))}
     </select>
@@ -2893,7 +3003,7 @@ const loadPromotions = useCallback(async () => {
   <label>{movementType === 'adjustment' ? 'Quantité réelle' : 'Quantité'}
     <input
       type="number"
-      min="1"
+      min={movementType === 'adjustment' ? '0' : '1'}
       step="1"
       required
       value={movementQty}
@@ -3093,24 +3203,72 @@ const loadPromotions = useCallback(async () => {
                 
 <div className="stock-summary-grid">
   <div className="stat-card">
-    <span>Total des unités</span>
+    <span>Unités disponibles en boutique</span>
     <strong>{stockSummary.totalUnits.toLocaleString('fr-DZ')}</strong>
   </div>
   <div className="stat-card">
-    <span>Valeur du stock</span>
+    <span>Valeur du stock boutique</span>
     <strong>{stockSummary.stockValue.toLocaleString('fr-DZ', {
       maximumFractionDigits: 2
     })} DZD</strong>
     <small>Au coût d'achat actuel</small>
   </div>
   <div className="stat-card">
-    <span>Stock faible</span>
+    <span>Stock faible en boutique</span>
     <strong>{stockSummary.lowStock}</strong>
   </div>
   <div className="stat-card">
-    <span>Rupture</span>
+    <span>Rupture en boutique</span>
     <strong>{stockSummary.outOfStock}</strong>
   </div>
+</div>
+
+<div className="stock-insights-grid">
+  {(() => {
+    const boutiqueUnits = Object.values(stockByLocation).reduce((sum, item) => sum + item.boutique, 0)
+    const reserveUnits = Object.values(stockByLocation).reduce((sum, item) => sum + item.reserve, 0)
+    const total = Math.max(1, boutiqueUnits + reserveUnits)
+    const statusTotal = Math.max(1, stockSummary.outOfStock + stockSummary.lowStock + stockSummary.available)
+    return (
+      <>
+        <section className="stock-insight-card">
+          <div className="stock-insight-heading">
+            <div><span className="stock-insight-kicker">RÉPARTITION</span><h3>Stock par emplacement</h3></div>
+            <Boxes size={19} />
+          </div>
+          <div className="stock-location-bars">
+            <div className="stock-location-row">
+              <div><span>🏪 Boutique</span><strong>{boutiqueUnits.toLocaleString('fr-DZ')}</strong></div>
+              <div className="stock-insight-track"><span style={{ width: `${boutiqueUnits / total * 100}%` }} /></div>
+            </div>
+            <div className="stock-location-row">
+              <div><span>📦 Réserve</span><strong>{reserveUnits.toLocaleString('fr-DZ')}</strong></div>
+              <div className="stock-insight-track reserve"><span style={{ width: `${reserveUnits / total * 100}%` }} /></div>
+            </div>
+            <p className="stock-insight-footnote">{(boutiqueUnits + reserveUnits).toLocaleString('fr-DZ')} unité(s) au total dans les deux emplacements.</p>
+          </div>
+        </section>
+        <section className="stock-insight-card">
+          <div className="stock-insight-heading">
+            <div><span className="stock-insight-kicker">DISPONIBILITÉ BOUTIQUE</span><h3>État des références</h3></div>
+            <Activity size={19} />
+          </div>
+          <div className="stock-status-bars">
+            {[
+              { label: 'Disponibles', value: stockSummary.available, kind: 'ok' },
+              { label: 'Stock faible', value: stockSummary.lowStock, kind: 'low' },
+              { label: 'En rupture', value: stockSummary.outOfStock, kind: 'out' },
+            ].map(item => (
+              <div className="stock-status-row" key={item.kind}>
+                <div><span>{item.label}</span><strong>{item.value}</strong></div>
+                <div className={`stock-insight-track ${item.kind}`}><span style={{ width: `${item.value / statusTotal * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </>
+    )
+  })()}
 </div>
 
 <div className="stock-toolbar">
@@ -3201,7 +3359,7 @@ const loadPromotions = useCallback(async () => {
       })}
       {filteredStockVariants.length === 0 && (
         <tr>
-          <td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>
+          <td colSpan={12} style={{ textAlign: 'center', padding: 24 }}>
             Aucun article ne correspond aux filtres.
           </td>
         </tr>
@@ -4904,6 +5062,36 @@ const loadPromotions = useCallback(async () => {
                   {!analyticsLoading && analytics.sales.length === 0 && (
                     <p className="muted">Les ventes apparaîtront ici après les premières factures complétées.</p>
                   )}
+                </section>
+
+                <section className="panel dashboard-chart-panel dashboard-expense-chart">
+                  <div className="panel-title"><Activity size={20} /><div><h2>Suivi des dépenses</h2><p>Dépenses enregistrées sur les 7 derniers jours.</p></div></div>
+                  {(() => {
+                    const now = new Date()
+                    const days = Array.from({ length: 7 }, (_, index) => {
+                      const date = new Date(now)
+                      date.setHours(0, 0, 0, 0)
+                      date.setDate(date.getDate() - (6 - index))
+                      const next = new Date(date)
+                      next.setDate(next.getDate() + 1)
+                      const total = analytics.expenses.filter(expense => {
+                        const d = new Date(`${expense.expense_date}T00:00:00`)
+                        return d >= date && d < next
+                      }).reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
+                      return { date, total }
+                    })
+                    const max = Math.max(...days.map(day => day.total), 1)
+                    const currency = stores.find(store => store.id === storeId)?.currency || 'DZD'
+                    return <div className="dashboard-sales-chart" role="img" aria-label="Dépenses des sept derniers jours">
+                      {days.map(day => <div className="dashboard-chart-column" key={day.date.toISOString()}>
+                        <strong title={`${day.total.toLocaleString('fr-DZ')} ${currency}`}>{day.total > 0 ? day.total.toLocaleString('fr-DZ', { notation: 'compact', maximumFractionDigits: 1 }) : '—'}</strong>
+                        <div className="dashboard-chart-track"><div className="dashboard-expense-bar" style={{ height: `${day.total > 0 ? Math.max(8, day.total / max * 100) : 2}%` }} /></div>
+                        <span>{day.date.toLocaleDateString('fr-DZ', { weekday: 'short' })}</span>
+                        <small>{day.date.toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit' })}</small>
+                      </div>)}
+                    </div>
+                  })()}
+                  {!analyticsLoading && analytics.expenses.length === 0 && <p className="muted">Aucune dépense enregistrée sur la période chargée.</p>}
                 </section>
 
                 <section className="panel dashboard-recent-sales">

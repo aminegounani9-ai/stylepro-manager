@@ -4283,3 +4283,116 @@ button:focus-visible {
   top: 0;
   z-index: 1;
 }
+/* Stock dashboard insights */
+.stock-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0 22px;
+}
+.stock-insight-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card, #fffaf3);
+  box-shadow: 0 4px 14px rgba(74, 55, 30, .04);
+}
+.stock-insight-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  color: var(--primary);
+}
+.stock-insight-heading h3 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 15px;
+}
+.stock-insight-kicker {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+.stock-location-bars,
+.stock-status-bars {
+  display: grid;
+  gap: 17px;
+}
+.stock-location-row > div:first-child,
+.stock-status-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 12px;
+}
+.stock-location-row strong,
+.stock-status-row strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.stock-insight-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--soft);
+}
+.stock-insight-track > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width .25s ease;
+}
+.stock-insight-track.reserve > span { background: #6d8fba; }
+.stock-insight-track.ok > span { background: #4b9870; }
+.stock-insight-track.low > span { background: #d5a34d; }
+.stock-insight-track.out > span { background: #c96a62; }
+.stock-insight-footnote {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .stock-insights-grid { grid-template-columns: minmax(0, 1fr); }
+  .stock-insight-card { padding: 16px; }
+}
+
+/* High-contrast dark theme shared by dashboard and every feature module */
+.app.dark {
+  color-scheme: dark; --bg:#0d1420; --surface:#151f2d; --text:#f1f5fb;
+  --muted:#bdc8d8; --border:#344256; --primary:#d7bd95; --primary-hover:#ead4b0;
+  --input-bg:#111b29; --soft:#202d3e; --shadow:0 12px 34px rgba(0,0,0,.24);
+  background:var(--bg); color:var(--text);
+}
+.app.dark :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,th,td,legend,summary,li,dt,dd) { color:inherit; }
+.app.dark :is(.muted,.eyebrow,.sidebar-caption,.sidebar-group-label,.panel-title p,.stat-card>span,.stat-card>small,.sidebar-user-info small,.system-status,.field-hint,.help-text,.appearance-note,.stock-insight-footnote) { color:#bdc8d8!important; }
+.app.dark :is(.panel,.stat-card,.auth-card,.sidebar,.topbar,.modal,.modal-content,.dialog,.pos-cart,.pos-product-card,.pos-payment-panel,.dashboard-mini-stat,.dashboard-chart-panel,.dashboard-recent-sales,.stock-insight-card,.appearance-panel,.atelier-card,.atelier-panel,.livraison-card,.livraison-panel) { background-color:var(--surface); border-color:var(--border); color:var(--text); }
+.app.dark :is(input,select,textarea) { color:#f1f5fb; background-color:#111b29; border-color:#46566d; }
+.app.dark :is(input,select,textarea)::placeholder { color:#aebbd0; opacity:1; }
+.app.dark :is(button.secondary-button,.icon-button,.nav-item,.nav-bottom,.text-button) { color:#e7edf6; }
+.app.dark :is(table,th,td) { border-color:var(--border); }
+.app.dark th { color:#d4deeb; background:#202d3e; }
+.app.dark td { color:#edf2f8; }
+.app.dark tbody tr:hover { background:#202d3e; }
+.app.dark :is(.nav-item.active,.settings-nav.selected) { color:#f5dfbd; background:#29394d; }
+.app.dark :is(.form-grid label,.field,.pos-payment-panel label,.pos-cart-info,.pos-summary,.stock-toolbar,.stock-transfer-section) { color:#eaf0f8; }
+.app.dark :is(.alert.error) { color:#ffc1c1; background:#3b2028; border-color:#74404a; }
+.app.dark :is(.alert.success) { color:#b6f0d0; background:#17382e; border-color:#2d6854; }
+.app.dark .active-pill { color:#aaf0ca; background:#174333; }
+.app.dark .inactive-pill { color:#d2dbea; background:#344256; }
+.app.dark :is(.pos-stock-warning,.pos-payment-warning) { color:#ffd18a; }
+.app.dark :is(.pos-stock-ok,.pos-payment-ok) { color:#8ee4b5; }
+.app.dark .dashboard-chart-bar { background:linear-gradient(180deg,#e4c99e,#9f8055); }
+.dashboard-expense-chart .dashboard-chart-track { background:var(--soft); }
+.dashboard-expense-bar { width:100%; border-radius:8px 8px 2px 2px; background:linear-gradient(180deg,#8bb8e8,#527cae); }
+.app.dark .dashboard-expense-bar { background:linear-gradient(180deg,#8bb8e8,#527cae); }
+.app.dark :is(.product-mini-icon,.stat-icon,.auth-heading-icon) { background:#26364a; color:#e4c99e; }
+.app.dark :is(.atelier-module *,.livraison-module *) { border-color:var(--border); }
