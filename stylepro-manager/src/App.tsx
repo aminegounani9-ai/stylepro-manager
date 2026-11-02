@@ -1585,6 +1585,22 @@ async function stopPOSCamera() {
 
   async function submitReturn() {
     if (!storeId || !returnSale) return
+    if (returnBusy) return
+    if (returnSale.status !== 'completed') {
+      setError('Cette facture ne peut plus recevoir de retour.')
+      return
+    }
+
+    for (const line of returnLines) {
+      if (!Number.isSafeInteger(line.quantity) || line.quantity < 0) {
+        setError('Les quantités de retour doivent être des entiers positifs ou zéro.')
+        return
+      }
+      if (line.quantity > line.remaining) {
+        setError('La quantité demandée dépasse la quantité encore retournable.')
+        return
+      }
+    }
 
     const selected = returnLines.filter(line => line.quantity > 0)
     if (!selected.length) {
