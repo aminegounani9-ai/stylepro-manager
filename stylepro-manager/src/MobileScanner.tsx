@@ -22,6 +22,7 @@ export default function MobileScanner({ userId, onClose }: Props) {
   const scannerRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null)
   const busyRef = useRef(false)
   const cameraStartingRef = useRef(false)
+  const cameraStopRequestedRef = useRef(false)
   const elementId = 'stylepro-mobile-camera'
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export default function MobileScanner({ userId, onClose }: Props) {
   async function startCamera() {
     if (cameraStartingRef.current || scannerRef.current?.isScanning) return
     cameraStartingRef.current = true
+    cameraStopRequestedRef.current = false
     let scanner: import('html5-qrcode').Html5Qrcode | null = null
     try {
       setStatus('Ouverture de la caméra…')
@@ -124,6 +126,16 @@ export default function MobileScanner({ userId, onClose }: Props) {
         (decoded) => void sendCode(decoded),
         () => {}
       )
+      if (cameraStopRequestedRef.current) {
+        try {
+          if (scanner.isScanning) await scanner.stop()
+        } finally {
+          try { scanner.clear() } catch { /* Ignore cleanup failures. */ }
+          if (scannerRef.current === scanner) scannerRef.current = null
+        }
+        setStatus('Caméra arrêtée.')
+        return
+      }
       setStatus('Caméra active. Placez le code devant l’objectif.')
     } catch (error) {
       if (scanner) {
@@ -146,11 +158,12 @@ export default function MobileScanner({ userId, onClose }: Props) {
   }
 
   async function stopCamera() {
-    const scanner = scannerRef.current
-    if (cameraStartingRef.current && !scanner) {
+    if (cameraStartingRef.current) {
+      cameraStopRequestedRef.current = true
       setStatus('Arrêt de la caméra en cours…')
       return
     }
+    const scanner = scannerRef.current
     if (scanner) {
       try {
         if (scanner.isScanning) await scanner.stop()
