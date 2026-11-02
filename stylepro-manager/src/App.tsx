@@ -763,20 +763,29 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
           supabase.from('product_variants')
             .select('id,sku,min_stock,active')
             .eq('store_id', storeId)
-            .eq('active', true),
-          supabase.from('stock_movements')
-            .select('variant_id,quantity_delta')
-            .eq('store_id', storeId)
+            .eq('active', true)
         ])
 
       const failed = [
         salesResult.error, expensesResult.error, returnsResult.error,
-        variantsResult.error, movementsResult.error
+        variantsResult.error
       ].find(Boolean)
       if (failed) throw new Error(failed.message)
 
+      const movementRows: Array<{ variant_id: string; quantity_delta: number }> = []
+      for (let offset = 0; ; offset += 1000) {
+        const page = await supabase.from('stock_movements')
+          .select('id,variant_id,quantity_delta')
+          .eq('store_id', storeId)
+          .order('id', { ascending: true })
+          .range(offset, offset + 999)
+        if (page.error) throw new Error(page.error.message)
+        movementRows.push(...(page.data ?? []))
+        if ((page.data ?? []).length < 1000) break
+      }
+
       const stock: Record<string, number> = {}
-      for (const movement of movementsResult.data ?? []) {
+      for (const movement of movementRows) {
         stock[movement.variant_id] =
           (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
       }
@@ -881,20 +890,12 @@ const loadProductOptions = useCallback(async () => {
 const loadPOSData = useCallback(async () => {
   if (!storeId) return
 
-  const [vr, mr, cr] = await Promise.all([
+  const [vr, cr] = await Promise.all([
     supabase.from('product_variants')
       .select('id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active')
       .eq('store_id', storeId)
       .eq('active', true)
       .order('sku'),
-
-    supabase.from('stock_movements')
-      .select('variant_id,location_id,quantity_delta')
-      .eq('store_id', storeId)
-      .in('location_id', [
-        BOUTIQUE_LOCATION_ID,
-        RESERVE_LOCATION_ID
-      ]),
 
     supabase.from('customers')
       .select('id,full_name,phone')
@@ -903,8 +904,20 @@ const loadPOSData = useCallback(async () => {
   ])
 
   if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
-  if (mr.error) throw new Error(`Stock : ${mr.error.message}`)
   if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+
+  const movementRows: Array<{ variant_id: string; location_id: string; quantity_delta: number }> = []
+  for (let offset = 0; ; offset += 1000) {
+    const page = await supabase.from('stock_movements')
+      .select('id,variant_id,location_id,quantity_delta')
+      .eq('store_id', storeId)
+      .in('location_id', [BOUTIQUE_LOCATION_ID, RESERVE_LOCATION_ID])
+      .order('id', { ascending: true })
+      .range(offset, offset + 999)
+    if (page.error) throw new Error(`Stock : ${page.error.message}`)
+    movementRows.push(...(page.data ?? []))
+    if ((page.data ?? []).length < 1000) break
+  }
 
   const activeIds = new Set(
     products.filter(p => p.active).map(p => p.id)
@@ -920,7 +933,7 @@ const loadPOSData = useCallback(async () => {
   const boutiqueStocks: Record<string, number> = {}
   const reserveStocks: Record<string, number> = {}
 
-  for (const m of mr.data ?? []) {
+  for (const m of movementRows) {
     const quantity = Number(m.quantity_delta)
 
     if (m.location_id === BOUTIQUE_LOCATION_ID) {
@@ -1014,16 +1027,21 @@ async function saveStockMovement(e: FormEvent<HTMLFormElement>) {
   try {
     const locationId = STOCK_LOCATIONS[stockLocation]
 
-    const { data: movements, error: stockError } = await supabase
-      .from('stock_movements')
-      .select('quantity_delta')
-      .eq('store_id', storeId)
-      .eq('variant_id', movementVariant)
-      .eq('location_id', locationId)
+    const movements: Array<{ quantity_delta: number }> = []
+    for (let offset = 0; ; offset += 1000) {
+      const page = await supabase.from('stock_movements')
+        .select('id,quantity_delta')
+        .eq('store_id', storeId)
+        .eq('variant_id', movementVariant)
+        .eq('location_id', locationId)
+        .order('id', { ascending: true })
+        .range(offset, offset + 999)
+      if (page.error) throw page.error
+      movements.push(...(page.data ?? []))
+      if ((page.data ?? []).length < 1000) break
+    }
 
-    if (stockError) throw stockError
-
-    const current = (movements ?? []).reduce(
+    const current = movements.reduce(
       (total, movement) => total + Number(movement.quantity_delta),
       0
     )
