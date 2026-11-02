@@ -21,6 +21,7 @@ export default function MobileScanner({ userId, onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const scannerRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null)
   const busyRef = useRef(false)
+  const cameraStartingRef = useRef(false)
   const elementId = 'stylepro-mobile-camera'
 
   useEffect(() => {
@@ -60,7 +61,21 @@ export default function MobileScanner({ userId, onClose }: Props) {
     return () => {
       cancelled = true
       const scanner = scannerRef.current
-      if (scanner?.isScanning) void scanner.stop().catch(() => {})
+      scannerRef.current = null
+      if (scanner) {
+        void (async () => {
+          try {
+            if (scanner.isScanning) await scanner.stop()
+          } catch {
+            // Ignore camera shutdown errors during unmount.
+          }
+          try {
+            scanner.clear()
+          } catch {
+            // The scanner element may already be detached.
+          }
+        })()
+      }
     }
   }, [])
 
@@ -94,10 +109,13 @@ export default function MobileScanner({ userId, onClose }: Props) {
   }
 
   async function startCamera() {
+    if (cameraStartingRef.current || scannerRef.current?.isScanning) return
+    cameraStartingRef.current = true
+    let scanner: import('html5-qrcode').Html5Qrcode | null = null
     try {
       setStatus('Ouverture de la caméra…')
       const { Html5Qrcode } = await import('html5-qrcode')
-      const scanner = new Html5Qrcode(elementId)
+      scanner = new Html5Qrcode(elementId)
       scannerRef.current = scanner
 
       await scanner.start(
@@ -108,13 +126,31 @@ export default function MobileScanner({ userId, onClose }: Props) {
       )
       setStatus('Caméra active. Placez le code devant l’objectif.')
     } catch (error) {
-      scannerRef.current = null
+      if (scanner) {
+        try {
+          if (scanner.isScanning) await scanner.stop()
+        } catch {
+          // Ignore partial camera startup failures.
+        }
+        try {
+          scanner.clear()
+        } catch {
+          // Ignore cleanup failures.
+        }
+      }
+      if (scannerRef.current === scanner) scannerRef.current = null
       setStatus(error instanceof Error ? `Caméra indisponible : ${error.message}` : 'Caméra indisponible.')
+    } finally {
+      cameraStartingRef.current = false
     }
   }
 
   async function stopCamera() {
     const scanner = scannerRef.current
+    if (cameraStartingRef.current && !scanner) {
+      setStatus('Arrêt de la caméra en cours…')
+      return
+    }
     if (scanner) {
       try {
         if (scanner.isScanning) await scanner.stop()
