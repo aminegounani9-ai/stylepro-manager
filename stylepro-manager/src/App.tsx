@@ -36,6 +36,7 @@ import {
   ShoppingCart,
   Factory,
   Truck,
+  Activity,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import MobileScanner from './MobileScanner'
