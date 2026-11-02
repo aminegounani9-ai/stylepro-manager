@@ -2723,9 +2723,9 @@ const loadPromotions = useCallback(async () => {
                     <div className="input-wrap">
                       <Users size={18} className="input-icon" />
                       <input
-                        type="email"
-                        autoComplete="email"
-                        placeholder="vous@exemple.com"
+                        type={authMode === 'forgot' ? 'email' : 'text'}
+                        autoComplete={authMode === 'forgot' ? 'email' : 'username'}
+                        placeholder={authMode === 'login' ? 'admin ou vous@exemple.com' : 'vous@exemple.com'}
                         required
                         value={login}
                         onChange={event => setLogin(event.target.value)}
@@ -2787,7 +2787,7 @@ const loadPromotions = useCallback(async () => {
 
               <div className="auth-switch">
                 <button type="button" onClick={() => {
-                  setAuthMode('login')
+                  setAuthMode(authMode === 'login' ? 'forgot' : 'login')
                   setError('')
                   setMessage('')
                   setPassword('')
