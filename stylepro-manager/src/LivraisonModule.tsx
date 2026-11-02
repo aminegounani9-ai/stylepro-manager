@@ -226,6 +226,11 @@ export default function LivraisonModule({ storeId, userId }: Props) {
   }
 
   async function confirmDispatch(delivery: Delivery) {
+    if (delivery.status !== 'draft') {
+      setError('Seul un bon en brouillon peut être confirmé. Actualisez la liste.')
+      return
+    }
+    if (saving) return
     if (!window.confirm('Confirmer la sortie du BL-' + delivery.delivery_number + ' ? Le stock sera déduit.')) return
     setSaving(true); setError(''); setNotice('')
     try {
@@ -362,7 +367,7 @@ export default function LivraisonModule({ storeId, userId }: Props) {
           <div className="livraison-form-footer"><button type="button" className="livraison-btn secondary" onClick={() => setShowReturn(false)}>Annuler</button><button className="livraison-btn primary" disabled={returnSaving}>{returnSaving ? <RefreshCw className="spin" size={16} /> : <RotateCcw size={16} />} Valider le retour</button></div>
         </form>}
       </>}
-      <div className="livraison-modal-footer"><button className="livraison-btn secondary" onClick={() => window.print()}><Printer size={16} /> Imprimer A4 / 80 mm</button>{['confirmed','dispatched','partially_returned','failed'].includes(selected.status) && !showReturn && <button className="livraison-btn primary" onClick={beginReturn}><RotateCcw size={16} /> Enregistrer un retour</button>}{selected.status === 'draft' && <button className="livraison-btn primary" onClick={() => void confirmDispatch(selected)}><CheckCircle2 size={16} /> Confirmer la sortie</button>}</div>
+      <div className="livraison-modal-footer"><button className="livraison-btn secondary" onClick={() => window.print()}><Printer size={16} /> Imprimer A4 / 80 mm</button>{['confirmed','dispatched','partially_returned'].includes(selected.status) && !showReturn && <button className="livraison-btn primary" onClick={beginReturn}><RotateCcw size={16} /> Enregistrer un retour</button>}{selected.status === 'draft' && <button className="livraison-btn primary" onClick={() => void confirmDispatch(selected)}><CheckCircle2 size={16} /> Confirmer la sortie</button>}</div>
     </section></div>}
     <div className="livraison-print-document"><h1>Bon de livraison BL-{selected?.delivery_number || ''}</h1><p>Date : {selected ? dateLabel(selected.created_at) : ''}</p><p>Destinataire : {selected?.recipient_name || ''}</p><p>Téléphone : {selected?.recipient_phone || ''}</p><p>Adresse : {selected?.delivery_address || ''}</p><table><thead><tr><th>Article</th><th>Référence</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td>{item.product?.name || 'Article'}</td><td>{item.variant?.sku || ''}</td><td>{item.quantity}</td><td>{money(item.unit_price)}</td><td>{money(item.quantity * item.unit_price)}</td></tr>)}</tbody></table><h2>Total : {money(total)}</h2><p>Signature du destinataire : __________________________</p></div>
   </div>
