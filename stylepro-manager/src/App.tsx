@@ -2959,7 +2959,7 @@ const loadPromotions = useCallback(async () => {
         <option key={v.id} value={v.id}>
           {products.find(p => p.id === v.product_id)?.name ?? v.sku}
           {' — '}{v.sku}
-          {' (Stock Boutique: '}{posStocks[v.id] ?? 0}{')'}
+          {' (Stock '}{stockLocation === 'boutique' ? 'Boutique: ' : 'Réserve: '}{stockByLocation[v.id]?.[stockLocation] ?? 0}{')'}
         </option>
       ))}
     </select>
@@ -3179,7 +3179,7 @@ const loadPromotions = useCallback(async () => {
                 
 <div className="stock-summary-grid">
   <div className="stat-card">
-    <span>Total des unités</span>
+    <span>Unités disponibles en boutique</span>
     <strong>{stockSummary.totalUnits.toLocaleString('fr-DZ')}</strong>
   </div>
   <div className="stat-card">
@@ -3197,6 +3197,54 @@ const loadPromotions = useCallback(async () => {
     <span>Rupture</span>
     <strong>{stockSummary.outOfStock}</strong>
   </div>
+</div>
+
+<div className="stock-insights-grid">
+  {(() => {
+    const boutiqueUnits = Object.values(stockByLocation).reduce((sum, item) => sum + item.boutique, 0)
+    const reserveUnits = Object.values(stockByLocation).reduce((sum, item) => sum + item.reserve, 0)
+    const total = Math.max(1, boutiqueUnits + reserveUnits)
+    const statusTotal = Math.max(1, stockSummary.outOfStock + stockSummary.lowStock + stockSummary.available)
+    return (
+      <>
+        <section className="stock-insight-card">
+          <div className="stock-insight-heading">
+            <div><span className="stock-insight-kicker">RÉPARTITION</span><h3>Stock par emplacement</h3></div>
+            <Boxes size={19} />
+          </div>
+          <div className="stock-location-bars">
+            <div className="stock-location-row">
+              <div><span>🏪 Boutique</span><strong>{boutiqueUnits.toLocaleString('fr-DZ')}</strong></div>
+              <div className="stock-insight-track"><span style={{ width: `${boutiqueUnits / total * 100}%` }} /></div>
+            </div>
+            <div className="stock-location-row">
+              <div><span>📦 Réserve</span><strong>{reserveUnits.toLocaleString('fr-DZ')}</strong></div>
+              <div className="stock-insight-track reserve"><span style={{ width: `${reserveUnits / total * 100}%` }} /></div>
+            </div>
+            <p className="stock-insight-footnote">{(boutiqueUnits + reserveUnits).toLocaleString('fr-DZ')} unité(s) au total dans les deux emplacements.</p>
+          </div>
+        </section>
+        <section className="stock-insight-card">
+          <div className="stock-insight-heading">
+            <div><span className="stock-insight-kicker">DISPONIBILITÉ BOUTIQUE</span><h3>État des références</h3></div>
+            <Activity size={19} />
+          </div>
+          <div className="stock-status-bars">
+            {[
+              { label: 'Disponibles', value: stockSummary.available, kind: 'ok' },
+              { label: 'Stock faible', value: stockSummary.lowStock, kind: 'low' },
+              { label: 'En rupture', value: stockSummary.outOfStock, kind: 'out' },
+            ].map(item => (
+              <div className="stock-status-row" key={item.kind}>
+                <div><span>{item.label}</span><strong>{item.value}</strong></div>
+                <div className={`stock-insight-track ${item.kind}`}><span style={{ width: `${item.value / statusTotal * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </>
+    )
+  })()}
 </div>
 
 <div className="stock-toolbar">
@@ -3287,7 +3335,7 @@ const loadPromotions = useCallback(async () => {
       })}
       {filteredStockVariants.length === 0 && (
         <tr>
-          <td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>
+          <td colSpan={12} style={{ textAlign: 'center', padding: 24 }}>
             Aucun article ne correspond aux filtres.
           </td>
         </tr>
