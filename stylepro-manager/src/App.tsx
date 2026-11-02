@@ -582,6 +582,16 @@ useEffect(() => {
 useEffect(() => {
   localStorage.setItem('stylepro-accent', accent)
 }, [accent])
+
+useEffect(() => {
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const updateSystemTheme = () => {
+    if (themeMode === 'system') document.documentElement.dataset.theme = media.matches ? 'dark' : 'light'
+  }
+  updateSystemTheme()
+  media.addEventListener?.('change', updateSystemTheme)
+  return () => media.removeEventListener?.('change', updateSystemTheme)
+}, [themeMode])
   const [search, setSearch] = useState('')
 
   
@@ -1700,6 +1710,18 @@ async function stopPOSCamera() {
 
   async function finishPOS() {
     if (!storeId || posCart.length === 0) { setError('Le panier est vide.'); return }
+    if (posCart.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > item.stock)) {
+      setError('Vérifiez les quantités : elles doivent être entières et ne pas dépasser le stock disponible.')
+      return
+    }
+    if (posPaymentMethod === 'cash' && posCashValue < posPaymentTotal) {
+      setError('Le montant reçu en espèces est insuffisant pour valider la vente.')
+      return
+    }
+    if (posPaymentMethod === 'mixed' && (posPaidValue < posPaymentTotal || posCashValue <= 0 || posCardValue <= 0)) {
+      setError('Le paiement mixte doit couvrir le total avec des montants positifs en espèces et par carte.')
+      return
+    }
     setPosBusy(true)
     setError('')
     setMessage('')
@@ -1720,6 +1742,9 @@ async function stopPOSCamera() {
       setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
       setPosCart([])
       setPosCustomerId('')
+      setPosCashReceived('')
+      setPosCardAmount('')
+      setPosPaymentMethod('cash')
       await Promise.all([loadPOSData(), loadProducts()])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de la vente.')
@@ -5039,6 +5064,36 @@ const loadPromotions = useCallback(async () => {
                   {!analyticsLoading && analytics.sales.length === 0 && (
                     <p className="muted">Les ventes apparaîtront ici après les premières factures complétées.</p>
                   )}
+                </section>
+
+                <section className="panel dashboard-chart-panel dashboard-expense-chart">
+                  <div className="panel-title"><Activity size={20} /><div><h2>Suivi des dépenses</h2><p>Dépenses enregistrées sur les 7 derniers jours.</p></div></div>
+                  {(() => {
+                    const now = new Date()
+                    const days = Array.from({ length: 7 }, (_, index) => {
+                      const date = new Date(now)
+                      date.setHours(0, 0, 0, 0)
+                      date.setDate(date.getDate() - (6 - index))
+                      const next = new Date(date)
+                      next.setDate(next.getDate() + 1)
+                      const total = analytics.expenses.filter(expense => {
+                        const d = new Date(`${expense.expense_date}T00:00:00`)
+                        return d >= date && d < next
+                      }).reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
+                      return { date, total }
+                    })
+                    const max = Math.max(...days.map(day => day.total), 1)
+                    const currency = stores.find(store => store.id === storeId)?.currency || 'DZD'
+                    return <div className="dashboard-sales-chart" role="img" aria-label="Dépenses des sept derniers jours">
+                      {days.map(day => <div className="dashboard-chart-column" key={day.date.toISOString()}>
+                        <strong title={`${day.total.toLocaleString('fr-DZ')} ${currency}`}>{day.total > 0 ? day.total.toLocaleString('fr-DZ', { notation: 'compact', maximumFractionDigits: 1 }) : '—'}</strong>
+                        <div className="dashboard-chart-track"><div className="dashboard-expense-bar" style={{ height: `${day.total > 0 ? Math.max(8, day.total / max * 100) : 2}%` }} /></div>
+                        <span>{day.date.toLocaleDateString('fr-DZ', { weekday: 'short' })}</span>
+                        <small>{day.date.toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit' })}</small>
+                      </div>)}
+                    </div>
+                  })()}
+                  {!analyticsLoading && analytics.expenses.length === 0 && <p className="muted">Aucune dépense enregistrée sur la période chargée.</p>}
                 </section>
 
                 <section className="panel dashboard-recent-sales">
