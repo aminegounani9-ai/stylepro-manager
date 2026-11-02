@@ -6,7 +6,7 @@ import './livraison.css'
 
 type Delivery = { id: string; delivery_number: number | string; status: string; customer_id: string | null; recipient_name: string | null; recipient_phone: string | null; delivery_address: string | null; notes: string | null; created_at: string }
 type Product = { id: string; name: string }
-type Variant = { id: string; product_id: string; sku: string; size: string | null; color: string | null; sale_price: number; active: boolean }
+type Variant = { id: string; product_id: string; sku: string; size: string | null; color: string | null; sale_price: number; purchase_cost: number; active: boolean }
 type Customer = { id: string; full_name: string; phone: string | null }
 type Allocation = { id: string; delivery_item_id: string; location_id: string; storage_position_id: string | null; quantity_dispatched: number; quantity_returned: number }
 type Item = { id: string; delivery_id: string; variant_id: string; quantity: number; unit_price: number; variant: Variant | null; product: Product | null; allocations: Allocation[] }
@@ -62,7 +62,7 @@ export default function LivraisonModule({ storeId, userId }: Props) {
       const results = await Promise.all([
         supabase.from('deliveries').select('id,delivery_number,status,customer_id,recipient_name,recipient_phone,delivery_address,notes,created_at').eq('store_id', storeId).order('created_at', { ascending: false }),
         supabase.from('products').select('id,name').eq('store_id', storeId).eq('active', true),
-        supabase.from('product_variants').select('id,product_id,sku,size,color,sale_price,active').eq('store_id', storeId).eq('active', true),
+        supabase.from('product_variants').select('id,product_id,sku,size,color,sale_price,purchase_cost,active').eq('store_id', storeId).eq('active', true),
         supabase.from('customers').select('id,full_name,phone').eq('store_id', storeId).order('full_name'),
         supabase.from('stock_movements').select('variant_id,location_id,quantity_delta').eq('store_id', storeId),
         supabase.from('stock_storage_positions').select('id,location_id,zone_code,aisle_code,shelf_code,level_code,position_label').eq('store_id', storeId),
@@ -147,7 +147,7 @@ export default function LivraisonModule({ storeId, userId }: Props) {
         const { data: insertedItem, error: itemError } = await supabase.from('delivery_items').insert({
           store_id: storeId, delivery_id: delivery.id, variant_id: line.variant_id,
           quantity: Number(line.quantity), unit_price: Number(line.unit_price),
-          unit_cost: Number(selectedVariant?.sale_price ?? line.unit_price),
+          unit_cost: Number(selectedVariant?.purchase_cost ?? 0),
         }).select('id').single()
         if (itemError) throw itemError
         allocationRows.push({
