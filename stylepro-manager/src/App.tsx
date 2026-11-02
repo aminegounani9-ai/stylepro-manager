@@ -2856,7 +2856,10 @@ const loadPromotions = useCallback(async () => {
             <button
               type="button"
               className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
-              onClick={() => setSettingsOpen(value => !value)}
+              onClick={() => {
+                setCurrentView('dashboard')
+                setSettingsOpen(value => !value)
+              }}
             >
               <Settings size={18} />
               <span>Paramètres</span>
