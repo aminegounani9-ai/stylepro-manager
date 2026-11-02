@@ -217,6 +217,13 @@ if (integrationError) {
     if (models[modelIndex].sizes.some(s => s.size_name.toLowerCase() === clean.toLowerCase())) return
     updateModel(modelIndex, { sizes: [...models[modelIndex].sizes, { size_name: clean, quantity: '', unit_price: '', sale_price: '' }] })
   }
+  function removeSize(modelIndex: number, sizeIndex: number) {
+    setModels(current => current.map((model, index) =>
+      index !== modelIndex
+        ? model
+        : { ...model, sizes: model.sizes.filter((_, lineIndex) => lineIndex !== sizeIndex) }
+    ))
+  }
 
   async function saveSupplier(event: FormEvent) {
     event.preventDefault(); setError(''); setMessage('')
@@ -614,6 +621,14 @@ if (integrationError) {
                 <small>Total quantité</small>
                 <strong>{num(size.quantity)} pièces</strong>
               </div>
+              <button
+                type="button"
+                className="atelier-secondary-button"
+                onClick={() => removeSize(modelIndex, sizeIndex)}
+                aria-label={`Supprimer la taille ${size.size_name}`}
+              >
+                Retirer
+              </button>
               <div className="atelier-production-metric">
                 <small>Total vente</small>
                 <strong>{money(num(size.quantity) * num(size.sale_price))}</strong>
