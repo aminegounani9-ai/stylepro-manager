@@ -228,6 +228,7 @@ export default function App() {
   const [storeId, setStoreId] = useState('')
   const [currentView, setCurrentView] = useState<
   | 'dashboard'
+  | 'settings'
   | 'catalogue'
   | 'atelier'  
   | 'livraisons'
