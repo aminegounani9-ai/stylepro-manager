@@ -563,7 +563,6 @@ const [systemDark, setSystemDark] = useState(
 const [accent, setAccent] = useState<AccentName>(
   () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
 )
-const [settingsOpen, setSettingsOpen] = useState(false)
 
 const dark = themeMode === 'dark' || (themeMode === 'system' && systemDark)
 
@@ -2924,15 +2923,12 @@ const loadPromotions = useCallback(async () => {
 
             <button
               type="button"
-              className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
-              onClick={() => {
-                setCurrentView('dashboard')
-                setSettingsOpen(value => !value)
-              }}
+              className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
+              onClick={() => setCurrentView('settings')}
             >
               <Settings size={18} />
               <span>Paramètres</span>
-              <ChevronRight size={15} className={settingsOpen ? 'rotate-chevron' : ''} />
+              <ChevronRight size={15} className={currentView === 'settings' ? 'rotate-chevron' : ''} />
             </button>
 
             <div className="sidebar-user">
@@ -2949,7 +2945,75 @@ const loadPromotions = useCallback(async () => {
             {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
             {message && <div className="alert success">{message}</div>}
 
-            {currentView === 'atelier' ? (
+            {currentView === 'settings' ? (
+              <div className="settings-page">
+                <div className="welcome">
+                  <div>
+                    <p className="eyebrow">CONFIGURATION</p>
+                    <h1>Paramètres</h1>
+                    <p className="muted">Personnalisez l'apparence et consultez les informations de votre espace.</p>
+                  </div>
+                  <div className="secure-label"><ShieldCheck size={17} /> Préférences locales</div>
+                </div>
+
+                <section className="panel appearance-panel">
+                  <div className="panel-title">
+                    <Settings size={21} />
+                    <div>
+                      <h2>Thème & Apparence</h2>
+                      <p>Choisissez le mode d'affichage et la couleur principale de l'interface.</p>
+                    </div>
+                  </div>
+                  <label className="field appearance-field">
+                    Thème de l'interface
+                    <select value={themeMode} onChange={event => setThemeMode(event.target.value as ThemeMode)}>
+                      <option value="light">Clair — Beige</option>
+                      <option value="dark">Sombre</option>
+                      <option value="system">Système — automatique</option>
+                    </select>
+                  </label>
+                  <p className="palette-label">Couleur principale</p>
+                  <div className="palette-options">
+                    {([
+                      ['beige', '#a9875b', 'Beige'],
+                      ['green', '#397568', 'Vert'],
+                      ['blue', '#466b9d', 'Bleu'],
+                      ['burgundy', '#914c60', 'Bordeaux'],
+                      ['slate', '#626b78', 'Gris ardoise'],
+                    ] as const).map(([value, color, label]) => (
+                      <button type="button" key={value}
+                        className={`palette-choice ${accent === value ? 'chosen' : ''}`}
+                        onClick={() => setAccent(value)}
+                        aria-label={`Choisir la couleur ${label}`} title={label}>
+                        <span style={{ backgroundColor: color }} />
+                        {accent === value && <span className="palette-check">✓</span>}
+                        <small>{label}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="settings-actions">
+                    <button type="button" className="secondary-button" onClick={() => { setThemeMode('light'); setAccent('beige') }}>
+                      Réinitialiser l'apparence
+                    </button>
+                    <p className="appearance-note">Les préférences sont enregistrées automatiquement dans ce navigateur.</p>
+                  </div>
+                </section>
+
+                <section className="panel settings-info-grid">
+                  <div>
+                    <div className="panel-title"><Store size={20} /><div><h2>Boutique active</h2><p>Contexte actuellement sélectionné.</p></div></div>
+                    <strong>{stores.find(item => item.id === storeId)?.name || storeName || 'Aucune boutique sélectionnée'}</strong>
+                    <p className="muted">Devise : {stores.find(item => item.id === storeId)?.currency || 'DZD'}</p>
+                  </div>
+                  <div>
+                    <div className="panel-title"><ShieldCheck size={20} /><div><h2>Compte connecté</h2><p>Session authentifiée.</p></div></div>
+                    <strong>{user.email || 'Compte utilisateur'}</strong>
+                    <p className="muted">Les accès aux données restent contrôlés par les politiques RLS de Supabase.</p>
+                  </div>
+                </section>
+                <div className="alert info"><AlertCircle size={18} /> Les réglages de thème sont stockés sur cet appareil. Les paramètres métier et les permissions nécessitent une validation du schéma Supabase avant toute modification.</div>
+              </div>
+            ) : currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} />
 ) : currentView === 'livraisons' ? (
               <LivraisonModule storeId={storeId} userId={user.id} />
@@ -4886,57 +4950,6 @@ const loadPromotions = useCallback(async () => {
             ) : currentView === 'dashboard' ? (
               <>
               <div className="welcome">
-              {settingsOpen && (
-  <section className="panel appearance-panel">
-    <div className="panel-title">
-      <Settings size={21} />
-      <div>
-        <h2>Thème & Apparence</h2>
-        <p>Personnalisez l'apparence de votre espace de travail.</p>
-      </div>
-    </div>
-
-    <label className="field appearance-field">
-      Thème de l'interface
-      <select
-        value={themeMode}
-        onChange={event => setThemeMode(event.target.value as ThemeMode)}
-      >
-        <option value="light">Clair — Beige</option>
-        <option value="dark">Sombre</option>
-        <option value="system">Système — automatique</option>
-      </select>
-    </label>
-
-    <p className="palette-label">Couleur principale</p>
-    <div className="palette-options">
-      {([
-        ['beige', '#a9875b', 'Beige'],
-        ['green', '#397568', 'Vert'],
-        ['blue', '#466b9d', 'Bleu'],
-        ['burgundy', '#914c60', 'Bordeaux'],
-        ['slate', '#626b78', 'Gris ardoise'],
-      ] as const).map(([value, color, label]) => (
-        <button
-          type="button"
-          key={value}
-          className={`palette-choice ${accent === value ? 'chosen' : ''}`}
-          onClick={() => setAccent(value)}
-          aria-label={`Choisir la couleur ${label}`}
-          title={label}
-        >
-          <span style={{ backgroundColor: color }} />
-          {accent === value && <span className="palette-check">✓</span>}
-          <small>{label}</small>
-        </button>
-      ))}
-    </div>
-
-    <p className="appearance-note">
-      Vos préférences sont enregistrées automatiquement dans ce navigateur.
-    </p>
-  </section>
-)}
               <div>
                 <p className="eyebrow">VOTRE ESPACE DE TRAVAIL</p>
                 <h1>Tableau de bord</h1>
