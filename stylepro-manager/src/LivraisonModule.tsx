@@ -87,6 +87,21 @@ export default function LivraisonModule({ storeId, userId }: Props) {
 
   useEffect(() => { void loadData() }, [loadData])
 
+  // Keep the delivery detail dialog usable on touch devices without scrolling the page behind it.
+  useEffect(() => {
+    if (!selected) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !showReturn) setSelected(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selected, showReturn])
+
   const filtered = useMemo(() => deliveries.filter(d => {
     const text = (String(d.delivery_number) + ' ' + (d.recipient_name || '') + ' ' + (d.recipient_phone || '')).toLowerCase()
     const day = d.created_at.slice(0, 10)
@@ -280,8 +295,8 @@ export default function LivraisonModule({ storeId, userId }: Props) {
         <div className="livraison-table-wrap"><table className="livraison-table"><thead><tr><th>N° bon</th><th>Date</th><th>Destinataire</th><th>Contact</th><th>Statut</th><th>Actions</th></tr></thead><tbody>{filtered.map(d => <tr key={d.id}><td><strong>BL-{d.delivery_number}</strong></td><td>{dateLabel(d.created_at)}</td><td>{d.recipient_name || '—'}</td><td>{d.recipient_phone || '—'}</td><td><span className={'livraison-status ' + statusClass(d.status)}>{statusLabel(d.status)}</span></td><td className="livraison-actions"><button className="livraison-icon-btn" title="Détail" onClick={() => void openDetails(d)}><Eye size={17} /></button>{d.status === 'draft' && <button className="livraison-btn small primary" disabled={saving} onClick={() => void confirmDispatch(d)}><CheckCircle2 size={15} /> Confirmer sortie</button>}</td></tr>)}</tbody></table></div>}
     </section>
 
-    {selected && <div className="livraison-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSelected(null) }}><section className="livraison-modal">
-      <div className="livraison-section-heading"><div><span className="livraison-eyebrow">DOCUMENT DE LIVRAISON</span><h2>BL-{selected.delivery_number}</h2></div><button className="livraison-icon-btn" onClick={() => setSelected(null)}><X /></button></div>
+    {selected && <div className="livraison-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setSelected(null) }}><section className="livraison-modal" role="dialog" aria-modal="true" aria-labelledby="livraison-dialog-title">
+      <div className="livraison-section-heading"><div><span className="livraison-eyebrow">DOCUMENT DE LIVRAISON</span><h2 id="livraison-dialog-title">BL-{selected.delivery_number}</h2></div><button className="livraison-icon-btn" onClick={() => setSelected(null)}><X /></button></div>
       <div className="livraison-detail-top"><div><User size={16} /><span><small>Destinataire</small><strong>{selected.recipient_name || '—'}</strong></span></div><div><Phone size={16} /><span><small>Téléphone</small><strong>{selected.recipient_phone || '—'}</strong></span></div><div><MapPin size={16} /><span><small>Adresse</small><strong>{selected.delivery_address || '—'}</strong></span></div><div><Clock3 size={16} /><span><small>Date</small><strong>{dateLabel(selected.created_at)}</strong></span></div></div>
       {detailLoading ? <div className="livraison-empty"><RefreshCw className="spin" /> Chargement du détail…</div> : <>
         <div className="livraison-table-wrap"><table className="livraison-table"><thead><tr><th>Article</th><th>SKU / Variante</th><th>Qté</th><th>Prix unit.</th><th>Total</th><th>Sortie / Retour</th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td>{item.product?.name || 'Article'}</td><td>{item.variant?.sku || '—'} {item.variant?.size || ''} {item.variant?.color || ''}</td><td>{item.quantity}</td><td>{money(item.unit_price)}</td><td>{money(item.quantity * item.unit_price)}</td><td>{item.allocations.map(a => <small key={a.id} className="allocation-note">{a.location_id === RESERVE ? 'Réserve' : 'Boutique'} : {a.quantity_dispatched} sorti / {a.quantity_returned} retourné</small>)}</td></tr>)}</tbody></table></div>
