@@ -3184,18 +3184,18 @@ const loadPromotions = useCallback(async () => {
     <strong>{stockSummary.totalUnits.toLocaleString('fr-DZ')}</strong>
   </div>
   <div className="stat-card">
-    <span>Valeur du stock</span>
+    <span>Valeur du stock boutique</span>
     <strong>{stockSummary.stockValue.toLocaleString('fr-DZ', {
       maximumFractionDigits: 2
     })} DZD</strong>
     <small>Au coût d'achat actuel</small>
   </div>
   <div className="stat-card">
-    <span>Stock faible</span>
+    <span>Stock faible en boutique</span>
     <strong>{stockSummary.lowStock}</strong>
   </div>
   <div className="stat-card">
-    <span>Rupture</span>
+    <span>Rupture en boutique</span>
     <strong>{stockSummary.outOfStock}</strong>
   </div>
 </div>
