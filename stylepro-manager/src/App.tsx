@@ -557,15 +557,15 @@ type AccentName = 'beige' | 'green' | 'blue' | 'burgundy' | 'slate'
 const [themeMode, setThemeMode] = useState<ThemeMode>(
   () => (localStorage.getItem('stylepro-theme') as ThemeMode) || 'light'
 )
+const [systemDark, setSystemDark] = useState(
+  () => window.matchMedia('(prefers-color-scheme: dark)').matches
+)
 const [accent, setAccent] = useState<AccentName>(
   () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
 )
 const [settingsOpen, setSettingsOpen] = useState(false)
 
-const dark =
-  themeMode === 'dark' ||
-  (themeMode === 'system' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches)
+const dark = themeMode === 'dark' || (themeMode === 'system' && systemDark)
 
 const accentColors: Record<AccentName, { primary: string; hover: string }> = {
   beige: { primary: '#a9875b', hover: '#896a43' },
@@ -585,13 +585,11 @@ useEffect(() => {
 
 useEffect(() => {
   const media = window.matchMedia('(prefers-color-scheme: dark)')
-  const updateSystemTheme = () => {
-    if (themeMode === 'system') document.documentElement.dataset.theme = media.matches ? 'dark' : 'light'
-  }
+  const updateSystemTheme = () => setSystemDark(media.matches)
   updateSystemTheme()
   media.addEventListener?.('change', updateSystemTheme)
   return () => media.removeEventListener?.('change', updateSystemTheme)
-}, [themeMode])
+}, [])
   const [search, setSearch] = useState('')
 
   
