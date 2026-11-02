@@ -131,32 +131,55 @@ export default function LivraisonModule({ storeId, userId }: Props) {
 
   async function saveDraft(event: FormEvent) {
     event.preventDefault(); setError(''); setNotice('')
-    const valid = lines.filter(l => l.variant_id && Number(l.quantity) > 0 && Number(l.unit_price) >= 0)
+
     if (!recipientName.trim()) return setError('Le destinataire est obligatoire.')
-    if (!valid.length) return setError('Ajoutez au moins un article.')
-    const requestedBySource = new Map<string, number>()
-    for (const l of valid) {
-      if (!Number.isInteger(Number(l.quantity))) return setError('Les quantités doivent être des entiers.')
-      const sourceKey = l.variant_id + ':' + l.location_id
-      requestedBySource.set(sourceKey, (requestedBySource.get(sourceKey) || 0) + Number(l.quantity))
+    if (customerId && !customers.some(customer => customer.id === customerId)) {
+      return setError('Le client sélectionné est invalide. Actualisez la liste.')
     }
+
+    const valid = lines.filter(line => line.variant_id)
+    if (!valid.length) return setError('Ajoutez au moins un article.')
+
+    const requestedBySource = new Map<string, number>()
+    for (const line of valid) {
+      const quantity = Number(line.quantity)
+      const unitPrice = Number(line.unit_price)
+      if (!variantById(line.variant_id)) return setError('Un article sélectionné n’est plus disponible. Actualisez la liste.')
+      if (!Number.isSafeInteger(quantity) || quantity < 1) return setError('Les quantités doivent être des entiers positifs.')
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) return setError('Vérifiez les prix unitaires.')
+      if (line.location_id !== BOUTIQUE && line.location_id !== RESERVE) return setError('Emplacement de stock invalide.')
+      const sourceKey = line.variant_id + ':' + line.location_id
+      requestedBySource.set(sourceKey, (requestedBySource.get(sourceKey) || 0) + quantity)
+    }
+
     for (const [sourceKey, requested] of requestedBySource) {
-      const parts = sourceKey.split(':')
-      if (requested > available(parts[0], parts[1])) {
-        const variant = variantById(parts[0])
+      const [variantId, locationId] = sourceKey.split(':')
+      if (requested > available(variantId, locationId)) {
+        const variant = variantById(variantId)
         return setError('Stock insuffisant pour ' + (variant?.sku || 'un article') + ' dans cet emplacement.')
       }
     }
+
     setSaving(true)
+    let createdDeliveryId: string | null = null
+    const createdItemIds: string[] = []
     try {
-      const { data: delivery, error: e1 } = await supabase.from('deliveries').insert({
+      const { data: delivery, error: deliveryError } = await supabase.from('deliveries').insert({
         store_id: storeId, created_by: userId, customer_id: customerId || null,
         recipient_name: recipientName.trim(), recipient_phone: recipientPhone.trim() || null,
         delivery_address: address.trim() || null, notes: notes.trim() || null, status: 'draft',
       }).select('id').single()
-      if (e1) throw e1
-      const allocationRows = []
-      // Insert each item separately so repeated variants keep their exact source allocation.
+      if (deliveryError) throw deliveryError
+      if (!delivery?.id) throw new Error('Le brouillon a été créé sans identifiant retourné.')
+      createdDeliveryId = delivery.id
+
+      const allocationRows: Array<{
+        store_id: string; delivery_id: string; delivery_item_id: string;
+        location_id: string; storage_position_id: null;
+        quantity_dispatched: number; quantity_returned: number;
+      }> = []
+
+      // Separate inserts preserve the exact stock source when a variant appears more than once.
       for (const line of valid) {
         const selectedVariant = variantById(line.variant_id)
         const { data: insertedItem, error: itemError } = await supabase.from('delivery_items').insert({
@@ -165,18 +188,41 @@ export default function LivraisonModule({ storeId, userId }: Props) {
           unit_cost: Number(selectedVariant?.purchase_cost ?? 0),
         }).select('id').single()
         if (itemError) throw itemError
+        if (!insertedItem?.id) throw new Error('Une ligne article a été créée sans identifiant retourné.')
+        createdItemIds.push(insertedItem.id)
         allocationRows.push({
           store_id: storeId, delivery_id: delivery.id, delivery_item_id: insertedItem.id,
           location_id: line.location_id, storage_position_id: null,
           quantity_dispatched: Number(line.quantity), quantity_returned: 0,
         })
       }
-      const { error: e3 } = await supabase.from('delivery_item_allocations').insert(allocationRows)
-      if (e3) throw e3
+
+      const { error: allocationError } = await supabase.from('delivery_item_allocations').insert(allocationRows)
+      if (allocationError) throw allocationError
+
       setNotice('Brouillon enregistré. Aucun stock n’a été déduit.')
       setShowCreate(false); resetForm(); await loadData()
-    } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement impossible.') }
-    finally { setSaving(false) }
+    } catch (e) {
+      const originalMessage = e instanceof Error ? e.message : 'Enregistrement impossible.'
+      // Compensate only rows created by this attempt, in child-to-parent order.
+      // No stock movements are written while a delivery remains a draft.
+      if (createdDeliveryId) {
+        const cleanupErrors: string[] = []
+        const { error: allocationCleanupError } = await supabase.from('delivery_item_allocations').delete().eq('store_id', storeId).eq('delivery_id', createdDeliveryId)
+        if (allocationCleanupError) cleanupErrors.push(allocationCleanupError.message)
+        if (createdItemIds.length) {
+          const { error: itemCleanupError } = await supabase.from('delivery_items').delete().eq('store_id', storeId).in('id', createdItemIds)
+          if (itemCleanupError) cleanupErrors.push(itemCleanupError.message)
+        }
+        const { error: deliveryCleanupError } = await supabase.from('deliveries').delete().eq('store_id', storeId).eq('id', createdDeliveryId).eq('status', 'draft')
+        if (deliveryCleanupError) cleanupErrors.push(deliveryCleanupError.message)
+        setError(cleanupErrors.length
+          ? originalMessage + ' Le nettoyage automatique est incomplet : ' + cleanupErrors.join(' · ') + '. Vérifiez ce brouillon avant toute nouvelle tentative.'
+          : originalMessage + ' Les lignes créées pendant cette tentative ont été nettoyées.')
+      } else {
+        setError(originalMessage)
+      }
+    } finally { setSaving(false) }
   }
 
   async function confirmDispatch(delivery: Delivery) {
