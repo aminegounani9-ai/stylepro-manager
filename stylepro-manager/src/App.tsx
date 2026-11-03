@@ -425,7 +425,7 @@ const EXTRA_AR_TRANSLATIONS: Record<string, string> = {
   "Détail impossible à charger.": "تعذّر تحميل التفاصيل.",
   "Confirmation impossible.": "تعذّر التأكيد.",
   "Enregistrement impossible.": "تعذّر الحفظ.",
-
+}
 
 function translateArabicText(value: string): string {
   const trimmed = value.trim()
