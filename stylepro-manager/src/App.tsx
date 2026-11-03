@@ -5309,7 +5309,7 @@ const loadPromotions = useCallback(async () => {
                   </div>
                 </section>
               </div>
-            ) : currentView === 'dashboard' ? (board' ? (
+            ) : currentView === 'dashboard' ? (
               <>
               <div className="welcome">
 
