@@ -14,7 +14,7 @@ export default defineConfig({
         short_name: 'StylePro',
         description: 'Gestion professionnelle de boutique, stock, ventes et atelier.',
         lang: 'fr-DZ',
-        dir: 'auto',
+        dir: 'ltr',
         start_url: '/',
         scope: '/',
         display: 'standalone',
