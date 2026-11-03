@@ -108,13 +108,16 @@ export default function LivraisonModule({ storeId, userId }: Props) {
         }
         setStock(totals)
         setError('Mode hors ligne : données affichées depuis le cache local. Les modifications nécessitent une connexion.')
-      } catch (cacheError) {
+      } catch {
         setError(e instanceof Error ? e.message : 'Chargement impossible.')
       }
     } finally { setLoading(false) }
   }, [storeId])
 
-  useEffect(() => { void loadData() }, [loadData])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Load deliveries for the selected store.
+    void loadData()
+  }, [loadData])
 
   // Keep the delivery detail dialog usable on touch devices without scrolling the page behind it.
   useEffect(() => {
