@@ -4493,3 +4493,6 @@ html[dir="rtl"] .sidebar-user-info { text-align: right; }
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* User management */
+.user-create-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;align-items:end;margin:18px 0 26px}.user-create-form .field input,.user-create-form .field select{width:100%;margin-top:7px}.user-create-form button{min-height:42px}.user-members-list h3{margin:0 0 12px}.user-member-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--border-color,#e5e0d8);flex-wrap:wrap}.user-member-info{display:flex;align-items:center;gap:10px;flex:1;min-width:180px}.user-member-info div{display:grid;gap:3px}.user-member-info small{opacity:.7}.user-member-row select{min-width:175px}.user-status{font-size:12px;padding:5px 9px;border-radius:20px;background:#f5e8e5;color:#9b4237}.user-status.active{background:#e5f2e9;color:#28734a}@media(max-width:650px){.user-member-row>*{max-width:100%}.user-member-row select{flex:1}}
