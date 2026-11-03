@@ -783,7 +783,7 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
     setAnalyticsLoading(true)
     try {
-      const [salesResult, expensesResult, returnsResult, variantsResult, movementsResult] =
+      const [salesResult, expensesResult, returnsResult, variantsResult] =
         await Promise.all([
           supabase.from('sales')
             .select('id,sale_number,total,status,created_at,completed_at')
