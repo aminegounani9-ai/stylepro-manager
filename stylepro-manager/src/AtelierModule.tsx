@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   Factory,
@@ -126,7 +126,7 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
     if (auditError) console.error('Atelier audit log failed:', auditError.message)
   }
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!storeId) return
     setLoading(true); setError('')
     const cache = async (table: EntityTable, rows: Array<Record<string, unknown>>) =>
@@ -200,8 +200,11 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
         setError(onlineError instanceof Error ? onlineError.message : 'Chargement Atelier impossible.')
       }
     } finally { setLoading(false) }
-  }
-  useEffect(() => { void loadData() }, [storeId])
+  }, [storeId])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Load the selected store's Atelier records asynchronously.
+    void loadData()
+  }, [loadData])
 
   function resetProduction() {
     setProductionDate(new Date().toISOString().slice(0, 10))
