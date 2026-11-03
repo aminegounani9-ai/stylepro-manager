@@ -159,6 +159,17 @@ type POSCartItem = {
   discount_value: number
 }
 
+type StockMovementHistoryRow = {
+  id: string
+  variant_id: string
+  location_id: string
+  movement_type: string
+  quantity_delta: number
+  unit_cost: number | null
+  reason: string | null
+  created_at: string
+}
+
 type VariantDraft = {
   id?: string
   sku: string
@@ -550,7 +561,7 @@ export default function App() {
   const [transferQty, setTransferQty] = useState('1')
   const [transferReason, setTransferReason] = useState('')
   const [transferBusy, setTransferBusy] = useState(false)
-  const [movementHistory, setMovementHistory] = useState<any[]>([])
+  const [movementHistory, setMovementHistory] = useState<StockMovementHistoryRow[]>([])
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [stockSearch, setStockSearch] = useState('')
   const [stockFilter, setStockFilter] = useState<
@@ -1108,12 +1119,16 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
   useEffect(() => {
     if (user && storeId && (currentView === 'statistics' || currentView === 'dashboard')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Async analytics loader synchronizes the selected view with Supabase.
       void loadAnalytics()
     }
   }, [user, storeId, currentView, loadAnalytics])
 
   useEffect(() => {
-    if (user) void loadStores()
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh stores after authentication changes.
+      void loadStores()
+    }
     else {
       setStores([])
       setStoreId('')
@@ -1122,7 +1137,10 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
   }, [user, loadStores])
 
   useEffect(() => {
-    if (user && storeId) void loadProducts()
+    if (user && storeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh products when the active store changes.
+      void loadProducts()
+    }
     else setProducts([])
   }, [user, storeId, loadProducts])
 
@@ -1170,6 +1188,7 @@ const loadProductOptions = useCallback(async () => {
 
   useEffect(() => {
     if (user && storeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Load category and brand options for the active store.
       void loadProductOptions()
     } else {
       setCategories([])
@@ -1210,7 +1229,7 @@ const loadPOSData = useCallback(async () => {
   let variants: POSVariant[]
   let customers: POSCustomer[]
   let movementRows: StockMovementRow[] = []
-  let online = !vr.error && !cr.error
+  const online = !vr.error && !cr.error
 
   if (online) {
     variants = (vr.data ?? []) as POSVariant[]
@@ -1241,7 +1260,7 @@ const loadPOSData = useCallback(async () => {
     } catch (stockError) {
       console.warn('Chargement du stock en ligne impossible, utilisation du cache local.', stockError)
       movementRows = await cachedRows<StockMovementRow>('stock_movements', storeId)
-      if (!movementRows.length) throw new Error('Stock indisponible en ligne et aucun stock local en cache.')
+      if (!movementRows.length) throw new Error('Stock indisponible en ligne et aucun stock local en cache.', { cause: stockError })
     }
   } else {
     const [localVariants, localCustomers, localMovements] = await Promise.all([
@@ -1322,6 +1341,7 @@ const loadPOSData = useCallback(async () => {
     !['sales', 'customers', 'stock', 'promotions', 'catalogue'].includes(currentView)
   ) return
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- POS data is fetched when the authenticated store or active POS view changes.
   void loadPOSData().catch(e =>
     setError(e instanceof Error ? e.message : 'Erreur de chargement POS')
   )
@@ -1343,6 +1363,7 @@ const loadPOSData = useCallback(async () => {
 
 useEffect(() => {
   if (user && storeId && currentView === 'stock') {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh the movement history when the stock view becomes active.
     void loadMovementHistory().catch(e =>
       setError(e instanceof Error ? e.message : String(e))
     )
@@ -1633,7 +1654,7 @@ function exportMovementHistoryPDF() {
         window.onload = function() {
           window.print();
         };
-      <\/script>
+      </script>
     </body>
     </html>
   `)
@@ -2633,7 +2654,7 @@ const loadPromotions = useCallback(async () => {
     if (loadError) throw loadError
 
     const loadedPromotions = (data ?? []) as PromotionRow[]
-    let grouped: Record<string, string[]> = {}
+    const grouped: Record<string, string[]> = {}
 
     if (loadedPromotions.length > 0) {
       const promotionIds = loadedPromotions.map(p => p.id)
@@ -2680,6 +2701,7 @@ const loadPromotions = useCallback(async () => {
 
   useEffect(() => {
     if (user && storeId && ['promotions', 'sales'].includes(currentView)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Load promotion data when its screen becomes active.
       void loadPromotions()
     }
   }, [user, storeId, currentView, loadPromotions])
