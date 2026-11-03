@@ -1,25 +1,37 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "StylePro Manager",
+    "slug": "stylepro-manager",
+    "scheme": "stylepro",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.stylepro.manager",
+      "supportsTablet": true,
+      "buildNumber": "1"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      "package": "com.stylepro.manager",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": true,
+      "permissions": [
+        "CAMERA"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "StylePro Manager utilise la caméra pour scanner les codes-barres et QR des articles.",
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
