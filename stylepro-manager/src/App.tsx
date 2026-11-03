@@ -247,7 +247,7 @@ const UI_TRANSLATIONS: Record<string, string> = {
   'Adresse e-mail':'البريد الإلكتروني','Nouveau mot de passe':'كلمة المرور الجديدة','Mot de passe':'كلمة المرور',
   'Se connecter':'تسجيل الدخول','Connexion':'دخول','Retour à la connexion':'العودة إلى تسجيل الدخول',
   'Connexion sécurisée par Supabase':'اتصال آمن بواسطة Supabase','VOTRE ESPACE':'مساحتك',
-  'GÉNÉRAL':'عام','BOUTIQUE':'المتجر','GESTION COMMERCIALE':'إدارة تجارية','ANALYSE':'التحليلات',
+  'GÉNÉRAL':'عام','BOUTIQUE':'المتجر','ANALYSE':'التحليلات',
   'Tableau de bord':'لوحة التحكم','Catalogue articles':'كتالوج المنتجات','Atelier / Production':'الورشة / الإنتاج',
   'Promotions':'العروض','Étiquettes QR':'ملصقات QR','Livraisons':'التوصيلات',
   'Gestion du stock':'تسيير المخزون','Ventes / Caisse':'المبيعات / الصندوق',
@@ -388,10 +388,10 @@ export default function App() {
         }
       }
     }
-    const translateTree = (root: ParentNode) => {
+    const translateTree = (root: Node) => {
       root.childNodes.forEach(node => {
         translateNode(node)
-        if (node.hasChildNodes()) translateTree(node as ParentNode)
+        if (node.hasChildNodes()) translateTree(node)
       })
     }
     translateTree(document.body)
@@ -2980,6 +2980,13 @@ const loadPromotions = useCallback(async () => {
         </a>
 
         <div className="header-actions">
+          <label className="language-switch" aria-label="Language / اللغة">
+            <span>🌐</span>
+            <select value={language} onChange={event => setLanguage(event.target.value as AppLanguage)}>
+              <option value="fr">Français</option>
+              <option value="ar">العربية</option>
+            </select>
+          </label>
           <span className="system-status">
             <span className="status-dot" /> Système opérationnel
           </span>
