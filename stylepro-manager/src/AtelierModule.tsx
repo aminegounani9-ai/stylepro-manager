@@ -14,6 +14,7 @@ import {
   Printer
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { getLocalRecords, saveLocalRecord, type EntityTable } from './lib/offlineDb'
 
 
 type SupplierType = 'tissu' | 'confection'
@@ -128,59 +129,66 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
   async function loadData() {
     if (!storeId) return
     setLoading(true); setError('')
-    const [s, p] = await Promise.all([
-      supabase.from('atelier_suppliers')
-        .select('id,name,phone,address,notes,supplier_type')
-        .eq('store_id', storeId).order('name'),
-      supabase.from('atelier_productions')
-        .select('id,production_number,production_date,supplier_name_snapshot,confection_supplier_name_snapshot,fabric_name,fabric_number,fabric_quantity_m,fabric_price_per_m,fabric_total_cost,model_name,color,total_quantity,total_production_price,total_confection_cost,total_cost,total_sales_price,gross_profit,margin_percent,notes')
-        .eq('store_id', storeId).order('production_number', { ascending: false }).limit(200)
-    ])
-    if (s.error) setError(s.error.message)
-    else setSuppliers((s.data ?? []) as Supplier[])
-    if (p.error) setError(v => v || p.error!.message)
-    else {
-      const list = (p.data ?? []) as Production[]
-      setProductions(list)
-      if (list.length) {
-        const ids = list.map(x => x.id)
-        const [mr, sr] = await Promise.all([
-          supabase.from('atelier_production_models')
-          .select('id,production_id,model_number,model_name,sku,color,target_audience,total_quantity,total_production_cost,total_sales_price,gross_profit')
-            .eq('store_id', storeId).in('production_id', ids),
-          supabase.from('atelier_production_sizes')
-            .select('id,production_id,model_id,size_name,quantity,unit_price,sale_price,line_total')
-            .eq('store_id', storeId).in('production_id', ids)
+    const cache = async (table: EntityTable, rows: Array<Record<string, unknown>>) =>
+      Promise.all(rows.map(row => saveLocalRecord(table, storeId, row)))
+    const cached = async <T,>(table: EntityTable): Promise<T[]> =>
+      (await getLocalRecords<T>(storeId, table)).map(row => row.data)
+    try {
+      const [supplierResult, productionResult, integrationResult] = await Promise.all([
+        supabase.from('atelier_suppliers').select('id,name,phone,address,notes,supplier_type').eq('store_id', storeId).order('name'),
+        supabase.from('atelier_productions').select('id,production_number,production_date,supplier_name_snapshot,confection_supplier_name_snapshot,fabric_name,fabric_number,fabric_quantity_m,fabric_price_per_m,fabric_total_cost,model_name,color,total_quantity,total_production_price,total_confection_cost,total_cost,total_sales_price,gross_profit,margin_percent,notes').eq('store_id', storeId).order('production_number', { ascending: false }).limit(200),
+        supabase.from('atelier_stock_integrations').select('production_id').eq('store_id', storeId)
+      ])
+      if (supplierResult.error) throw supplierResult.error
+      if (productionResult.error) throw productionResult.error
+      if (integrationResult.error) throw integrationResult.error
+      const suppliers = (supplierResult.data ?? []) as Supplier[]
+      const productions = (productionResult.data ?? []) as Production[]
+      await Promise.all([
+        cache('atelier_suppliers', supplierResult.data ?? []),
+        cache('atelier_productions', productionResult.data ?? []),
+        cache('atelier_stock_integrations', integrationResult.data ?? [])
+      ])
+      setSuppliers(suppliers); setProductions(productions)
+      setIntegratedProductionIds([...new Set((integrationResult.data ?? []).map(x => x.production_id))])
+      if (productions.length) {
+        const ids = productions.map(x => x.id)
+        const [modelResult, sizeResult] = await Promise.all([
+          supabase.from('atelier_production_models').select('id,production_id,model_number,model_name,sku,color,target_audience,total_quantity,total_production_cost,total_sales_price,gross_profit').eq('store_id', storeId).in('production_id', ids),
+          supabase.from('atelier_production_sizes').select('id,production_id,model_id,size_name,quantity,unit_price,sale_price,line_total').eq('store_id', storeId).in('production_id', ids)
         ])
-        if (mr.error) setError(v => v || mr.error!.message)
-        else {
-          const grouped: Record<string, ModelRecord[]> = {}
-          ;((mr.data ?? []) as ModelRecord[]).forEach(m => { (grouped[m.production_id] ||= []).push(m) })
-          setModelsByProduction(grouped)
-        }
-        if (sr.error) setError(v => v || sr.error!.message)
-        else {
-          const grouped: Record<string, SizeRecord[]> = {}
-          ;((sr.data ?? []) as SizeRecord[]).forEach(x => { (grouped[x.production_id] ||= []).push(x) })
-          setSizesByProduction(grouped)
-        }
-      } else {
-        setModelsByProduction({}); setSizesByProduction({})
+        if (modelResult.error) throw modelResult.error
+        if (sizeResult.error) throw sizeResult.error
+        await Promise.all([
+          cache('atelier_production_models', modelResult.data ?? []),
+          cache('atelier_production_sizes', sizeResult.data ?? [])
+        ])
+        const groupedModels: Record<string, ModelRecord[]> = {}
+        ;((modelResult.data ?? []) as ModelRecord[]).forEach(m => { (groupedModels[m.production_id] ||= []).push(m) })
+        const groupedSizes: Record<string, SizeRecord[]> = {}
+        ;((sizeResult.data ?? []) as SizeRecord[]).forEach(x => { (groupedSizes[x.production_id] ||= []).push(x) })
+        setModelsByProduction(groupedModels); setSizesByProduction(groupedSizes)
+      } else { setModelsByProduction({}); setSizesByProduction({}) }
+    } catch (onlineError) {
+      try {
+        const [suppliers, productions, models, sizes, integrations] = await Promise.all([
+          cached<Supplier>('atelier_suppliers'), cached<Production>('atelier_productions'),
+          cached<ModelRecord>('atelier_production_models'), cached<SizeRecord>('atelier_production_sizes'),
+          cached<{production_id:string}>('atelier_stock_integrations')
+        ])
+        if (!suppliers.length && !productions.length) throw onlineError
+        setSuppliers(suppliers); setProductions(productions)
+        const groupedModels: Record<string, ModelRecord[]> = {}
+        models.forEach(m => { (groupedModels[m.production_id] ||= []).push(m) })
+        const groupedSizes: Record<string, SizeRecord[]> = {}
+        sizes.forEach(x => { (groupedSizes[x.production_id] ||= []).push(x) })
+        setModelsByProduction(groupedModels); setSizesByProduction(groupedSizes)
+        setIntegratedProductionIds([...new Set(integrations.map(x => x.production_id))])
+        setError('Mode hors ligne : données Atelier affichées depuis le cache local. Création et intégration au stock nécessitent Internet.')
+      } catch {
+        setError(onlineError instanceof Error ? onlineError.message : 'Chargement Atelier impossible.')
       }
-    }
-    const { data: integrations, error: integrationError } = await supabase
-  .from('atelier_stock_integrations')
-  .select('production_id')
-  .eq('store_id', storeId)
-
-if (integrationError) {
-  setError(v => v || integrationError.message)
-} else {
-  setIntegratedProductionIds([
-    ...new Set((integrations ?? []).map(x => x.production_id))
-  ])
-}
-    setLoading(false)
+    } finally { setLoading(false) }
   }
   useEffect(() => { void loadData() }, [storeId])
 
