@@ -4396,3 +4396,55 @@ button:focus-visible {
 .app.dark .dashboard-expense-bar { background:linear-gradient(180deg,#8bb8e8,#527cae); }
 .app.dark :is(.product-mini-icon,.stat-icon,.auth-heading-icon) { background:#26364a; color:#e4c99e; }
 .app.dark :is(.atelier-module *,.livraison-module *) { border-color:var(--border); }
+
+
+/* Language selector and Arabic RTL layout */
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 12px;
+}
+.language-switch select {
+  width: auto;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+}
+html[dir="rtl"] body { direction: rtl; }
+html[dir="rtl"] .app { direction: rtl; }
+html[dir="rtl"] .sidebar { border-right: 0; border-left: 1px solid var(--border); }
+html[dir="rtl"] .sidebar-caption,
+html[dir="rtl"] .sidebar-group-label { text-align: right; }
+html[dir="rtl"] .nav-item,
+html[dir="rtl"] .nav-bottom,
+html[dir="rtl"] .sidebar-user,
+html[dir="rtl"] .brand,
+html[dir="rtl"] .header-actions { direction: rtl; }
+html[dir="rtl"] .nav-soon { margin-left: 0; margin-right: auto; }
+html[dir="rtl"] .nav-bottom svg:last-child { transform: scaleX(-1); }
+html[dir="rtl"] .nav-bottom .rotate-chevron { transform: rotate(90deg) scaleX(-1); }
+html[dir="rtl"] .input-icon { left: auto; right: 14px; }
+html[dir="rtl"] .input-wrap input { padding-left: 13px; padding-right: 43px; }
+html[dir="rtl"] .password-toggle { right: auto; left: 8px; }
+html[dir="rtl"] .search-box > svg { left: auto; right: 12px; }
+html[dir="rtl"] .search-box input { padding-left: 13px; padding-right: 38px; }
+html[dir="rtl"] th, html[dir="rtl"] td { text-align: right; }
+html[dir="rtl"] .alert { text-align: right; }
+html[dir="rtl"] .login-presentation,
+html[dir="rtl"] .auth-card { text-align: right; }
+html[dir="rtl"] .presentation-badge { letter-spacing: 0; }
+html[dir="rtl"] .sidebar-user-info { text-align: right; }
+@media (max-width: 760px) {
+  .language-switch { min-height: 36px; padding: 0 7px; }
+  .language-switch select { min-height: 30px; font-size: 11px; }
+}
