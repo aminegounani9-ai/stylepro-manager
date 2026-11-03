@@ -61,6 +61,7 @@ async function cachedRows<T>(
 import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
+import UserManagement from './components/UserManagement'
 import './atelier.css'
 import './stylepro.css'
 
@@ -5315,6 +5316,8 @@ const loadPromotions = useCallback(async () => {
                   </label>
                   <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
                 </section>
+
+                <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />
 
                 <section className="panel settings-account">
                   <div className="panel-title">
