@@ -170,6 +170,12 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
         setModelsByProduction(groupedModels); setSizesByProduction(groupedSizes)
       } else { setModelsByProduction({}); setSizesByProduction({}) }
     } catch (onlineError) {
+      const networkFailure =
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        onlineError instanceof TypeError
+      const dbError = onlineError as { code?: string; message?: string }
+      const detail = dbError?.message || 'Erreur inconnue'
+
       try {
         const [suppliers, productions, models, sizes, integrations] = await Promise.all([
           cached<Supplier>('atelier_suppliers'), cached<Production>('atelier_productions'),
@@ -184,11 +190,16 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
         sizes.forEach(x => { (groupedSizes[x.production_id] ||= []).push(x) })
         setModelsByProduction(groupedModels); setSizesByProduction(groupedSizes)
         setIntegratedProductionIds([...new Set(integrations.map(x => x.production_id))])
-        setError('Mode hors ligne : données Atelier affichées depuis le cache local. Création et intégration au stock nécessitent Internet.')
+
+        if (networkFailure) {
+          setError('Mode hors ligne : données Atelier affichées depuis le cache local. La création et l’intégration au stock nécessitent une connexion.')
+        } else {
+          setError(`Erreur Supabase${dbError?.code ? ` [${dbError.code}]` : ''} : ${detail}. Cache local affiché en lecture seule ; vérifiez les tables, les colonnes et les permissions RLS.`)
+        }
       } catch {
         setError(onlineError instanceof Error ? onlineError.message : 'Chargement Atelier impossible.')
       }
-    } finally { setLoading(false) }
+    }    } finally { setLoading(false) }
   }
   useEffect(() => { void loadData() }, [storeId])
 
