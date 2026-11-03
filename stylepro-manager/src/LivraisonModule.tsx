@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { ReactNode } from 'react'
 import { Truck, Plus, RefreshCw, Search, Package, ClipboardList, MapPin, Phone, User, Eye, RotateCcw, Printer, CheckCircle2, Clock3, AlertCircle, X, Trash2, Filter } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { getLocalRecords, saveLocalRecord, type EntityTable } from './lib/offlineDb'
 import './livraison.css'
 
 type Delivery = { id: string; delivery_number: number | string; status: string; customer_id: string | null; recipient_name: string | null; recipient_phone: string | null; delivery_address: string | null; notes: string | null; created_at: string }
@@ -58,31 +59,59 @@ export default function LivraisonModule({ storeId, userId }: Props) {
   const loadData = useCallback(async () => {
     if (!storeId) return
     setLoading(true); setError('')
+    const tables: EntityTable[] = ['deliveries','products','product_variants','customers','stock_movements','stock_storage_positions','delivery_returns']
+    const cache = async (table: EntityTable, rows: Array<Record<string, unknown>>) => {
+      await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row)))
+    }
+    const cached = async <T,>(table: EntityTable): Promise<T[]> =>
+      (await getLocalRecords<T>(storeId, table)).map(row => row.data)
     try {
       const results = await Promise.all([
         supabase.from('deliveries').select('id,delivery_number,status,customer_id,recipient_name,recipient_phone,delivery_address,notes,created_at').eq('store_id', storeId).order('created_at', { ascending: false }),
         supabase.from('products').select('id,name').eq('store_id', storeId).eq('active', true),
         supabase.from('product_variants').select('id,product_id,sku,size,color,sale_price,purchase_cost,active').eq('store_id', storeId).eq('active', true),
         supabase.from('customers').select('id,full_name,phone').eq('store_id', storeId).order('full_name'),
-        supabase.from('stock_movements').select('variant_id,location_id,quantity_delta').eq('store_id', storeId),
+        supabase.from('stock_movements').select('id,variant_id,location_id,quantity_delta').eq('store_id', storeId),
         supabase.from('stock_storage_positions').select('id,location_id,zone_code,aisle_code,shelf_code,level_code,position_label').eq('store_id', storeId),
         supabase.from('delivery_returns').select('id,return_number,delivery_id,reason,notes,created_at').eq('store_id', storeId).order('created_at', { ascending: false }),
       ])
-      for (const r of results) if (r.error) throw r.error
-      setDeliveries((results[0].data || []) as Delivery[])
-      setProducts((results[1].data || []) as Product[])
-      setVariants((results[2].data || []) as Variant[])
-      setCustomers((results[3].data || []) as Customer[])
-      setPositions((results[5].data || []) as Position[])
-      setReturns((results[6].data || []) as ReturnRecord[])
+      const failed = results.findIndex(result => result.error)
+      if (failed >= 0) throw results[failed].error
+      const rows = results.map(result => result.data || [])
+      await Promise.all(tables.map((table, index) => cache(table, rows[index] as Array<Record<string, unknown>>)))
+      setDeliveries(rows[0] as Delivery[])
+      setProducts(rows[1] as Product[])
+      setVariants(rows[2] as Variant[])
+      setCustomers(rows[3] as Customer[])
+      setPositions(rows[5] as Position[])
+      setReturns(rows[6] as ReturnRecord[])
       const totals: Record<string, number> = {}
-      for (const m of results[4].data || []) {
+      for (const m of rows[4] as Array<{variant_id:string;location_id:string;quantity_delta:number}>) {
         const key = String(m.variant_id) + ':' + String(m.location_id)
         totals[key] = (totals[key] || 0) + Number(m.quantity_delta || 0)
       }
       setStock(totals)
-    } catch (e) { setError(e instanceof Error ? e.message : 'Chargement impossible.') }
-    finally { setLoading(false) }
+    } catch (e) {
+      try {
+        const [deliveries, products, variants, customers, movements, positions, returns] = await Promise.all([
+          cached<Delivery>('deliveries'), cached<Product>('products'), cached<Variant>('product_variants'),
+          cached<Customer>('customers'), cached<{variant_id:string;location_id:string;quantity_delta:number}>('stock_movements'),
+          cached<Position>('stock_storage_positions'), cached<ReturnRecord>('delivery_returns')
+        ])
+        if (!deliveries.length && !products.length && !variants.length) throw e
+        setDeliveries(deliveries); setProducts(products); setVariants(variants); setCustomers(customers)
+        setPositions(positions); setReturns(returns)
+        const totals: Record<string, number> = {}
+        for (const m of movements) {
+          const key = String(m.variant_id) + ':' + String(m.location_id)
+          totals[key] = (totals[key] || 0) + Number(m.quantity_delta || 0)
+        }
+        setStock(totals)
+        setError('Mode hors ligne : données affichées depuis le cache local. Les modifications nécessitent une connexion.')
+      } catch (cacheError) {
+        setError(e instanceof Error ? e.message : 'Chargement impossible.')
+      }
+    } finally { setLoading(false) }
   }, [storeId])
 
   useEffect(() => { void loadData() }, [loadData])
