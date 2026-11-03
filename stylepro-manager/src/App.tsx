@@ -1026,8 +1026,10 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
     try {
       const [salesResult, expensesResult, returnsResult, variantsResult] =
         await Promise.all([
+          // created_at is the reliable transaction timestamp; do not make the
+          // entire dashboard depend on an optional completed_at column.
           supabase.from('sales')
-            .select('id,sale_number,total,status,created_at,completed_at')
+            .select('id,sale_number,total,status,created_at')
             .eq('store_id', storeId)
             .eq('status', 'completed')
             .order('created_at', { ascending: false })
@@ -1044,23 +1046,31 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
             .eq('active', true)
         ])
 
-      const failed = [
-        salesResult.error, expensesResult.error, returnsResult.error,
-        variantsResult.error
-      ].find(Boolean)
-      if (failed) throw new Error(failed.message)
+      if (salesResult.error) {
+        throw new Error(`Chargement des ventes : ${salesResult.error.message}`)
+      }
+
+      const warnings: string[] = []
+      if (expensesResult.error) warnings.push(`dépenses: ${expensesResult.error.message}`)
+      if (returnsResult.error) warnings.push(`retours: ${returnsResult.error.message}`)
+      if (variantsResult.error) warnings.push(`variantes: ${variantsResult.error.message}`)
 
       const movementRows: Array<{ variant_id: string; quantity_delta: number }> = []
+      let movementError: string | null = null
       for (let offset = 0; ; offset += 1000) {
         const page = await supabase.from('stock_movements')
           .select('id,variant_id,quantity_delta')
           .eq('store_id', storeId)
           .order('id', { ascending: true })
           .range(offset, offset + 999)
-        if (page.error) throw new Error(page.error.message)
+        if (page.error) {
+          movementError = page.error.message
+          break
+        }
         movementRows.push(...(page.data ?? []))
         if ((page.data ?? []).length < 1000) break
       }
+      if (movementError) warnings.push(`mouvements de stock: ${movementError}`)
 
       const stock: Record<string, number> = {}
       for (const movement of movementRows) {
@@ -1068,10 +1078,7 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
           (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
       }
 
-    
-
-     
-      const lowStock = (variantsResult.data ?? [])
+      const lowStock = (variantsResult.error ? [] : (variantsResult.data ?? []))
         .map(v => ({
           id: v.id,
           sku: v.sku || 'Sans référence',
@@ -1083,10 +1090,14 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
       setAnalytics({
         sales: (salesResult.data ?? []) as AnalyticsData['sales'],
-        expenses: (expensesResult.data ?? []) as AnalyticsData['expenses'],
-        returns: (returnsResult.data ?? []) as AnalyticsData['returns'],
+        expenses: (expensesResult.error ? [] : (expensesResult.data ?? [])) as AnalyticsData['expenses'],
+        returns: (returnsResult.error ? [] : (returnsResult.data ?? [])) as AnalyticsData['returns'],
         lowStock
       })
+
+      setError(warnings.length
+        ? `Tableau de bord partiel — ${warnings.join(' ; ')}`
+        : '')
     } catch (e) {
       setError(e instanceof Error ? `Statistiques : ${e.message}` : 'Erreur de chargement des statistiques.')
     } finally {
