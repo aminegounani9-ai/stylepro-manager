@@ -199,7 +199,7 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
       } catch {
         setError(onlineError instanceof Error ? onlineError.message : 'Chargement Atelier impossible.')
       }
-    }    } finally { setLoading(false) }
+    } finally { setLoading(false) }
   }
   useEffect(() => { void loadData() }, [storeId])
 
