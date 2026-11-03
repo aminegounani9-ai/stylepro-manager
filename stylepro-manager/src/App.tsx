@@ -47,7 +47,7 @@ async function cacheRows<T extends { id: string }>(
   storeId: string,
   rows: T[],
 ): Promise<void> {
-  await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row as T & Record<string, unknown>)))
+  await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row as unknown as T & Record<string, unknown>)))
 }
 
 async function cachedRows<T>(
