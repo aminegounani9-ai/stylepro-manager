@@ -228,12 +228,91 @@ function loadLabelSettings(): Partial<LabelSettings> {
   }
 }
 
+
+type AppLanguage = 'fr' | 'ar'
+
+const UI_TRANSLATIONS: Record<string, string> = {
+  'Système opérationnel':'النظام يعمل بشكل طبيعي','Déconnexion':'تسجيل الخروج',
+  'GESTION COMMERCIALE':'إدارة تجارية','Votre boutique.':'متجرك.','Votre réussite.':'نجاحك.',
+  'Gérez vos articles, votre stock et vos ventes depuis un espace professionnel conçu pour simplifier votre quotidien.':'تسيير منتجاتك ومخزونك ومبيعاتك من مساحة احترافية تسهّل عملك اليومي.',
+  'Stock centralisé':'مخزون مركزي','Articles, tailles et couleurs':'المنتجات والمقاسات والألوان',
+  'Suivi commercial':'متابعة النشاط التجاري','Indicateurs et performance':'المؤشرات والأداء',
+  'Accès sécurisé':'دخول آمن','Authentification Supabase':'تسجيل دخول آمن عبر Supabase',
+  'ÉDITION BOUTIQUE':'نسخة المتجر','ESPACE PRIVÉ':'مساحة خاصة',
+  'Bon retour parmi nous':'مرحباً بعودتك','Mot de passe oublié ?':'نسيت كلمة المرور؟',
+  'Créer un nouveau mot de passe':'إنشاء كلمة مرور جديدة',
+  'Connectez-vous pour accéder à votre espace de gestion.':'سجّل الدخول للوصول إلى مساحة التسيير.',
+  'Saisissez votre adresse e-mail pour recevoir un lien sécurisé.':'أدخل بريدك الإلكتروني لاستلام رابط آمن.',
+  'Choisissez un nouveau mot de passe pour votre compte.':'اختر كلمة مرور جديدة لحسابك.',
+  'Adresse e-mail':'البريد الإلكتروني','Nouveau mot de passe':'كلمة المرور الجديدة','Mot de passe':'كلمة المرور',
+  'Se connecter':'تسجيل الدخول','Connexion':'دخول','Retour à la connexion':'العودة إلى تسجيل الدخول',
+  'Connexion sécurisée par Supabase':'اتصال آمن بواسطة Supabase','VOTRE ESPACE':'مساحتك',
+  'GÉNÉRAL':'عام','BOUTIQUE':'المتجر','GESTION COMMERCIALE':'إدارة تجارية','ANALYSE':'التحليلات',
+  'Tableau de bord':'لوحة التحكم','Catalogue articles':'كتالوج المنتجات','Atelier / Production':'الورشة / الإنتاج',
+  'Promotions':'العروض','Étiquettes QR':'ملصقات QR','Livraisons':'التوصيلات',
+  'Gestion du stock':'تسيير المخزون','Ventes / Caisse':'المبيعات / الصندوق',
+  'Retours / Remboursements':'المرتجعات / الاسترداد','Clients':'الزبائن','Statistiques':'الإحصائيات',
+  'Paramètres':'الإعدادات','Compte connecté':'الحساب المتصل','Préparation de votre espace…':'جارٍ تحضير مساحتك…',
+  'Mode clair':'الوضع الفاتح','Mode sombre':'الوضع الداكن','Activer le mode clair':'تفعيل الوضع الفاتح',
+  'Activer le mode sombre':'تفعيل الوضع الداكن','Gestion des articles':'تسيير المنتجات',
+  'Nouveau mouvement de stock':'حركة مخزون جديدة','Emplacement':'الموقع','Stock Boutique':'مخزون المتجر',
+  'Stock Réserve':'مخزون المستودع','Article':'المنتج','Choisir un article':'اختر منتجاً',
+  'Entrée':'دخول','Sortie':'خروج','Quantité':'الكمية','Motif':'السبب',
+  'Enregistrer le mouvement':'حفظ الحركة','Transfert entre emplacements':'تحويل بين المواقع',
+  'Recherche':'بحث','Rechercher':'ابحث','Enregistrer':'حفظ','Annuler':'إلغاء',
+  'Ajouter':'إضافة','Modifier':'تعديل','Supprimer':'حذف','Fermer':'إغلاق',
+  'Aucun résultat':'لا توجد نتائج','Chargement…':'جارٍ التحميل…','Total':'المجموع',
+  'Prix':'السعر','Date':'التاريخ','Nom':'الاسم','Description':'الوصف',
+}
+
+function translateArabicText(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return value
+  const translated = UI_TRANSLATIONS[trimmed]
+  return translated ? value.replace(trimmed, translated) : value
+}
+
 const STOCK_LOCATIONS = {
   boutique: '5f2ccda1-58c1-4282-997b-309698834ad7',
   reserve: 'd67f391c-a873-4b56-a8db-0e709117eae6'
 } as const
 
 export default function App() {
+  const [language, setLanguage] = useState<AppLanguage>(() => (localStorage.getItem('stylepro-language') as AppLanguage) || 'fr')
+  useEffect(() => {
+    localStorage.setItem('stylepro-language', language)
+    document.documentElement.lang = language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+    document.documentElement.dataset.language = language
+    if (language !== 'ar') return
+    const translateNode = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
+        node.nodeValue = translateArabicText(node.nodeValue)
+      } else if (node instanceof HTMLElement) {
+        for (const attr of ['placeholder', 'title', 'aria-label']) {
+          const value = node.getAttribute(attr)
+          if (value) node.setAttribute(attr, translateArabicText(value))
+        }
+      }
+    }
+    const translateTree = (root: ParentNode) => {
+      root.childNodes.forEach(node => {
+        translateNode(node)
+        if (node.hasChildNodes()) translateTree(node as ParentNode)
+      })
+    }
+    translateTree(document.body)
+    const observer = new MutationObserver(records => records.forEach(record => {
+      if (record.type === 'characterData') translateNode(record.target)
+      record.addedNodes.forEach(node => {
+        translateNode(node)
+        if (node instanceof HTMLElement) translateTree(node)
+      })
+      if (record.type === 'attributes' && record.target instanceof HTMLElement) translateNode(record.target)
+    }))
+    observer.observe(document.body, {subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['placeholder','title','aria-label']})
+    return () => observer.disconnect()
+  }, [language])
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
   const [login, setLogin] = useState('')
