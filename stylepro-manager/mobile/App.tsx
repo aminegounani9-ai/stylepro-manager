@@ -255,7 +255,7 @@ export default function App() {
       await Promise.all([
         supabase
           .from('sales')
-          .select('id,sale_number,total,status,created_at,completed_at')
+          .select('id,sale_number,total,status,created_at')
           .eq('store_id', id)
           .eq('status', 'completed')
           .order('created_at', { ascending: false })
@@ -279,28 +279,26 @@ export default function App() {
           .eq('store_id', id),
       ])
 
-    const failed = [
-      salesResult.error,
-      expensesResult.error,
-      returnsResult.error,
-      variantsResult.error,
-      movementsResult.error,
-    ].find(Boolean)
+    if (salesResult.error) {
+      throw new Error(`Ventes : ${salesResult.error.message}`)
+    }
 
-    if (failed) throw new Error(`Statistiques : ${failed.message}`)
+    const warnings: string[] = []
+    if (expensesResult.error) warnings.push(`dépenses: ${expensesResult.error.message}`)
+    if (returnsResult.error) warnings.push(`retours: ${returnsResult.error.message}`)
+    if (variantsResult.error) warnings.push(`variantes: ${variantsResult.error.message}`)
+    if (movementsResult.error) warnings.push(`mouvements de stock: ${movementsResult.error.message}`)
 
     const salesRows = (salesResult.data ?? []) as SaleRow[]
-    const returnRows = (returnsResult.data ?? []) as ReturnRow[]
-    const expenseRows = (expensesResult.data ?? []) as ExpenseRow[]
-    const variants = variantsResult.data ?? []
-    const movements = movementsResult.data ?? []
+    const returnRows = returnsResult.error ? [] : ((returnsResult.data ?? []) as ReturnRow[])
+    const expenseRows = expensesResult.error ? [] : ((expensesResult.data ?? []) as ExpenseRow[])
+    const variants = variantsResult.error ? [] : (variantsResult.data ?? [])
+    const movements = movementsResult.error ? [] : (movementsResult.data ?? [])
 
     const stock: Record<string, number> = {}
-
     for (const movement of movements) {
       stock[movement.variant_id] =
-        (stock[movement.variant_id] ?? 0) +
-        Number(movement.quantity_delta ?? 0)
+        (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
     }
 
     const alerts = variants
@@ -315,7 +313,6 @@ export default function App() {
 
     let units = 0
     let value = 0
-
     for (const variant of variants) {
       const quantity = stock[variant.id] ?? 0
       units += quantity
@@ -328,6 +325,9 @@ export default function App() {
     setLowStock(alerts)
     setStockValue(value)
     setTotalStockUnits(units)
+    if (warnings.length) {
+      setError(`Tableau de bord partiel — ${warnings.join(' ; ')}`)
+    }
   }, [])
 
   const refreshAll = useCallback(async (manual = false) => {
