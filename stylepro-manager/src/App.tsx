@@ -39,6 +39,24 @@ import {
   Activity,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { getLocalRecords, saveLocalRecord } from './lib/offlineDb'
+import type { EntityTable } from './lib/offlineDb'
+
+async function cacheRows<T extends { id: string }>(
+  table: EntityTable,
+  storeId: string,
+  rows: T[],
+): Promise<void> {
+  await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row as T & Record<string, unknown>)))
+}
+
+async function cachedRows<T>(
+  table: EntityTable,
+  storeId: string,
+): Promise<T[]> {
+  const rows = await getLocalRecords<T>(storeId, table)
+  return rows.map(row => row.data)
+}
 import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
@@ -738,9 +756,19 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
       .order('name')
 
     if (error) {
-      setError(`Chargement des articles : ${error.message}`)
+      const local = await cachedRows<ProductRow>('products', storeId).catch(() => [])
+      if (local.length) {
+        setProducts(local.sort((a, b) => a.name.localeCompare(b.name)))
+        setError('Mode hors ligne : catalogue local. ' + error.message)
+      } else {
+        setError(`Chargement des articles : ${error.message}`)
+      }
     } else {
-      setProducts((data ?? []) as ProductRow[])
+      const rows = (data ?? []) as ProductRow[]
+      setProducts(rows)
+      await cacheRows('products', storeId, rows).catch(cacheError => {
+        console.warn('Cache local produits indisponible', cacheError)
+      })
     }
 
     setLoading(false)
@@ -867,17 +895,24 @@ const loadProductOptions = useCallback(async () => {
   ])
 
   if (categoryResult.error) {
-    setError(`Chargement des catégories : ${categoryResult.error.message}`)
-    return
+    const local = await cachedRows<CategoryRow>('categories', storeId).catch(() => [])
+    if (local.length) setCategories(local)
+    else setError(`Chargement des catégories : ${categoryResult.error.message}`)
+  } else {
+    const rows = categoryResult.data ?? []
+    setCategories(rows)
+    await cacheRows('categories', storeId, rows).catch(console.warn)
   }
 
   if (brandResult.error) {
-    setError(`Chargement des marques : ${brandResult.error.message}`)
-    return
+    const local = await cachedRows<BrandRow>('brands', storeId).catch(() => [])
+    if (local.length) setBrands(local)
+    else setError(`Chargement des marques : ${brandResult.error.message}`)
+  } else {
+    const rows = brandResult.data ?? []
+    setBrands(rows)
+    await cacheRows('brands', storeId, rows).catch(console.warn)
   }
-
-  setCategories(categoryResult.data ?? [])
-  setBrands(brandResult.data ?? [])
 }, [storeId])
 
   useEffect(() => {
