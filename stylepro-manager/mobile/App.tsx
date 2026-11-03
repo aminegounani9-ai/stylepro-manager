@@ -349,7 +349,10 @@ export default function App() {
   }, [user, loadStores])
 
   useEffect(() => {
-    if (user) void refreshAll()
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh the authenticated mobile workspace asynchronously.
+      void refreshAll()
+    }
     else {
       setStores([])
       setStoreId('')
