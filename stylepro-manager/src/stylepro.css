@@ -22,15 +22,6 @@
   --input-bg: #fffdf9;
   --soft: #eee6da;
   --shadow: 0 12px 32px rgba(74, 55, 30, .08);
-  --surface: #fff;
-  --text: #30291f;
-  --muted: #786f61;
-  --border: #e6ddd0;
-  --primary: #98764b;
-  --primary-hover: #785b38;
-  --input-bg: #fff;
-  --soft: #eee6da;
-  --shadow: 0 10px 35px rgba(20, 35, 65, .055);
 }
 
 * { box-sizing: border-box; }
@@ -4447,4 +4438,58 @@ html[dir="rtl"] .sidebar-user-info { text-align: right; }
 @media (max-width: 760px) {
   .language-switch { min-height: 36px; padding: 0 7px; }
   .language-switch select { min-height: 30px; font-size: 11px; }
+}
+
+
+/* Centralized application settings */
+.settings-page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.settings-page > .welcome {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+.settings-page > .settings-account {
+  grid-column: 1 / -1;
+}
+.settings-page .panel {
+  min-width: 0;
+}
+.settings-account-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.settings-account-grid > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--soft);
+}
+.settings-account-grid small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.settings-account-grid strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  .settings-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-page > .welcome,
+  .settings-page > .settings-account {
+    grid-column: auto;
+  }
+  .settings-account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
