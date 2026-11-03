@@ -361,6 +361,8 @@ export default function App() {
       setStockValue(0)
       setTotalStockUnits(0)
     }
+  // The auth transition intentionally resets screen state when the user signs out.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [user, refreshAll])
 
   useEffect(() => {
@@ -453,9 +455,6 @@ export default function App() {
 
     try {
       // Recherche limitée à la boutique sélectionnée.
-      let variant: any = null
-      let lookupError: any = null
-
       const barcodeLookup = await supabase
         .from('product_variants')
         .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
@@ -464,10 +463,11 @@ export default function App() {
         .eq('barcode', code)
         .maybeSingle()
 
-      variant = barcodeLookup.data
-      lookupError = barcodeLookup.error
+      if (barcodeLookup.error) throw barcodeLookup.error
 
-      if (!variant && !lookupError) {
+      let variant = barcodeLookup.data
+
+      if (!variant) {
         const qrLookup = await supabase
           .from('product_variants')
           .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
@@ -476,11 +476,9 @@ export default function App() {
           .eq('qr_token', code)
           .maybeSingle()
 
+        if (qrLookup.error) throw qrLookup.error
         variant = qrLookup.data
-        lookupError = qrLookup.error
       }
-
-      if (lookupError) throw lookupError
 
       if (!variant) {
         setScanMessage(`Aucun produit trouvé pour le code : ${code}`)
@@ -547,7 +545,7 @@ export default function App() {
 
   const todayReturns = returns
     .filter(row => new Date(row.created_at) >= dayStart && todayIds.has(row.sale_id))
-    .reduce((sum, row) => sum + Number(row.total || 0), 0)
+    .reduce<number>((sum, row) => sum + Number(row.total || 0), 0)
 
   const monthReturns = returns
     .filter(row => new Date(row.created_at) >= monthStart && monthIds.has(row.sale_id))
