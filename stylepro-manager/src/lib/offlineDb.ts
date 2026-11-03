@@ -11,7 +11,7 @@ export type EntityTable =
   | 'customers' | 'sales' | 'sale_items' | 'returns' | 'return_items'
   | 'stock_movements' | 'expenses' | 'promotions' | 'promotion_products'
   | 'atelier_suppliers' | 'atelier_productions' | 'atelier_production_models'
-  | 'atelier_production_sizes' | 'deliveries' | 'delivery_items'
+  | 'atelier_production_sizes' | 'atelier_stock_integrations' | 'stock_storage_positions' | 'audit_logs' | 'deliveries' | 'delivery_items'
   | 'delivery_item_allocations' | 'delivery_returns'
 
 export type LocalRecord<T = Record<string, unknown>> = {
