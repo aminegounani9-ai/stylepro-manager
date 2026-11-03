@@ -37,6 +37,7 @@ import {
   Factory,
   Truck,
   Activity,
+  Globe2,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, saveLocalRecord } from './lib/offlineDb'
@@ -497,6 +498,7 @@ export default function App() {
   | 'statistics'
   | 'labels'
   | 'promotions'
+  | 'settings'
 >('dashboard')
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
   const [promotionProductIdsByPromotion, setPromotionProductIdsByPromotion] = useState<Record<string, string[]>>({})
@@ -822,7 +824,6 @@ const [systemDark, setSystemDark] = useState(
 const [accent, setAccent] = useState<AccentName>(
   () => (localStorage.getItem('stylepro-accent') as AccentName) || 'beige'
 )
-const [settingsOpen, setSettingsOpen] = useState(false)
 
 const dark = themeMode === 'dark' || (themeMode === 'system' && systemDark)
 
@@ -3266,15 +3267,12 @@ const loadPromotions = useCallback(async () => {
 
             <button
               type="button"
-              className={`nav-bottom settings-nav ${settingsOpen ? 'selected' : ''}`}
-              onClick={() => {
-                setCurrentView('dashboard')
-                setSettingsOpen(value => !value)
-              }}
+              className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
+              onClick={() => setCurrentView('settings')}
             >
               <Settings size={18} />
               <span>Paramètres</span>
-              <ChevronRight size={15} className={settingsOpen ? 'rotate-chevron' : ''} />
+              <ChevronRight size={15} className={currentView === 'settings' ? 'rotate-chevron' : ''} />
             </button>
 
             <div className="sidebar-user">
@@ -5225,60 +5223,96 @@ const loadPromotions = useCallback(async () => {
                     )}
                 </section>
               </>
-            ) : currentView === 'dashboard' ? (
+   ) : currentView === 'settings' ? (
+              <div className="settings-page">
+                <div className="welcome">
+                  <div>
+                    <p className="eyebrow">CONFIGURATION</p>
+                    <h1>Paramètres</h1>
+                    <p className="muted">Personnalisez votre espace et vos préférences.</p>
+                  </div>
+                  <div className="secure-label"><ShieldCheck size={17} /> Compte sécurisé</div>
+                </div>
+
+                <section className="panel appearance-panel">
+                  <div className="panel-title">
+                    <Settings size={21} />
+                    <div>
+                      <h2>Thème & Apparence</h2>
+                      <p>Personnalisez l'apparence de votre espace de travail.</p>
+                    </div>
+                  </div>
+                  <label className="field appearance-field">
+                    Thème de l'interface
+                    <select value={themeMode} onChange={event => setThemeMode(event.target.value as ThemeMode)}>
+                      <option value="light">Clair — Beige</option>
+                      <option value="dark">Sombre</option>
+                      <option value="system">Système — automatique</option>
+                    </select>
+                  </label>
+                  <p className="palette-label">Couleur principale</p>
+                  <div className="palette-options">
+                    {([
+                      ['beige', '#a9875b', 'Beige'],
+                      ['green', '#397568', 'Vert'],
+                      ['blue', '#466b9d', 'Bleu'],
+                      ['burgundy', '#914c60', 'Bordeaux'],
+                      ['slate', '#626b78', 'Gris ardoise'],
+                    ] as const).map(([value, color, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={`palette-choice ${accent === value ? 'chosen' : ''}`}
+                        onClick={() => setAccent(value)}
+                        aria-label={`Choisir la couleur ${label}`}
+                        title={label}
+                      >
+                        <span style={{ backgroundColor: color }} />
+                        {accent === value && <span className="palette-check">✓</span>}
+                        <small>{label}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="appearance-note">Vos préférences sont enregistrées automatiquement dans ce navigateur.</p>
+                </section>
+
+                <section className="panel settings-preferences">
+                  <div className="panel-title">
+                    <Globe2 size={21} />
+                    <div>
+                      <h2>Langue</h2>
+                      <p>Choisissez la langue de l'interface.</p>
+                    </div>
+                  </div>
+                  <label className="field appearance-field">
+                    Langue de l'application
+                    <select value={language} onChange={event => setLanguage(event.target.value as AppLanguage)}>
+                      <option value="fr">Français</option>
+                      <option value="ar">العربية</option>
+                    </select>
+                  </label>
+                  <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
+                </section>
+
+                <section className="panel settings-account">
+                  <div className="panel-title">
+                    <ShieldCheck size={21} />
+                    <div>
+                      <h2>Compte & Boutique</h2>
+                      <p>Informations de la session actuelle.</p>
+                    </div>
+                  </div>
+                  <div className="settings-account-grid">
+                    <div><small>Compte connecté</small><strong>{user.email || '—'}</strong></div>
+                    <div><small>Boutique sélectionnée</small><strong>{stores.find(store => store.id === storeId)?.name || 'Aucune boutique'}</strong></div>
+                    <div><small>Devise</small><strong>{stores.find(store => store.id === storeId)?.currency || 'DZD'}</strong></div>
+                  </div>
+                </section>
+              </div>
+            ) : currentView === 'dashboard' ? (board' ? (
               <>
               <div className="welcome">
-              {settingsOpen && (
-  <section className="panel appearance-panel">
-    <div className="panel-title">
-      <Settings size={21} />
-      <div>
-        <h2>Thème & Apparence</h2>
-        <p>Personnalisez l'apparence de votre espace de travail.</p>
-      </div>
-    </div>
 
-    <label className="field appearance-field">
-      Thème de l'interface
-      <select
-        value={themeMode}
-        onChange={event => setThemeMode(event.target.value as ThemeMode)}
-      >
-        <option value="light">Clair — Beige</option>
-        <option value="dark">Sombre</option>
-        <option value="system">Système — automatique</option>
-      </select>
-    </label>
-
-    <p className="palette-label">Couleur principale</p>
-    <div className="palette-options">
-      {([
-        ['beige', '#a9875b', 'Beige'],
-        ['green', '#397568', 'Vert'],
-        ['blue', '#466b9d', 'Bleu'],
-        ['burgundy', '#914c60', 'Bordeaux'],
-        ['slate', '#626b78', 'Gris ardoise'],
-      ] as const).map(([value, color, label]) => (
-        <button
-          type="button"
-          key={value}
-          className={`palette-choice ${accent === value ? 'chosen' : ''}`}
-          onClick={() => setAccent(value)}
-          aria-label={`Choisir la couleur ${label}`}
-          title={label}
-        >
-          <span style={{ backgroundColor: color }} />
-          {accent === value && <span className="palette-check">✓</span>}
-          <small>{label}</small>
-        </button>
-      ))}
-    </div>
-
-    <p className="appearance-note">
-      Vos préférences sont enregistrées automatiquement dans ce navigateur.
-    </p>
-  </section>
-)}
               <div>
                 <p className="eyebrow">VOTRE ESPACE DE TRAVAIL</p>
                 <h1>Tableau de bord</h1>
