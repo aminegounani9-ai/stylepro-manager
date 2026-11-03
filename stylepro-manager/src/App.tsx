@@ -934,6 +934,13 @@ const loadProductOptions = useCallback(async () => {
 const loadPOSData = useCallback(async () => {
   if (!storeId) return
 
+  type StockMovementRow = {
+    id: string
+    variant_id: string
+    location_id: string
+    quantity_delta: number
+  }
+
   const [vr, cr] = await Promise.all([
     supabase.from('product_variants')
       .select('id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active')
@@ -947,32 +954,73 @@ const loadPOSData = useCallback(async () => {
       .order('full_name')
   ])
 
-  if (vr.error) throw new Error(`Variantes : ${vr.error.message}`)
-  if (cr.error) throw new Error(`Clients : ${cr.error.message}`)
+  let variants: POSVariant[]
+  let customers: POSCustomer[]
+  let movementRows: StockMovementRow[] = []
+  let online = !vr.error && !cr.error
 
-  const movementRows: Array<{ variant_id: string; location_id: string; quantity_delta: number }> = []
-  for (let offset = 0; ; offset += 1000) {
-    const page = await supabase.from('stock_movements')
-      .select('id,variant_id,location_id,quantity_delta')
-      .eq('store_id', storeId)
-      .in('location_id', [BOUTIQUE_LOCATION_ID, RESERVE_LOCATION_ID])
-      .order('id', { ascending: true })
-      .range(offset, offset + 999)
-    if (page.error) throw new Error(`Stock : ${page.error.message}`)
-    movementRows.push(...(page.data ?? []))
-    if ((page.data ?? []).length < 1000) break
+  if (online) {
+    variants = (vr.data ?? []) as POSVariant[]
+    customers = (cr.data ?? []) as POSCustomer[]
+
+    try {
+      await Promise.all([
+        cacheRows('product_variants', storeId, variants),
+        cacheRows('customers', storeId, customers)
+      ])
+    } catch (cacheError) {
+      console.warn('Impossible de mettre à jour le cache POS local.', cacheError)
+    }
+
+    try {
+      for (let offset = 0; ; offset += 1000) {
+        const page = await supabase.from('stock_movements')
+          .select('id,variant_id,location_id,quantity_delta')
+          .eq('store_id', storeId)
+          .in('location_id', [BOUTIQUE_LOCATION_ID, RESERVE_LOCATION_ID])
+          .order('id', { ascending: true })
+          .range(offset, offset + 999)
+        if (page.error) throw new Error(page.error.message)
+        movementRows.push(...((page.data ?? []) as StockMovementRow[]))
+        if ((page.data ?? []).length < 1000) break
+      }
+      await cacheRows('stock_movements', storeId, movementRows)
+    } catch (stockError) {
+      console.warn('Chargement du stock en ligne impossible, utilisation du cache local.', stockError)
+      movementRows = await cachedRows<StockMovementRow>('stock_movements', storeId)
+      if (!movementRows.length) throw new Error('Stock indisponible en ligne et aucun stock local en cache.')
+    }
+  } else {
+    const [localVariants, localCustomers, localMovements] = await Promise.all([
+      cachedRows<POSVariant>('product_variants', storeId),
+      cachedRows<POSCustomer>('customers', storeId),
+      cachedRows<StockMovementRow>('stock_movements', storeId)
+    ])
+
+    if (vr.error && !localVariants.length) {
+      throw new Error(`Variantes : ${vr.error.message}. Aucun cache local disponible.`)
+    }
+    if (cr.error && !localCustomers.length) {
+      throw new Error(`Clients : ${cr.error.message}. Aucun cache local disponible.`)
+    }
+    if (!localMovements.length) {
+      throw new Error('Stock indisponible hors ligne : aucun mouvement enregistré localement.')
+    }
+
+    variants = localVariants.filter(v => v.active)
+    customers = localCustomers
+    movementRows = localMovements.filter(m =>
+      m.location_id === BOUTIQUE_LOCATION_ID || m.location_id === RESERVE_LOCATION_ID
+    )
+    setMessage('Mode hors ligne : données POS chargées depuis le cache local.')
   }
 
   const activeIds = new Set(
     products.filter(p => p.active).map(p => p.id)
   )
 
-  setPosVariants(
-    ((vr.data ?? []) as POSVariant[])
-      .filter(v => activeIds.has(v.product_id))
-  )
-
-  setPosCustomers((cr.data ?? []) as POSCustomer[])
+  setPosVariants(variants.filter(v => activeIds.has(v.product_id)))
+  setPosCustomers(customers)
 
   const boutiqueStocks: Record<string, number> = {}
   const reserveStocks: Record<string, number> = {}
@@ -996,7 +1044,7 @@ const loadPOSData = useCallback(async () => {
     { boutique: number; reserve: number }
   > = {}
 
-  for (const variant of (vr.data ?? []) as POSVariant[]) {
+  for (const variant of variants) {
     allStocks[variant.id] = {
       boutique: boutiqueStocks[variant.id] ?? 0,
       reserve: reserveStocks[variant.id] ?? 0
