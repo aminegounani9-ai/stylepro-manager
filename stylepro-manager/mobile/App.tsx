@@ -349,10 +349,11 @@ export default function App() {
   }, [user, loadStores])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This effect reloads on sign-in and resets local state on sign-out.
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh the authenticated mobile workspace asynchronously.
       void refreshAll()
-    } else {
+    }
+    else {
       setStores([])
       setStoreId('')
       setProducts([])
@@ -363,6 +364,8 @@ export default function App() {
       setStockValue(0)
       setTotalStockUnits(0)
     }
+  // The auth transition intentionally resets screen state when the user signs out.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [user, refreshAll])
 
   useEffect(() => {
