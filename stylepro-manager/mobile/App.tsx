@@ -365,7 +365,6 @@ export default function App() {
       setTotalStockUnits(0)
     }
   // The auth transition intentionally resets screen state when the user signs out.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [user, refreshAll])
 
   useEffect(() => {
