@@ -934,8 +934,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" />
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        contentContainerStyle={[styles.content, language === 'ar' ? {direction:'rtl'} : null]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -950,6 +953,7 @@ export default function App() {
             <Text style={styles.subtitle}>MANAGER · ESPACE COMMERCIAL</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+            <TouchableOpacity onPress={() => void changeLanguage(language === 'fr' ? 'ar' : 'fr')} style={styles.languageButton}><Text style={styles.languageButtonText}>{language === 'fr' ? 'عربي' : 'FR'}</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => void openNotifications()} style={styles.iconButton} accessibilityLabel="Notifications">
               <Bell size={20} color={COLORS.navy} />
               {unreadNotifications.length > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications.length > 99 ? '99+' : unreadNotifications.length}</Text></View> : null}
@@ -1058,6 +1062,27 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.periodPanel}>
+          <Text style={styles.periodTitle}>{t('Période')}</Text>
+          <View style={styles.periodChips}>
+            {([['7d','7 derniers jours'],['30d','30 derniers jours'],['month','Ce mois'],['custom','Personnalisée']] as const).map(([key,label]) => (
+              <TouchableOpacity key={key} onPress={() => setPeriod(key)} style={[styles.periodChip,period === key && styles.periodChipActive]}>
+                <Text style={[styles.periodChipText,period === key && styles.periodChipTextActive]}>{t(label)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {period === 'custom' ? <View style={styles.dateFilterRow}>
+            <TextInput value={customStart} onChangeText={setCustomStart} placeholder={t('Du (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
+            <TextInput value={customEnd} onChangeText={setCustomEnd} placeholder={t('Au (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
+          </View> : null}
+          <View style={styles.periodSummary}>
+            <Text style={styles.periodSummaryText}>{periodSales.length} {t('Ventes')} · {money(periodNet,currency)}</Text>
+            <TouchableOpacity style={styles.pdfButton} onPress={() => void exportDashboardPdf()} disabled={pdfBusy}>
+              {pdfBusy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pdfButtonText}>{t('Rapport PDF')}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {loading && !refreshing && (
           <View style={styles.loadingLine}>
             <ActivityIndicator color={COLORS.accent} />
@@ -1131,7 +1156,7 @@ export default function App() {
                   <BarChart3 size={21} color={COLORS.accent} />
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.panelTitle}>Évolution des ventes</Text>
+                  <Text style={styles.panelTitle}>{t('Évolution des ventes')}</Text>
                   <Text style={styles.panelSubtitle}>7 derniers jours · avant retours</Text>
                 </View>
               </View>
@@ -1165,13 +1190,13 @@ export default function App() {
                   <ShoppingBag size={21} color={COLORS.accent} />
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.panelTitle}>Ventes récentes</Text>
+                  <Text style={styles.panelTitle}>{t('Ventes récentes')}</Text>
                   <Text style={styles.panelSubtitle}>Dernières factures complétées</Text>
                 </View>
                 <Text style={styles.counter}>{sales.length}</Text>
               </View>
 
-              {sales.slice(0, 8).length === 0 ? (
+              {periodSales.slice(0, 8).length === 0 ? (
                 <View style={styles.emptyState}>
                   <ShoppingBag size={27} color={COLORS.muted} />
                   <Text style={styles.emptyTitle}>Aucune vente complétée</Text>
@@ -1180,7 +1205,7 @@ export default function App() {
                   </Text>
                 </View>
               ) : (
-                sales.slice(0, 8).map(sale => (
+                periodSales.slice(0, 8).map(sale => (
                   <View key={sale.id} style={styles.saleRow}>
                     <View style={styles.saleIcon}>
                       <ShoppingBag size={18} color={COLORS.navy} />
@@ -1296,7 +1321,12 @@ export default function App() {
         </>
         ) : view === 'settings' ? (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Paramètres de l’application</Text>
+            <Text style={styles.panelTitle}>{t('Paramètres de l’application')}</Text>
+            <Text style={styles.panelSubtitle}>{t('Langue')}</Text>
+            <View style={styles.periodChips}>
+              <TouchableOpacity onPress={() => void changeLanguage('fr')} style={[styles.periodChip,language === 'fr' && styles.periodChipActive]}><Text style={[styles.periodChipText,language === 'fr' && styles.periodChipTextActive]}>{t('Français')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => void changeLanguage('ar')} style={[styles.periodChip,language === 'ar' && styles.periodChipActive]}><Text style={[styles.periodChipText,language === 'ar' && styles.periodChipTextActive]}>{t('العربية')}</Text></TouchableOpacity>
+            </View>
             <Text style={styles.panelSubtitle}>Informations de la session active</Text>
             <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Utilisateur</Text><Text style={styles.moduleDataValue}>{user.email || '—'}</Text></View>
             <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Boutique</Text><Text style={styles.moduleDataValue}>{currentStore?.name || '—'}</Text></View>
@@ -1334,6 +1364,7 @@ export default function App() {
         )}
         <Text style={styles.footer}>STYLEPRO MANAGER · Gestion commerciale</Text>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={notificationsOpen}
@@ -1658,7 +1689,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#F7F3EA',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#CFC3AE',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -1679,7 +1710,22 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   error: { color: COLORS.danger, marginTop: 12, fontSize: 13 },
-  content: { padding: 18, paddingBottom: 40 },
+  content: { padding: 18, paddingBottom: 110 },
+  languageButton:{minWidth:42,height:42,paddingHorizontal:9,alignItems:'center',justifyContent:'center',borderRadius:12,backgroundColor:COLORS.paleGold,borderWidth:1,borderColor:COLORS.border},
+  languageButtonText:{color:COLORS.navy,fontSize:12,fontWeight:'900'},
+  periodPanel:{backgroundColor:COLORS.surface,borderRadius:18,padding:14,marginBottom:16,borderWidth:1,borderColor:COLORS.border},
+  periodTitle:{color:COLORS.navy,fontWeight:'900',fontSize:14,marginBottom:10},
+  periodChips:{flexDirection:'row',flexWrap:'wrap',gap:7},
+  periodChip:{paddingHorizontal:10,paddingVertical:9,borderRadius:10,borderWidth:1,borderColor:COLORS.border,backgroundColor:'#F7F3EA'},
+  periodChipActive:{backgroundColor:COLORS.navy,borderColor:COLORS.navy},
+  periodChipText:{color:COLORS.text,fontSize:10,fontWeight:'800'},
+  periodChipTextActive:{color:'#FFFFFF'},
+  dateFilterRow:{flexDirection:'row',gap:8,marginTop:10},
+  dateFilterInput:{flex:1,minWidth:0,fontSize:11,paddingHorizontal:8},
+  periodSummary:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:12,paddingTop:10,borderTopWidth:1,borderTopColor:COLORS.border},
+  periodSummaryText:{color:COLORS.navy,fontSize:11,fontWeight:'800',flex:1},
+  pdfButton:{backgroundColor:COLORS.accent,borderRadius:10,paddingHorizontal:13,paddingVertical:10,minWidth:92,alignItems:'center'},
+  pdfButtonText:{color:'#FFFFFF',fontSize:11,fontWeight:'900'},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
