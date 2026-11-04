@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +17,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import {
   AlertTriangle,
+  Bell,
   ScanLine,
   BarChart3,
   CalendarDays,
@@ -166,6 +168,8 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([])
   const [view, setView] = useState<'dashboard' | 'products'>('dashboard')
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
@@ -182,9 +186,39 @@ export default function App() {
     stock: number | null
   } | null>(null)
   const [scanMessage, setScanMessage] = useState('')
+  const [hardwareScannerCode, setHardwareScannerCode] = useState('')
 
   const currentStore = stores.find(store => store.id === storeId)
   const currency = currentStore?.currency || 'DZD'
+  const notificationStorageKey = user && storeId ? `stylepro.notifications.read.${user.id}.${storeId}` : ''
+  const unreadNotifications = lowStock.filter(item => !readNotificationIds.includes(item.id))
+
+  useEffect(() => {
+    let active = true
+    async function loadReadNotifications() {
+      if (!notificationStorageKey) {
+        setReadNotificationIds([])
+        return
+      }
+      try {
+        const stored = await AsyncStorage.getItem(notificationStorageKey)
+        if (active) setReadNotificationIds(stored ? JSON.parse(stored) as string[] : [])
+      } catch {
+        if (active) setReadNotificationIds([])
+      }
+    }
+    void loadReadNotifications()
+    return () => { active = false }
+  }, [notificationStorageKey])
+
+  async function openNotifications() {
+    setNotificationsOpen(true)
+    const ids = lowStock.map(item => item.id)
+    setReadNotificationIds(ids)
+    if (notificationStorageKey) {
+      try { await AsyncStorage.setItem(notificationStorageKey, JSON.stringify(ids)) } catch { /* Notifications remain visible for this session. */ }
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -440,8 +474,8 @@ export default function App() {
     setScannerOpen(true)
   }
 
-  async function handleBarcodeScanned(result: { data: string }) {
-    if (scanLocked || scannerLoading) return
+  async function handleBarcodeScanned(result: { data: string }, fromHardwareScanner = false) {
+    if ((!fromHardwareScanner && scanLocked) || scannerLoading) return
 
     const code = result.data?.trim()
     if (!code || !storeId) {
@@ -680,9 +714,15 @@ export default function App() {
             <Text style={styles.brand}>STYLEPRO</Text>
             <Text style={styles.subtitle}>MANAGER · ESPACE COMMERCIAL</Text>
           </View>
-          <TouchableOpacity onPress={signOut} style={styles.iconButton}>
-            <LogOut size={20} color={COLORS.navy} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+            <TouchableOpacity onPress={() => void openNotifications()} style={styles.iconButton} accessibilityLabel="Notifications">
+              <Bell size={20} color={COLORS.navy} />
+              {unreadNotifications.length > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications.length > 99 ? '99+' : unreadNotifications.length}</Text></View> : null}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={signOut} style={styles.iconButton}>
+              <LogOut size={20} color={COLORS.navy} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.welcome}>
@@ -1008,6 +1048,57 @@ export default function App() {
       </ScrollView>
 
       <Modal
+        visible={notificationsOpen}
+        animationType="slide"
+        onRequestClose={() => setNotificationsOpen(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+          <View style={{ padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: COLORS.navy, fontSize: 23, fontWeight: '900' }}>Notifications</Text>
+              <Text style={{ color: COLORS.muted, marginTop: 4 }}>Alertes automatiques de votre boutique</Text>
+            </View>
+            <TouchableOpacity onPress={() => setNotificationsOpen(false)} style={styles.iconButton}>
+              <Text style={{ color: COLORS.navy, fontWeight: '800' }}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 0 }}>
+            <View style={styles.panel}>
+              <View style={styles.panelHeader}>
+                <View style={[styles.panelHeadingIcon, { backgroundColor: COLORS.paleRed }]}>
+                  <AlertTriangle size={20} color={COLORS.danger} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.panelTitle}>Stock faible ou critique</Text>
+                  <Text style={styles.panelSubtitle}>{lowStock.length} alerte(s) détectée(s)</Text>
+                </View>
+              </View>
+              {lowStock.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <CheckCircle2 size={28} color={COLORS.green} />
+                  <Text style={styles.emptyTitle}>Aucune notification active</Text>
+                  <Text style={styles.emptyText}>Les alertes apparaîtront lorsqu'une variante atteint son stock minimum.</Text>
+                </View>
+              ) : lowStock.map(item => (
+                <View key={item.id} style={styles.stockRow}>
+                  <View style={styles.stockIcon}><AlertTriangle size={18} color={COLORS.danger} /></View>
+                  <View style={styles.flex}>
+                    <Text style={styles.saleNumber}>{item.sku}</Text>
+                    <Text style={styles.saleDate}>Seuil minimum : {item.minimum}</Text>
+                  </View>
+                  <View style={styles.stockQuantityBox}>
+                    <Text style={styles.stockQuantity}>{item.current}</Text>
+                    <Text style={styles.stockQuantityLabel}>En stock</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.disclaimer}>Ces notifications sont calculées à partir des mouvements de stock enregistrés. Elles ne modifient aucune donnée.</Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal
         visible={scannerOpen}
         animationType="slide"
         onRequestClose={() => setScannerOpen(false)}
@@ -1040,6 +1131,28 @@ export default function App() {
             >
               <Text style={{ color: COLORS.navy, fontWeight: '800' }}>Fermer</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={{ marginHorizontal: 18, marginBottom: 12, backgroundColor: COLORS.surface, borderRadius: 14, padding: 13, borderWidth: 1, borderColor: COLORS.border }}>
+            <Text style={{ color: COLORS.text, fontWeight: '800', marginBottom: 7 }}>Douchette USB / Bluetooth</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 11, marginBottom: 9 }}>Connectez la douchette au téléphone. Scannez : le code est envoyé automatiquement avec Entrée.</Text>
+            <TextInput
+              value={hardwareScannerCode}
+              onChangeText={setHardwareScannerCode}
+              onSubmitEditing={() => {
+                const code = hardwareScannerCode.trim()
+                setHardwareScannerCode('')
+                if (code) void handleBarcodeScanned({ data: code }, true)
+              }}
+              placeholder="Scannez ici avec la douchette…"
+              placeholderTextColor={COLORS.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              blurOnSubmit={false}
+              returnKeyType="done"
+              style={[styles.input, { marginBottom: 0 }]}
+            />
           </View>
 
           <View style={{
@@ -1253,6 +1366,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  notificationBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: COLORS.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.surface },
+  notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   iconButton: {
     backgroundColor: COLORS.surface,
     borderRadius: 13,
