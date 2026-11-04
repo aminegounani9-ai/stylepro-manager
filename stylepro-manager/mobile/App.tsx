@@ -759,6 +759,16 @@ export default function App() {
   const now = new Date()
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const periodStart = period === 'month' ? monthStart : period === 'custom' && customStart ? new Date(customStart + 'T00:00:00') : (() => { const d=new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate()-(period==='30d'?29:6)); return d })()
+  const periodEnd = period === 'custom' && customEnd ? new Date(customEnd + 'T23:59:59.999') : now
+  const inPeriod = (value: string) => { const d=new Date(value); return !Number.isNaN(d.getTime()) && d>=periodStart && d<=periodEnd }
+  const periodSales = sales.filter(sale => inPeriod(sale.completed_at || sale.created_at))
+  const periodReturns = returns.filter(row => inPeriod(row.created_at))
+  const periodExpenses = expenses.filter(row => inPeriod(row.expense_date + 'T12:00:00'))
+  const periodGross = periodSales.reduce((sum,row)=>sum+Number(row.total||0),0)
+  const periodReturnTotal = periodReturns.reduce((sum,row)=>sum+Number(row.total||0),0)
+  const periodNet = periodGross-periodReturnTotal
+  const periodExpenseTotal = periodExpenses.reduce((sum,row)=>sum+Number(row.amount||0),0)
 
   const completedAt = (sale: SaleRow) =>
     new Date(sale.completed_at || sale.created_at)
@@ -813,6 +823,41 @@ export default function App() {
   })
 
   const maxChartValue = Math.max(...chartDays.map(day => day.total), 1)
+
+  async function changeLanguage(next: 'fr'|'ar') {
+    setLanguage(next)
+    try { await AsyncStorage.setItem('stylepro.mobile.language', next) } catch { /* Keep current selection in memory. */ }
+  }
+
+  useEffect(() => {
+    AsyncStorage.getItem('stylepro.mobile.language').then(saved => {
+      if (saved === 'fr' || saved === 'ar') setLanguage(saved)
+    }).catch(() => undefined)
+  }, [])
+
+  async function exportDashboardPdf() {
+    if (pdfBusy) return
+    setPdfBusy(true)
+    try {
+      const esc = (value: unknown) => String(value ?? '').replace(/[&<>\"']/g, char => {
+        const entities: Record<string,string> = {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}
+        return entities[char] || char
+      })
+      const rtl = language === 'ar'
+      const title = rtl ? 'تقرير المبيعات' : 'Rapport des ventes'
+      const rows = periodSales.map(sale => '<tr><td>#' + esc(sale.sale_number) + '</td><td>' + esc(dateLabel(sale.completed_at || sale.created_at)) + '</td><td>' + esc(money(Number(sale.total || 0), currency)) + '</td></tr>').join('')
+      const html = '<!doctype html><html lang="' + language + '" dir="' + (rtl ? 'rtl' : 'ltr') + '"><meta charset="utf-8"><style>@page{margin:16mm}body{font-family:Arial,sans-serif;color:#263243;font-size:12px}h1{color:#202c3c;border-bottom:3px solid #b58a52;padding-bottom:10px}.meta{background:#f1ebdd;padding:12px;margin:14px 0}.cards{display:flex;gap:9px}.card{flex:1;border:1px solid #d8cdbb;padding:12px;background:#fffcf6}table{width:100%;border-collapse:collapse;margin-top:18px}td,th{padding:9px;border:1px solid #ded6c6;text-align:start}th{background:#202c3c;color:white}</style><body><h1>STYLEPRO MANAGER — ' + title + '</h1>' +
+        '<div class="meta">' + (rtl ? 'المتجر' : 'Boutique') + ' : ' + esc(currentStore?.name || '') + '<br>' + (rtl ? 'الفترة' : 'Période') + ' : ' + esc(periodStart.toLocaleDateString(rtl ? 'ar-DZ' : 'fr-DZ')) + ' — ' + esc(periodEnd.toLocaleDateString(rtl ? 'ar-DZ' : 'fr-DZ')) + '</div>' +
+        '<div class="cards"><div class="card"><b>' + (rtl ? 'إجمالي المبيعات' : 'Ventes brutes') + '</b><br>' + esc(money(periodGross,currency)) + '</div><div class="card"><b>' + (rtl ? 'المرتجعات' : 'Retours') + '</b><br>' + esc(money(periodReturnTotal,currency)) + '</div><div class="card"><b>' + (rtl ? 'صافي المبيعات' : 'Ventes nettes') + '</b><br>' + esc(money(periodNet,currency)) + '</div><div class="card"><b>' + (rtl ? 'المصاريف' : 'Dépenses') + '</b><br>' + esc(money(periodExpenseTotal,currency)) + '</div></div>' +
+        '<table><thead><tr><th>' + (rtl ? 'الفاتورة' : 'Facture') + '</th><th>' + (rtl ? 'التاريخ' : 'Date') + '</th><th>' + (rtl ? 'المبلغ' : 'Montant') + '</th></tr></thead><tbody>' + (rows || '<tr><td colspan="3">' + (rtl ? 'لا توجد مبيعات خلال هذه الفترة' : 'Aucune vente sur cette période') + '</td></tr>') + '</tbody></table></body></html>'
+      const file = await Print.printToFileAsync({ html })
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType:'application/pdf', dialogTitle:title })
+      else await Print.printAsync({ html })
+      Alert.alert(title, t('Rapport PDF prêt à partager.'))
+    } catch (error) {
+      Alert.alert(t('Impossible de générer le PDF'), error instanceof Error ? error.message : 'PDF error')
+    } finally { setPdfBusy(false) }
+  }
 
   if (!ready) {
     return (
