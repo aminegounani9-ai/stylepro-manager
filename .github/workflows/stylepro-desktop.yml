@@ -1,0 +1,46 @@
+name: StylePro Desktop Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stylepro-manager/**"
+      - ".github/workflows/stylepro-desktop.yml"
+  pull_request:
+    paths:
+      - "stylepro-manager/**"
+      - ".github/workflows/stylepro-desktop.yml"
+  workflow_dispatch:
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: stylepro-manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: stylepro-manager/package-lock.json
+      - uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+      - name: Build Windows installers
+        working-directory: stylepro-manager/src-tauri
+        run: cargo tauri build
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: StylePro-Manager-Windows
+          path: |
+            stylepro-manager/src-tauri/target/release/bundle/nsis/*.exe
+            stylepro-manager/src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "StylePro Manager",
+  "version": "1.0.0",
+  "identifier": "com.stylepro.manager.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host 127.0.0.1",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "StylePro Manager",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "category": "Business",
+    "shortDescription": "Gestion professionnelle de boutique, stock, ventes et atelier",
+    "longDescription": "StylePro Manager pour la gestion de boutique, catalogue, stock, ventes, atelier et utilisateurs."
+  }
+}
