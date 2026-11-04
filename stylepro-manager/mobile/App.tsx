@@ -843,6 +843,7 @@ export default function App() {
         const entities: Record<string,string> = {'&':'&amp;','<':'&lt;','>':'&gt;'}
         if (char === String.fromCharCode(34)) return '&quot;'
         if (char === String.fromCharCode(39)) return '&#39;'
+        return entities[char] || char
       })
       const rtl = language === 'ar'
       const title = rtl ? 'تقرير المبيعات' : 'Rapport des ventes'
