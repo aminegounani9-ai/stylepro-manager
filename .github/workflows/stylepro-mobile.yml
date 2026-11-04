@@ -1,0 +1,32 @@
+name: StylePro Mobile Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stylepro-manager/mobile/**"
+      - ".github/workflows/stylepro-mobile.yml"
+  pull_request:
+    paths:
+      - "stylepro-manager/mobile/**"
+      - ".github/workflows/stylepro-mobile.yml"
+  workflow_dispatch:
+
+jobs:
+  mobile-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stylepro-manager/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: stylepro-manager/mobile/package-lock.json
+      - run: npm ci
+      - name: Validate Expo configuration
+        run: npx expo config --type public
+      - name: TypeScript validation
+        run: npx tsc --noEmit
