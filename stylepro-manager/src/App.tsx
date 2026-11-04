@@ -38,6 +38,16 @@ import {
   Truck,
   Activity,
   Globe2,
+  Gauge,
+  Grid2X2,
+  Scissors,
+  BadgePercent,
+  Warehouse,
+  ShoppingBasket,
+  Undo2,
+  ContactRound,
+  ChartNoAxesCombined,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, saveLocalRecord } from './lib/offlineDb'
@@ -454,38 +464,86 @@ const STOCK_LOCATIONS = {
 
 export default function App() {
   const [language, setLanguage] = useState<AppLanguage>(() => (localStorage.getItem('stylepro-language') as AppLanguage) || 'fr')
+  const [printSize, setPrintSize] = useState<'a4' | '80mm'>(() => localStorage.getItem('stylepro-print-size') === '80mm' ? '80mm' : 'a4')
+  useEffect(() => {
+    localStorage.setItem('stylepro-print-size', printSize)
+    document.documentElement.dataset.printSize = printSize
+  }, [printSize])
   useEffect(() => {
     localStorage.setItem('stylepro-language', language)
     document.documentElement.lang = language
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.dataset.language = language
-    if (language !== 'ar') return
+
+    // Keep the original French strings so changing back from Arabic restores
+    // the interface instead of trying to translate already-translated text.
+    const originalText = new WeakMap<Text, string>()
+    const appliedText = new WeakMap<Text, string>()
+    const originalAttributes = new WeakMap<Element, Map<string, string>>()
+    const appliedAttributes = new WeakMap<Element, Map<string, string>>()
+    const attributes = ['placeholder', 'title', 'aria-label']
+
     const translateNode = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
-        node.nodeValue = translateArabicText(node.nodeValue)
-      } else if (node instanceof HTMLElement) {
-        for (const attr of ['placeholder', 'title', 'aria-label']) {
-          const value = node.getAttribute(attr)
-          if (value) node.setAttribute(attr, translateArabicText(value))
+      if (node.nodeType === Node.TEXT_NODE) {
+        const textNode = node as Text
+        const current = textNode.nodeValue ?? ''
+        const lastApplied = appliedText.get(textNode)
+        if (lastApplied === undefined || current !== lastApplied) originalText.set(textNode, current)
+        const original = originalText.get(textNode) ?? current
+        const next = language === 'ar' ? translateArabicText(original) : original
+        if (current !== next) {
+          appliedText.set(textNode, next)
+          textNode.nodeValue = next
+        } else {
+          appliedText.set(textNode, next)
+        }
+        return
+      }
+
+      if (node instanceof Element) {
+        let originals = originalAttributes.get(node)
+        let applied = appliedAttributes.get(node)
+        if (!originals) {
+          originals = new Map<string, string>()
+          originalAttributes.set(node, originals)
+        }
+        if (!applied) {
+          applied = new Map<string, string>()
+          appliedAttributes.set(node, applied)
+        }
+        for (const attr of attributes) {
+          const current = node.getAttribute(attr)
+          if (current === null) continue
+          const lastApplied = applied.get(attr)
+          if (lastApplied === undefined || current !== lastApplied) originals.set(attr, current)
+          const original = originals.get(attr) ?? current
+          const next = language === 'ar' ? translateArabicText(original) : original
+          if (current !== next) node.setAttribute(attr, next)
+          applied.set(attr, next)
         }
       }
     }
+
     const translateTree = (root: Node) => {
-      root.childNodes.forEach(node => {
-        translateNode(node)
-        if (node.hasChildNodes()) translateTree(node)
-      })
+      translateNode(root)
+      root.childNodes.forEach(translateTree)
     }
+
     translateTree(document.body)
-    const observer = new MutationObserver(records => records.forEach(record => {
-      if (record.type === 'characterData') translateNode(record.target)
-      record.addedNodes.forEach(node => {
-        translateNode(node)
-        if (node instanceof HTMLElement) translateTree(node)
+    const observer = new MutationObserver(records => {
+      records.forEach(record => {
+        if (record.type === 'characterData') translateNode(record.target)
+        record.addedNodes.forEach(translateTree)
+        if (record.type === 'attributes') translateNode(record.target)
       })
-      if (record.type === 'attributes' && record.target instanceof HTMLElement) translateNode(record.target)
-    }))
-    observer.observe(document.body, {subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['placeholder','title','aria-label']})
+    })
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: attributes,
+    })
     return () => observer.disconnect()
   }, [language])
   const [user, setUser] = useState<User | null>(null)
@@ -1721,40 +1779,67 @@ if (added) {
   }
 }
 
-function findProductByScannedCode(rawCode: string) {
-  const code = rawCode.trim().toLowerCase()
-  if (!code) return
+async function findProductByScannedCode(rawCode: string) {
+  const code = rawCode.trim()
+  if (!code || !storeId) return
 
-  const variant = posVariants.find(v =>
-    v.active &&
-    (
-      v.sku.trim().toLowerCase() === code ||
-      (v.barcode ?? '').trim().toLowerCase() === code ||
-      (v.qr_token ?? '').trim().toLowerCase() === code
+  setScannerMessage('Recherche de l’article…')
+  setScannedProductId(null)
+  setScannedVariantId(null)
+
+  try {
+    // Refresh the POS cache if the scanner is opened before the sales module.
+    if (posVariants.length === 0) await loadPOSData()
+
+    const localVariant = posVariants.find(v =>
+      v.active && (
+        v.sku.trim().toLowerCase() === code.toLowerCase() ||
+        (v.barcode ?? '').trim().toLowerCase() === code.toLowerCase() ||
+        (v.qr_token ?? '').trim().toLowerCase() === code.toLowerCase()
+      )
     )
-  )
 
-  if (!variant) {
-    setScannerMessage(`Code introuvable : ${rawCode}`)
-    setScannedProductId(null)
-    setScannedVariantId(null)
-    return
+    const fields = 'id,product_id,sku,barcode,qr_token,size,color,purchase_cost,sale_price,min_stock,active'
+    const remoteMatches = localVariant ? [] : await Promise.all([
+      supabase.from('product_variants').select(fields).eq('store_id', storeId).eq('active', true).eq('sku', code).maybeSingle(),
+      supabase.from('product_variants').select(fields).eq('store_id', storeId).eq('active', true).eq('barcode', code).maybeSingle(),
+      supabase.from('product_variants').select(fields).eq('store_id', storeId).eq('active', true).eq('qr_token', code).maybeSingle(),
+    ])
+    const variant = (localVariant ?? remoteMatches.map(result => result.data).find(Boolean)) as POSVariant | undefined
+
+    if (!variant) {
+      setScannerMessage(`Code introuvable : ${rawCode}`)
+      return
+    }
+
+    let product = products.find(p => p.id === variant.product_id && p.active)
+    if (!product) {
+      const result = await supabase.from('products')
+        .select('id,name,target_audience,description,category_id,brand_id,active,image_url')
+        .eq('store_id', storeId)
+        .eq('id', variant.product_id)
+        .eq('active', true)
+        .maybeSingle()
+      if (result.error) throw result.error
+      product = result.data as ProductRow | null ?? undefined
+    }
+
+    if (!product) {
+      setScannerMessage('Produit inactif ou introuvable.')
+      return
+    }
+
+    setPosVariants(current => current.some(item => item.id === variant.id) ? current : [...current, variant])
+    setProducts(current => current.some(item => item.id === product!.id) ? current : [...current, product!])
+    setScannedProductId(product.id)
+    setScannedVariantId(variant.id)
+    setScannerMessage(`Produit trouvé : ${product.name}`)
+    setCatalogueScanCode('')
+    setCurrentView('catalogue')
+    void loadPOSData().catch(() => {})
+  } catch (error) {
+    setScannerMessage(error instanceof Error ? error.message : 'Recherche du code impossible.')
   }
-
-  const product = products.find(
-    p => p.id === variant.product_id && p.active
-  )
-
-  if (!product) {
-    setScannerMessage('Produit inactif ou introuvable.')
-    return
-  }
-
-  setScannedProductId(product.id)
-  setScannedVariantId(variant.id)
-  setScannerMessage(`Produit trouvé : ${product.name}`)
-  setCatalogueScanCode('')
-  setCurrentView('catalogue')
 }  
 
 async function startPOSCamera() {
@@ -3091,6 +3176,13 @@ const loadPromotions = useCallback(async () => {
               <option value="ar">العربية</option>
             </select>
           </label>
+          <label className="print-size-switch" aria-label="Format d’impression">
+            <Printer size={15} />
+            <select value={printSize} onChange={event => setPrintSize(event.target.value as 'a4' | '80mm')}>
+              <option value="a4">A4</option>
+              <option value="80mm">80 mm</option>
+            </select>
+          </label>
           <span className="system-status">
             <span className="status-dot" /> Système opérationnel
           </span>
@@ -3240,12 +3332,12 @@ const loadPromotions = useCallback(async () => {
 
             <p className="sidebar-group-label">GÉNÉRAL</p>
             <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
-              <LayoutDashboard size={19} /> <span>Tableau de bord</span>
+              <Gauge size={19} /> <span>Tableau de bord</span>
             </button>
 
             <p className="sidebar-group-label">BOUTIQUE</p>
             <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
-              <Shirt size={19} /> <span>Catalogue articles</span>
+              <Grid2X2 size={19} /> <span>Catalogue articles</span>
             </button>
             <button
   type="button"
@@ -3256,11 +3348,11 @@ const loadPromotions = useCallback(async () => {
     setMessage('')
   }}
 >
-  <Factory size={19} />
+  <Scissors size={19} />
   <span>Atelier / Production</span>
 </button>
             <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
-              <Tag size={19} /> <span>Promotions</span>
+              <BadgePercent size={19} /> <span>Promotions</span>
             </button>
             <button type="button" className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
               <QrCode size={19} /> <span>Étiquettes QR</span>
@@ -3271,21 +3363,21 @@ const loadPromotions = useCallback(async () => {
               <Truck size={19} /> <span>Livraisons</span>
             </button>
             <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
-              <Boxes size={19} /> <span>Gestion du stock</span>
+              <Warehouse size={19} /> <span>Gestion du stock</span>
             </button>
             <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
-              <ShoppingCart size={19} /> <span>Ventes / Caisse</span>
+              <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
             </button>
             <button type="button" className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
-              <RotateCcw size={19} /> <span>Retours / Remboursements</span>
+              <Undo2 size={19} /> <span>Retours / Remboursements</span>
             </button>
             <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
-              <Users size={19} /> <span>Clients</span>
+              <ContactRound size={19} /> <span>Clients</span>
             </button>
 
             <p className="sidebar-group-label">ANALYSE</p>
             <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
-              <TrendingUp size={19} /> <span>Statistiques</span>
+              <ChartNoAxesCombined size={19} /> <span>Statistiques</span>
             </button>
 
             <button
@@ -3293,7 +3385,7 @@ const loadPromotions = useCallback(async () => {
               className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
               onClick={() => setCurrentView('settings')}
             >
-              <Settings size={18} />
+              <SlidersHorizontal size={18} />
               <span>Paramètres</span>
               <ChevronRight size={15} className={currentView === 'settings' ? 'rotate-chevron' : ''} />
             </button>
@@ -5686,7 +5778,7 @@ const loadPromotions = useCallback(async () => {
       onKeyDown={event => {
         if (event.key === 'Enter') {
           event.preventDefault()
-          findProductByScannedCode(catalogueScanCode)
+          void findProductByScannedCode(catalogueScanCode)
         }
       }}
     />
@@ -5695,7 +5787,7 @@ const loadPromotions = useCallback(async () => {
   <button
     type="button"
     className="primary-button"
-    onClick={() => findProductByScannedCode(catalogueScanCode)}
+    onClick={() => void findProductByScannedCode(catalogueScanCode)}
     disabled={!catalogueScanCode.trim()}
   >
     <Package size={16} />
@@ -6008,12 +6100,8 @@ const loadPromotions = useCallback(async () => {
                       const low = variants.length > 0 && stock <= minimum
                       return (
                         <article className="catalogue-product-card" key={product.id}>
-                          <div className="catalogue-card-visual">
-                            {product.image_url ? (
-                              <img className="catalogue-card-image" src={product.image_url} alt={product.name} loading="lazy" />
-                            ) : (
-                              <div className="catalogue-card-icon"><Shirt size={34} /></div>
-                            )}
+                          <div className="catalogue-card-visual catalogue-card-visual-icon-only">
+                            <div className="catalogue-card-icon"><Shirt size={34} /></div>
                             <span className={product.active ? 'status-pill active-pill' : 'status-pill inactive-pill'}>{product.active ? 'Actif' : 'Archivé'}</span>
                           </div>
                           <div className="catalogue-card-content">
