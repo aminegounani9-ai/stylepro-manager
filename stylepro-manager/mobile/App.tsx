@@ -873,7 +873,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" />
-        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={styles.loginContainer}>
           <View style={styles.logo}>
             <StoreIcon color={COLORS.surface} size={30} />
@@ -937,7 +937,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
