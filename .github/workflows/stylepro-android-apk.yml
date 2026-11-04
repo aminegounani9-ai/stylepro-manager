@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 55
     defaults:
       run:
         working-directory: stylepro-manager/mobile
