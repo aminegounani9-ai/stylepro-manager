@@ -25,9 +25,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: stylepro-manager/package-lock.json
-      - uses: actions/setup-rust@v1
-        with:
-          rust-version: stable
+      - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: npm run lint
       - run: npm run build
