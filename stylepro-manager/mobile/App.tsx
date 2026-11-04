@@ -464,13 +464,14 @@ export default function App() {
       const permission = await requestCameraPermission()
       if (!permission.granted) {
         Alert.alert(
-          'Permission caméra',
-          'Autorise l’accès à la caméra dans les paramètres du téléphone pour scanner les codes.'
+          'Caméra non autorisée',
+          'La caméra est désactivée. Tu peux quand même utiliser une douchette USB ou Bluetooth dans le champ de saisie.'
         )
-        return
       }
     }
 
+    // L'ouverture du scanner ne dépend pas de l'autorisation caméra :
+    // les douchettes HID USB/Bluetooth fonctionnent via le champ de saisie.
     setScannerOpen(true)
   }
 
@@ -514,6 +515,19 @@ export default function App() {
 
         if (qrLookup.error) throw qrLookup.error
         variant = qrLookup.data
+      }
+
+      if (!variant) {
+        const skuLookup = await supabase
+          .from('product_variants')
+          .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
+          .eq('store_id', storeId)
+          .eq('active', true)
+          .eq('sku', code)
+          .maybeSingle()
+
+        if (skuLookup.error) throw skuLookup.error
+        variant = skuLookup.data
       }
 
       if (!variant) {
@@ -1162,28 +1176,39 @@ export default function App() {
             borderRadius: 20,
             backgroundColor: '#101820',
           }}>
-            <CameraView
-              style={{ flex: 1 }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'upc_a', 'upc_e', 'code39'],
-              }}
-              onBarcodeScanned={
-                scanLocked || scannerLoading || !storeId
-                  ? undefined
-                  : handleBarcodeScanned
-              }
-            />
-            <View pointerEvents="none" style={{
-              position: 'absolute',
-              top: '32%',
-              left: '10%',
-              right: '10%',
-              height: 105,
-              borderWidth: 2,
-              borderColor: '#D6B278',
-              borderRadius: 12,
-            }} />
+            {cameraPermission?.granted ? (
+              <>
+                <CameraView
+                  style={{ flex: 1 }}
+                  facing="back"
+                  barcodeScannerSettings={{
+                    barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'upc_a', 'upc_e', 'code39'],
+                  }}
+                  onBarcodeScanned={
+                    scanLocked || scannerLoading || !storeId
+                      ? undefined
+                      : handleBarcodeScanned
+                  }
+                />
+                <View pointerEvents="none" style={{
+                  position: 'absolute',
+                  top: '32%',
+                  left: '10%',
+                  right: '10%',
+                  height: 105,
+                  borderWidth: 2,
+                  borderColor: '#D6B278',
+                  borderRadius: 12,
+                }} />
+              </>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                <Text style={{ color: '#FFFFFF', textAlign: 'center', marginBottom: 12 }}>Caméra non autorisée. La douchette USB / Bluetooth reste disponible.</Text>
+                <TouchableOpacity onPress={() => void requestCameraPermission()} style={{ backgroundColor: COLORS.accent, borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>Autoriser la caméra</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {scannerLoading ? (
