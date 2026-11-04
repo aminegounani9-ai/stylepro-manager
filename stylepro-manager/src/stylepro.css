@@ -5171,3 +5171,285 @@ tbody tr:last-child td { border-bottom: 0; }
     height: calc(100dvh - 62px) !important;
   }
 }
+
+
+/* ==========================================================
+   StylePro web polish: compact responsive header + complete
+   dark surfaces for the main app and its independent modules.
+   ========================================================== */
+:root {
+  --text-primary: var(--text);
+  --text-muted: var(--muted);
+  --surface-soft: #f0e9df;
+}
+.app.dark {
+  --text-primary: var(--text);
+  --text-muted: var(--muted);
+  --surface-soft: #1b293c;
+}
+.app.dark .topbar,
+.app.dark .sidebar,
+.app.dark .footer {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .sidebar .nav-item,
+.app.dark .sidebar .nav-bottom {
+  color: var(--text);
+}
+.app.dark .sidebar .nav-item.active,
+.app.dark .sidebar .nav-item:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+.app.dark :is(input, select, textarea) {
+  color-scheme: dark;
+  background-color: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark select option {
+  background: var(--surface);
+  color: var(--text);
+}
+.app.dark :is(.panel, .auth-card, .stat-card, .product-create-form,
+  .user-create-form, .user-member-row, .table-wrap, .pos-cart,
+  .pos-products > *, .catalogue-card, .promotion-card, .settings-users,
+  .label-card, .chart-card, .filter-card, .customer-card) {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark :is(.panel, .auth-card, .stat-card, .product-create-form,
+  .user-create-form, .user-member-row, .pos-cart, .catalogue-card,
+  .promotion-card, .settings-users, .label-card, .chart-card,
+  .filter-card, .customer-card) :is(h1,h2,h3,h4,p,label,strong,small,span,td,th) {
+  color: inherit;
+}
+.app.dark :is(.table-wrap th, .table-wrap thead th) {
+  background: var(--soft);
+  color: var(--muted);
+}
+.app.dark :is(.table-wrap td, .table-wrap tr) {
+  border-color: var(--border);
+}
+.app.dark .mobile-menu-toggle {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Atelier uses its own palette; bind it to the active app theme. */
+.app.dark .atelier-module {
+  --text-primary: var(--text);
+  --text-muted: var(--muted);
+  --surface-soft: #1b293c;
+  color: var(--text);
+}
+.app.dark :is(.atelier-hero, .atelier-card, .atelier-model-card,
+  .atelier-production-row) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark :is(.atelier-hero h1, .atelier-section-heading h2,
+  .atelier-model-title h3, .atelier-size-header h3,
+  .atelier-production-main strong, .atelier-production-metric strong,
+  .atelier-cost-strip strong, .atelier-supplier-details strong) {
+  color: var(--text);
+}
+.app.dark :is(.atelier-hero p, .atelier-section-heading p,
+  .atelier-size-header p, .atelier-production-main span,
+  .atelier-production-main small, .atelier-production-metric small,
+  .atelier-cost-strip small, .atelier-supplier-details small) {
+  color: var(--muted);
+}
+.app.dark :is(.atelier-hero-icon, .atelier-section-icon,
+  .atelier-inline-form, .atelier-supplier-details > div,
+  .atelier-auto-number, .atelier-count, .atelier-model-stat,
+  .atelier-size-chip, .atelier-size-table th, .atelier-cost-strip > div) {
+  background: var(--soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark :is(.atelier-field, .atelier-search, .atelier-size-table td,
+  .atelier-line-total, .atelier-model-summary, .atelier-model-summary b) {
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark :is(.atelier-field input, .atelier-field select,
+  .atelier-search input, .atelier-size-table input,
+  .atelier-custom-size input) {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .atelier-primary-button {
+  background: var(--primary);
+  color: #171b22;
+  border-color: var(--primary);
+}
+.app.dark .atelier-secondary-button,
+.app.dark .atelier-icon-button {
+  background: var(--soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .atelier-size-chip.selected {
+  background: #35445a;
+  color: #f5e6cb;
+  border-color: var(--primary);
+}
+
+/* Livraison module has scoped light-only colors: override its palette. */
+.app.dark .livraison-page {
+  --lv-bg: var(--bg);
+  --lv-card: var(--surface);
+  --lv-ink: var(--text);
+  --lv-muted: var(--muted);
+  --lv-line: var(--border);
+  --lv-navy: #d5bd99;
+  --lv-gold: #d5bd99;
+  color: var(--text);
+}
+.app.dark :is(.livraison-page .livraison-kpi,
+  .livraison-page .livraison-card,
+  .livraison-page .livraison-table,
+  .livraison-page .livraison-modal) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark :is(.livraison-page .livraison-line,
+  .livraison-page .livraison-filters label,
+  .livraison-page .livraison-detail-top > div,
+  .livraison-page .livraison-return-panel,
+  .livraison-page .livraison-return-history,
+  .livraison-page .livraison-count) {
+  background: var(--soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .livraison-page :is(h1,h2,h3,h4,p,label,strong,td,th) {
+  color: var(--text);
+}
+.app.dark .livraison-page :is(small,.livraison-hint,.allocation-note) {
+  color: var(--muted);
+}
+.app.dark .livraison-page :is(input,select,textarea) {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .livraison-page .livraison-table th {
+  background: var(--soft);
+  color: var(--muted);
+}
+.app.dark .livraison-page .livraison-table td {
+  border-color: var(--border);
+}
+.app.dark .livraison-page .livraison-table tbody tr:hover {
+  background: #25344a;
+}
+.app.dark .livraison-page .livraison-btn.primary {
+  background: var(--primary);
+  color: #171b22;
+}
+.app.dark .livraison-page .livraison-btn.secondary,
+.app.dark .livraison-page .livraison-icon-btn {
+  background: var(--soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Header controls now occupy their own row on narrow screens. */
+@media (max-width: 760px) {
+  .app .topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "brand" "actions";
+    align-items: center;
+    gap: 8px 10px;
+    min-height: auto;
+    padding: 9px 12px;
+  }
+  .app .topbar:has(.mobile-menu-toggle) {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-areas: "menu brand" "actions actions";
+  }
+  .app .topbar > .mobile-menu-toggle { grid-area: menu; }
+  .app .topbar > .brand {
+    grid-area: brand;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .app .brand-copy { min-width: 0; }
+  .app .brand-copy strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app .topbar > .header-actions {
+    grid-area: actions;
+    display: flex;
+    flex: none;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+    padding-top: 2px;
+  }
+  .app .header-actions .language-switch,
+  .app .header-actions .print-size-switch {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 7px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--soft);
+    color: var(--text);
+  }
+  .app .header-actions .language-switch select,
+  .app .header-actions .print-size-switch select {
+    width: auto;
+    max-width: 112px;
+    min-height: 32px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 11px;
+  }
+  .app .header-actions .icon-button,
+  .app .header-actions .secondary-button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    height: 36px;
+  }
+  .app .workspace > aside.sidebar {
+    top: 108px !important;
+    height: calc(100dvh - 108px) !important;
+    max-height: calc(100dvh - 108px) !important;
+  }
+  .app .mobile-menu-backdrop {
+    inset: 108px 0 0 !important;
+    height: calc(100dvh - 108px) !important;
+  }
+  [dir="rtl"] .app .topbar:has(.mobile-menu-toggle) {
+    grid-template-areas: "brand menu" "actions actions";
+  }
+  [dir="rtl"] .app .topbar > .header-actions {
+    justify-content: flex-start;
+  }
+  [dir="rtl"] .app .workspace > aside.sidebar {
+    inset: 108px 0 0 auto !important;
+    border-right: 0 !important;
+    border-left: 1px solid var(--border) !important;
+    box-shadow: -12px 0 35px rgba(0,0,0,.2) !important;
+  }
+}
