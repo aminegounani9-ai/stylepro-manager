@@ -29,7 +29,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: stylepro-manager/mobile/package-lock.json
-      - run: npm ci
+      - run: npm install
+      - name: Install Expo-compatible native packages
+        run: npx expo install expo-print expo-sharing
       - name: Validate Expo configuration
         run: npx expo config --type public
       - name: TypeScript validation
