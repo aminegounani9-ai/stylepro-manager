@@ -49,7 +49,10 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
     finally { setLoading(false) }
   }, [storeId, user, call])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setError(''); setNotice('')
