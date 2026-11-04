@@ -4955,3 +4955,111 @@ tbody tr:last-child td { border-bottom: 0; }
     min-width: 0 !important;
   }
 }
+
+
+/* Mobile slide-out navigation drawer */
+.mobile-menu-toggle {
+  display: none;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.mobile-menu-backdrop { display: none; }
+
+@media (max-width: 760px) {
+  .topbar {
+    position: sticky !important;
+    top: 0;
+    z-index: 1005;
+    display: flex;
+    align-items: center;
+  }
+  .mobile-menu-toggle { display: inline-flex !important; }
+  .topbar > .brand { flex: 1 1 auto; min-width: 0; }
+  .topbar > .header-actions { flex: 0 0 auto; }
+  .workspace {
+    display: block !important;
+    position: relative;
+    min-height: calc(100dvh - 62px);
+  }
+  .workspace > .sidebar {
+    position: fixed !important;
+    z-index: 1002 !important;
+    top: 62px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: min(84vw, 320px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 18px 14px 28px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 3px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    background: var(--surface) !important;
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 0 !important;
+    box-shadow: 12px 0 35px rgba(0,0,0,.16);
+    transform: translateX(-110%) !important;
+    visibility: hidden;
+    transition: transform .25s ease, visibility .25s ease;
+    -webkit-overflow-scrolling: touch;
+  }
+  .workspace.mobile-menu-open > .sidebar {
+    transform: translateX(0) !important;
+    visibility: visible;
+  }
+  .workspace > .sidebar .sidebar-caption,
+  .workspace > .sidebar .sidebar-group-label {
+    display: block !important;
+  }
+  .workspace > .sidebar .sidebar-caption {
+    margin: 2px 10px 12px !important;
+  }
+  .workspace > .sidebar .sidebar-group-label {
+    margin: 15px 10px 5px !important;
+  }
+  .workspace > .sidebar > .nav-item,
+  .workspace > .sidebar > .nav-bottom {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-height: 45px !important;
+    margin: 1px 0 !important;
+    padding: 0 12px !important;
+    white-space: normal !important;
+    font-size: 12px !important;
+  }
+  .workspace > .sidebar .sidebar-user {
+    display: flex !important;
+    margin-top: 14px !important;
+  }
+  .workspace > .sidebar .nav-bottom { margin-top: 12px !important; }
+  .mobile-menu-backdrop {
+    display: block !important;
+    position: fixed;
+    z-index: 1001;
+    inset: 62px 0 0;
+    width: 100%;
+    height: calc(100dvh - 62px);
+    padding: 0;
+    border: 0;
+    background: rgba(20, 18, 15, .48);
+    cursor: pointer;
+  }
+  .workspace > .dashboard-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
