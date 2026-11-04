@@ -12,6 +12,10 @@ on:
       - ".github/workflows/stylepro-build.yml"
   workflow_dispatch:
 
+concurrency:
+  group: stylepro-web-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
