@@ -286,6 +286,7 @@ const UI_TRANSLATIONS: Record<string, string> = {
   'Ajouter':'إضافة','Modifier':'تعديل','Supprimer':'حذف','Fermer':'إغلاق',
   'Aucun résultat':'لا توجد نتائج','Chargement…':'جارٍ التحميل…','Total':'المجموع',
   'Prix':'السعر','Date':'التاريخ','Nom':'الاسم','Description':'الوصف',
+  'Format d’impression':'تنسيق الطباعة','80 mm':'80 مم',
 }
 
 const EXTRA_AR_TRANSLATIONS: Record<string, string> = {
@@ -457,6 +458,12 @@ function translateArabicText(value: string): string {
   return translated ? value.replace(trimmed, translated) : value
 }
 
+// These maps must survive language changes so French source strings can be restored.
+const translationOriginalText = new WeakMap<Text, string>()
+const translationAppliedText = new WeakMap<Text, string>()
+const translationOriginalAttributes = new WeakMap<Element, Map<string, string>>()
+const translationAppliedAttributes = new WeakMap<Element, Map<string, string>>()
+
 const STOCK_LOCATIONS = {
   boutique: '5f2ccda1-58c1-4282-997b-309698834ad7',
   reserve: 'd67f391c-a873-4b56-a8db-0e709117eae6'
@@ -477,10 +484,10 @@ export default function App() {
 
     // Keep the original French strings so changing back from Arabic restores
     // the interface instead of trying to translate already-translated text.
-    const originalText = new WeakMap<Text, string>()
-    const appliedText = new WeakMap<Text, string>()
-    const originalAttributes = new WeakMap<Element, Map<string, string>>()
-    const appliedAttributes = new WeakMap<Element, Map<string, string>>()
+    const originalText = translationOriginalText
+    const appliedText = translationAppliedText
+    const originalAttributes = translationOriginalAttributes
+    const appliedAttributes = translationAppliedAttributes
     const attributes = ['placeholder', 'title', 'aria-label']
 
     const translateNode = (node: Node) => {
