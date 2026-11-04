@@ -1243,7 +1243,8 @@ export default function App() {
               const amount = row.total ?? row.total_sales_price ?? row.amount ?? row.sale_price ?? row.discount_value
               const quantity = row.current_stock ?? row.total_quantity
               const activeState = row.active ?? row.is_active
-              return <View key={String(row.id ?? row.sale_id ?? index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{title}</Text><Text style={styles.saleDate}>{detail || String(row.description ?? row.fabric_name ?? '')}</Text>{quantity !== undefined ? <Text style={styles.saleDate}>Quantité / stock : {String(quantity)}</Text> : null}</View><View style={{ alignItems: 'flex-end' }}>{amount !== undefined ? <Text style={styles.saleAmount}>{money(Number(amount),currency)}</Text> : null}{activeState !== undefined ? <Text style={activeState?styles.active:styles.inactive}>{activeState?'Actif':'Inactif'}</Text> : null}</View></View>
+              const amountLabel = row.discount_type === 'percent' ? `${Number(row.discount_value || 0)}%` : amount !== undefined ? money(Number(amount),currency) : null
+              return <View key={String(row.id ?? row.sale_id ?? index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{title}</Text><Text style={styles.saleDate}>{detail || String(row.description ?? row.fabric_name ?? '')}</Text>{quantity !== undefined ? <Text style={styles.saleDate}>Quantité / stock : {String(quantity)}</Text> : null}</View><View style={{ alignItems: 'flex-end' }}>{amountLabel !== null ? <Text style={styles.saleAmount}>{amountLabel}</Text> : null}{activeState !== undefined ? <Text style={activeState?styles.active:styles.inactive}>{activeState?'Actif':'Inactif'}</Text> : null}</View></View>
             })}
           </View>
         )}
