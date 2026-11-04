@@ -1076,8 +1076,8 @@ export default function App() {
             ))}
           </View>
           {period === 'custom' ? <View style={styles.dateFilterRow}>
-            <TextInput value={customStart} onChangeText={setCustomStart} placeholder={t('Du (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
-            <TextInput value={customEnd} onChangeText={setCustomEnd} placeholder={t('Au (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
+            <TextInput value={customStart} onChangeText={setCustomStart} keyboardType="numbers-and-punctuation" placeholder={t('Du (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
+            <TextInput value={customEnd} onChangeText={setCustomEnd} keyboardType="numbers-and-punctuation" placeholder={t('Au (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
           </View> : null}
           <View style={styles.periodSummary}>
             <View style={{flex:1,gap:4}}>
