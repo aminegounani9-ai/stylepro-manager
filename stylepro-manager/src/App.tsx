@@ -982,10 +982,6 @@ const [productDescription, setProductDescription] = useState('')
 const [targetAudience, setTargetAudience] = useState('women')
 const [categoryId, setCategoryId] = useState('')
 const [brandId, setBrandId] = useState('')
-const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
-const [imagePreviewUrl, setImagePreviewUrl] = useState('')
-const [existingImageUrl, setExistingImageUrl] = useState('')
-
 
 const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
   {
@@ -2321,9 +2317,6 @@ function updateVariantDraft(
 }
 
 function resetProductForm() {
-  setSelectedImageFile(null)
-  setImagePreviewUrl('')
-  setExistingImageUrl('')
   setEditingProductId(null)
   setProductName('')
   setProductDescription('')
@@ -2374,9 +2367,6 @@ async function openProductEditor(productId: string, duplicate = false) {
     setTargetAudience(product.target_audience ?? 'women')
     setCategoryId(product.category_id ?? '')
     setBrandId(product.brand_id ?? '')
-    setSelectedImageFile(null)
-    setImagePreviewUrl('')
-    setExistingImageUrl(duplicate ? '' : (product.image_url ?? ''))
 
     setVariantDrafts((variants ?? []).map(variant => ({
       ...(duplicate ? {} : { id: variant.id }),
@@ -2653,55 +2643,12 @@ async function saveProduct(event: FormEvent<HTMLFormElement>) {
       }
     }
 
-    let imageWarning = ''
-
-    if (selectedImageFile) {
-      const extensionByType: Record<string, string> = {
-        'image/jpeg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-      }
-      const extension = extensionByType[selectedImageFile.type]
-
-      if (!extension || selectedImageFile.size > 5 * 1024 * 1024) {
-        imageWarning = ' Le produit est enregistré, mais la photo est invalide ou dépasse 5 Mo.'
-      } else {
-        const imagePath = `${storeId}/${savedProductId}.${extension}`
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(imagePath, selectedImageFile, {
-            upsert: true,
-            contentType: selectedImageFile.type,
-          })
-
-        if (uploadError) {
-          imageWarning =
-            ` Le produit est enregistré, mais la photo n’a pas été téléversée : ${uploadError.message}. ` +
-            'Vous pourrez réessayer en modifiant le produit.'
-        } else {
-          const { data: publicUrlData } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(imagePath)
-
-          const { error: imageDbError } = await supabase
-            .from('products')
-            .update({ image_url: publicUrlData.publicUrl })
-            .eq('id', savedProductId)
-            .eq('store_id', storeId)
-
-          if (imageDbError) {
-            imageWarning =
-              ` Le produit est enregistré, mais le lien de la photo n’a pas été sauvegardé : ${imageDbError.message}.`
-          }
-        }
-      }
-    }
 
     resetProductForm()
     setMessage(
       (wasEditing
         ? 'Produit et variantes modifiés avec succès.'
-        : 'Produit et variantes enregistrés avec succès.') + imageWarning
+        : 'Produit et variantes enregistrés avec succès.')
     )
 
     await Promise.all([
@@ -5806,56 +5753,6 @@ const loadPromotions = useCallback(async () => {
                       <h2>{editingProductId ? 'Modifier le produit' : 'Nouveau produit'}</h2>
                       <p>Informations de l’article et déclinaisons par taille ou couleur.</p>
                     </div>
-                  </div>
-
-                  <div className="product-image-picker product-form-full">
-                    <label htmlFor="product-image-file">Photo du produit</label>
-                    <input
-                      id="product-image-file"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={event => {
-                        const file = event.currentTarget.files?.[0]
-                        if (!file) return
-                        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-                          setError('Format refusé. Choisissez une image JPG, PNG ou WebP.')
-                          event.currentTarget.value = ''
-                          return
-                        }
-                        if (file.size > 5 * 1024 * 1024) {
-                          setError('La photo ne doit pas dépasser 5 Mo.')
-                          event.currentTarget.value = ''
-                          return
-                        }
-                        setError('')
-                        setSelectedImageFile(file)
-                        setImagePreviewUrl(URL.createObjectURL(file))
-                      }}
-                    />
-                    {(imagePreviewUrl || existingImageUrl) && (
-                      <div className="product-image-preview-wrap">
-                        <img
-                          className="product-image-preview"
-                          src={imagePreviewUrl || existingImageUrl}
-                          alt="Aperçu du produit"
-                        />
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => {
-                            setSelectedImageFile(null)
-                            setImagePreviewUrl('')
-                            setExistingImageUrl('')
-                            const input = document.getElementById('product-image-file') as HTMLInputElement | null
-                            if (input) input.value = ''
-                          }}
-                          disabled={savingProduct}
-                        >
-                          Retirer la photo
-                        </button>
-                      </div>
-                    )}
-                    <small>JPG, PNG ou WebP — 5 Mo maximum. L’ancienne photo reste conservée si vous ne choisissez pas une nouvelle image.</small>
                   </div>
 
                   <div className="product-form-grid">
