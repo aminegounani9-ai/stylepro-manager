@@ -474,7 +474,7 @@ export default function App() {
         if (productResult.error) throw productResult.error
         const quantities: Record<string, number> = {}
         for (const movement of movementResult.data ?? []) quantities[movement.variant_id] = (quantities[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
-        const names = new Map((productResult.data ?? []).map(product => [product.id, product.name]))
+        const names = new Map<string, string>((productResult.data ?? []).map(product => [product.id, product.name] as const))
         setModuleRows((variantsResult.data ?? []).map(variant => ({ ...variant, product_name: names.get(variant.product_id) ?? 'Produit', current_stock: quantities[variant.id] ?? 0 })))
       } else if (nextView === 'returns') {
         const { data, error } = await supabase.from('returns').select('sale_id,total,created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
