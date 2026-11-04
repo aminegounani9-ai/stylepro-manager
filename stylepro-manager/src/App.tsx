@@ -44,6 +44,8 @@ import {
   ContactRound,
   ChartNoAxesCombined,
   SlidersHorizontal,
+  Menu,
+  X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, saveLocalRecord } from './lib/offlineDb'
@@ -559,6 +561,7 @@ export default function App() {
   const [storeName, setStoreName] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentView, setCurrentView] = useState<
   | 'dashboard'
   | 'catalogue'
@@ -3110,6 +3113,17 @@ const loadPromotions = useCallback(async () => {
   } as CSSProperties}
 >
       <header className="topbar">
+        {user && (
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(value => !value)}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        )}
         <a className="brand" href="#" aria-label="StylePro Manager">
           <div className="brand-icon"><Shirt size={25} /></div>
           <div className="brand-copy">
@@ -3275,8 +3289,22 @@ const loadPromotions = useCallback(async () => {
           </div>
         </section>
       ) : (
-        <div className="workspace">
-          <aside className="sidebar">
+        <div className={`workspace ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
+          {mobileMenuOpen && (
+            <button
+              type="button"
+              className="mobile-menu-backdrop"
+              aria-label="Fermer le menu"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          )}
+          <aside
+            className="sidebar"
+            onClick={event => {
+              const target = event.target as HTMLElement
+              if (target.closest('button.nav-item, button.nav-bottom')) setMobileMenuOpen(false)
+            }}
+          >
             
             <p className="sidebar-caption">VOTRE ESPACE</p>
 
