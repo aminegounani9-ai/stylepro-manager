@@ -1175,8 +1175,7 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {view === 'products' && (
-                products.length === 0 ? (
+              {products.length === 0 ? (
                   <View style={styles.emptyState}>
                     <Package size={26} color={COLORS.muted} />
                     <Text style={styles.emptyText}>Aucun produit dans ce catalogue.</Text>
