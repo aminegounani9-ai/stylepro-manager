@@ -4496,3 +4496,88 @@ html[dir="rtl"] .sidebar-user-info { text-align: right; }
 
 /* User management */
 .user-create-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;align-items:end;margin:18px 0 26px}.user-create-form .field input,.user-create-form .field select{width:100%;margin-top:7px}.user-create-form button{min-height:42px}.user-members-list h3{margin:0 0 12px}.user-member-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--border-color,#e5e0d8);flex-wrap:wrap}.user-member-info{display:flex;align-items:center;gap:10px;flex:1;min-width:180px}.user-member-info div{display:grid;gap:3px}.user-member-info small{opacity:.7}.user-member-row select{min-width:175px}.user-status{font-size:12px;padding:5px 9px;border-radius:20px;background:#f5e8e5;color:#9b4237}.user-status.active{background:#e5f2e9;color:#28734a}@media(max-width:650px){.user-member-row>*{max-width:100%}.user-member-row select{flex:1}}
+
+
+/* Arabic typography and language control */
+html[lang="ar"] body,
+html[lang="ar"] button,
+html[lang="ar"] input,
+html[lang="ar"] select,
+html[lang="ar"] textarea {
+  font-family: "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, Arial, sans-serif;
+  font-optical-sizing: auto;
+  line-height: 1.75;
+}
+html[lang="ar"] .nav-item,
+html[lang="ar"] .nav-bottom,
+html[lang="ar"] .panel-title,
+html[lang="ar"] .topbar { letter-spacing: 0; }
+.print-size-switch {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+  padding: 0 9px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--soft); color: var(--text); font-size: 12px;
+}
+.print-size-switch select {
+  width: auto; min-height: 32px; padding: 4px 5px; border: 0;
+  background: transparent; color: inherit; font-weight: 700;
+}
+
+/* Product catalogue uses consistent vector icons instead of product photos. */
+.catalogue-card-visual-icon-only .catalogue-card-icon {
+  width: 100%; height: 100%; min-height: 112px; display: grid;
+  place-items: center; color: var(--primary);
+  background: linear-gradient(135deg, var(--soft), var(--surface));
+}
+.catalogue-card-visual-icon-only .catalogue-card-icon svg {
+  width: 38px; height: 38px; stroke-width: 1.65;
+}
+
+/* Dark POS: ensure product tiles, filters, cart and scanner remain readable. */
+.app.dark .pos-panel :is(.pos-layout,.pos-products,.pos-cart,.pos-filter-panel,.pos-scanner-tools,.mobile-link-panel,.sales-history,.invoice-preview-dialog) {
+  color: var(--text);
+}
+.app.dark .pos-panel :is(.pos-products,.pos-cart,.pos-filter-panel,.pos-scanner-tools,.mobile-link-panel,.sales-history,.pos-payment-panel,.pos-summary,.pos-cart-row,.pos-product) {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+.app.dark .pos-panel :is(.pos-product,.pos-cart-info,.pos-cart-row,.pos-summary-line,.pos-payment-result,.pos-filter-panel label,.pos-scanner-tools label,.sales-history p,.sales-history h3) {
+  color: var(--text);
+}
+.app.dark .pos-panel :is(.pos-product:hover:not(:disabled),.pos-quantity button,.pos-clear-filters) {
+  background: var(--soft);
+  color: var(--text);
+}
+.app.dark .pos-panel :is(input,select,textarea) {
+  color: var(--text);
+  background: var(--input-bg);
+  border-color: var(--border);
+}
+.app.dark .pos-panel input::placeholder { color: var(--muted); }
+.app.dark .pos-panel .pos-item-tags span { background: var(--soft); color: var(--text); }
+.app.dark .pos-panel .pos-line-total { color: #a8e8c4; }
+.app.dark .pos-panel .pos-original-total { color: var(--muted); }
+
+/* Professional, consistent sidebar icon treatment. */
+.nav-item > svg, .nav-bottom > svg:first-child {
+  flex: 0 0 20px; width: 20px; height: 20px; stroke-width: 1.8;
+}
+.nav-item { gap: 12px; }
+.nav-item.active > svg { filter: drop-shadow(0 2px 3px rgba(0,0,0,.12)); }
+
+/* Print defaults: A4 across modules, with an 80 mm thermal page option. */
+@page { size: A4; margin: 10mm; }
+@page thermal { size: 80mm auto; margin: 3mm; }
+@media print {
+  html[data-print-size="80mm"] { page: thermal; }
+  html[data-print-size="80mm"] body { width: 80mm; margin: 0; }
+  html[data-print-size="80mm"] .app { width: 80mm; min-width: 0; }
+  .topbar, .sidebar, .no-print, .system-status, .header-actions { display: none !important; }
+  .dashboard-content { width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .panel { box-shadow: none !important; border: 0 !important; }
+  .table-wrap { overflow: visible !important; }
+  tr, img, .receipt, .invoice-preview-dialog { break-inside: avoid; page-break-inside: avoid; }
+}
+@media (max-width: 760px) {
+  .print-size-switch { min-height: 36px; padding: 0 6px; }
+  .print-size-switch select { min-height: 29px; font-size: 11px; }
+}
