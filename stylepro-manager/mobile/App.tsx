@@ -1175,28 +1175,28 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {products.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <Package size={26} color={COLORS.muted} />
-                    <Text style={styles.emptyText}>Aucun produit dans ce catalogue.</Text>
+              {products.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Package size={26} color={COLORS.muted} />
+                  <Text style={styles.emptyText}>Aucun produit dans ce catalogue.</Text>
+                </View>
+              )}
+              {products.map(product => (
+                <View key={product.id} style={styles.productRow}>
+                  <View style={styles.productIcon}>
+                    <Package size={20} color={COLORS.navy} />
                   </View>
-                ) : products.map(product => (
-                  <View key={product.id} style={styles.productRow}>
-                    <View style={styles.productIcon}>
-                      <Package size={20} color={COLORS.navy} />
-                    </View>
-                    <View style={styles.flex}>
-                      <Text style={styles.saleNumber}>{product.name}</Text>
-                      <Text style={styles.saleDate}>
-                        {product.target_audience || 'Catégorie non renseignée'}
-                      </Text>
-                    </View>
-                    <Text style={product.active ? styles.active : styles.inactive}>
-                      {product.active ? 'Actif' : 'Inactif'}
+                  <View style={styles.flex}>
+                    <Text style={styles.saleNumber}>{product.name}</Text>
+                    <Text style={styles.saleDate}>
+                      {product.target_audience || 'Catégorie non renseignée'}
                     </Text>
                   </View>
-                ))
-              )}
+                  <Text style={product.active ? styles.active : styles.inactive}>
+                    {product.active ? 'Actif' : 'Inactif'}
+                  </Text>
+                </View>
+              ))}
             </View>
 
             <Text style={styles.disclaimer}>
