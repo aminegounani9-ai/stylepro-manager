@@ -32,6 +32,9 @@
     ],
     "category": "Business",
     "shortDescription": "Gestion professionnelle de boutique, stock, ventes et atelier",
-    "longDescription": "StylePro Manager pour la gestion de boutique, catalogue, stock, ventes, atelier et utilisateurs."
+    "longDescription": "StylePro Manager pour la gestion de boutique, catalogue, stock, ventes, atelier et utilisateurs.",
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }
