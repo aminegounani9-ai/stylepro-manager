@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Modal,
   RefreshControl,
   SafeAreaView,
@@ -34,6 +36,8 @@ import {
 } from 'lucide-react-native'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from './src/lib/supabase'
+import * as Print from 'expo-print'
+import * as Sharing from 'expo-sharing'
 
 type StoreRow = {
   id: string
@@ -98,6 +102,36 @@ function money(value: number, currency: string) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ${currency}`
+}
+
+const AR: Record<string,string> = {
+  'MANAGER · ESPACE COMMERCIAL':'المدير · الفضاء التجاري',
+  'TABLEAU DE BORD':'لوحة التحكم','Bonjour 👋':'مرحباً 👋',
+  'Boutique sélectionnée':'المتجر المحدد','Aucune boutique accessible':'لا يوجد متجر متاح',
+  'Scanner QR / Code-barres':'مسح QR / الرمز الشريطي',
+  'Accueil':'الرئيسية','Catalogue':'الكتالوج','Ventes':'المبيعات','Stock':'المخزون',
+  'Retours':'المرتجعات','Clients':'الزبائن','Dépenses':'المصاريف','Atelier':'الورشة',
+  'Livraisons':'التوصيل','Promos':'العروض','Étiquettes':'الملصقات',
+  'Utilisateurs':'المستخدمون','Paramètres':'الإعدادات',
+  'Performance commerciale':'الأداء التجاري','Les chiffres de votre boutique':'إحصائيات متجرك',
+  "Ventes nettes aujourd'hui":'صافي مبيعات اليوم','Ventes nettes du mois':'صافي مبيعات الشهر',
+  'Panier moyen du mois':'متوسط قيمة السلة للشهر','Dépenses du mois':'مصاريف الشهر',
+  'Valeur du stock':'قيمة المخزون','Stock faible':'مخزون منخفض',
+  'Évolution des ventes':'تطور المبيعات','Ventes récentes':'أحدث المبيعات',
+  'Dernières factures complétées':'آخر الفواتير المكتملة',
+  'Aucune vente complétée':'لا توجد مبيعات مكتملة',
+  'Les factures terminées apparaîtront ici.':'ستظهر الفواتير المكتملة هنا.',
+  'Alertes de stock':'تنبيهات المخزون','Paramètres de l’application':'إعدادات التطبيق',
+  'Actualiser les données':'تحديث البيانات','Déconnexion':'تسجيل الخروج',
+  'Période':'الفترة','7 derniers jours':'آخر 7 أيام','30 derniers jours':'آخر 30 يوماً',
+  'Ce mois':'هذا الشهر','Personnalisée':'فترة مخصصة',
+  'Du (AAAA-MM-JJ)':'من (YYYY-MM-DD)','Au (AAAA-MM-JJ)':'إلى (YYYY-MM-DD)',
+  'Rapport PDF':'تقرير PDF','Langue':'اللغة','Français':'الفرنسية','العربية':'العربية',
+  'Ventes brutes':'إجمالي المبيعات','Retours':'المرتجعات','Ventes nettes':'صافي المبيعات',
+  'Facture':'الفاتورة','Date':'التاريخ','Montant':'المبلغ',
+  'Rapport PDF prêt à partager.':'تقرير PDF جاهز للمشاركة.',
+  'Impossible de générer le PDF':'تعذر إنشاء تقرير PDF',
+  'Aucune vente sur cette période':'لا توجد مبيعات خلال هذه الفترة'
 }
 
 function dateLabel(value: string) {
@@ -196,6 +230,12 @@ export default function App() {
   } | null>(null)
   const [scanMessage, setScanMessage] = useState('')
   const [hardwareScannerCode, setHardwareScannerCode] = useState('')
+  const [language, setLanguage] = useState<'fr'|'ar'>('fr')
+  const [period, setPeriod] = useState<'7d'|'30d'|'month'|'custom'>('7d')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const t = (value: string) => language === 'ar' ? (AR[value] || value) : value
 
   const currentStore = stores.find(store => store.id === storeId)
   const currency = currentStore?.currency || 'DZD'
