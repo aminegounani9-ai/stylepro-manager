@@ -384,13 +384,17 @@ export default function App() {
 
     try {
       await loadStores()
+      // A manual refresh must also refresh the currently selected store's data.
+      if (manual && storeId) {
+        await Promise.all([loadProducts(storeId), loadAnalytics(storeId)])
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de charger les boutiques.')
+      setError(e instanceof Error ? e.message : 'Impossible d’actualiser les données.')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [user, loadStores])
+  }, [user, loadStores, storeId, loadProducts, loadAnalytics])
 
   useEffect(() => {
     if (user) {
@@ -922,6 +926,7 @@ export default function App() {
                 ]}
                 onPress={() => {
                   setStoreId(store.id)
+                  setView('dashboard')
                   setStorePickerOpen(false)
                 }}
               >
