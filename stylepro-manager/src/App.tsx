@@ -522,7 +522,7 @@ const MODULE_AR_TRANSLATIONS: Record<string, string> = {
   'Transfert de stock':'تحويل المخزون','Stock actuel':'المخزون الحالي','Stock minimum':'الحد الأدنى للمخزون',
   'Enregistrer le mouvement':'حفظ الحركة','Motif du mouvement':'سبب الحركة','Aucun mouvement trouvé.':'لم يتم العثور على حركات.',
   'Référence produit':'مرجع المنتج','Sélectionner':'اختيار','Sélectionner une boutique':'اختر متجراً',
-  'Système opérationnel':'النظام يعمل بشكل طبيعي','Ouvrir le menu':'فتح القائمة','Fermer le menu':'إغلاق القائمة'
+'Ouvrir le menu':'فتح القائمة','Fermer le menu':'إغلاق القائمة'
 }
 
 function translateArabicText(value: string): string {
