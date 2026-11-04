@@ -1717,7 +1717,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   error: { color: COLORS.danger, marginTop: 12, fontSize: 13 },
-  content: { padding: 18, paddingBottom: 110 },
+  content: { padding: 18, paddingBottom: 120 },
   languageButton:{minWidth:42,height:42,paddingHorizontal:9,alignItems:'center',justifyContent:'center',borderRadius:12,backgroundColor:COLORS.paleGold,borderWidth:1,borderColor:COLORS.border},
   languageButtonText:{color:COLORS.navy,fontSize:12,fontWeight:'900'},
   periodPanel:{backgroundColor:COLORS.surface,borderRadius:18,padding:14,marginBottom:16,borderWidth:1,borderColor:COLORS.border},
