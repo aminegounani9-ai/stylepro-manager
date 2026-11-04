@@ -505,6 +505,38 @@ export default function App() {
     } finally { setModuleLoading(false) }
   }
 
+  async function changeMobileUserRole(member: Record<string, unknown>) {
+    const roles = ['cashier', 'manager', 'stock_manager', 'accountant', 'admin']
+    const current = String(member.role || 'cashier')
+    const next = roles[(roles.indexOf(current) + 1) % roles.length]
+    Alert.alert('Modifier le rôle', `Attribuer le rôle ${next} à ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Confirmer', onPress: () => { void (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'update_role', store_id: storeId, user_id: member.user_id, role: next } })
+          if (error) throw error
+          if (data?.error) throw new Error(data.error)
+          await loadModule('users')
+        } catch (e) { setError(e instanceof Error ? e.message : 'Modification du rôle impossible.') }
+      })() } }
+    ])
+  }
+
+  async function toggleMobileUser(member: Record<string, unknown>) {
+    const nextActive = member.is_active === false
+    Alert.alert(nextActive ? 'Activer le compte' : 'Désactiver le compte', `Confirmer cette modification pour ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Confirmer', style: nextActive ? 'default' : 'destructive', onPress: () => { void (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'set_active', store_id: storeId, user_id: member.user_id, active: nextActive } })
+          if (error) throw error
+          if (data?.error) throw new Error(data.error)
+          await loadModule('users')
+        } catch (e) { setError(e instanceof Error ? e.message : 'Modification du statut impossible.') }
+      })() } }
+    ])
+  }
+
   async function createMobileUser() {
     if (!newUserName.trim() || !newUserEmail.trim() || newUserPassword.length < 8) {
       Alert.alert('Vérification', 'Renseigne le nom, l’e-mail et un mot de passe de 8 caractères minimum.')
@@ -897,6 +929,8 @@ export default function App() {
           </View>
         )}
 
+        {error ? <View style={styles.errorBanner}><AlertTriangle size={19} color={COLORS.danger}/><Text style={styles.errorBannerText}>{error}</Text></View> : null}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moduleNav}>
           {([
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
@@ -1121,11 +1155,9 @@ export default function App() {
                 </View>
                 <TouchableOpacity
                   style={styles.smallButton}
-                  onPress={() => setView(view === 'products' ? 'dashboard' : 'products')}
+                  onPress={() => void loadModule('products')}
                 >
-                  <Text style={styles.smallButtonText}>
-                    {view === 'products' ? 'Masquer' : 'Afficher'}
-                  </Text>
+                  <Text style={styles.smallButtonText}>Ouvrir</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1183,7 +1215,7 @@ export default function App() {
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
             <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
             <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
-            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text></View>)}
+            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><View style={{ alignItems: 'flex-end', gap: 7 }}><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text><View style={{ flexDirection: 'row', gap: 5 }}><TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity><TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity></View></View></View>)}
           </View>
         ) : (
           <View style={styles.panel}>
