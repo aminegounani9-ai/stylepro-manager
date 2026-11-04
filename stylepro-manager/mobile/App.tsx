@@ -1079,7 +1079,11 @@ export default function App() {
             <TextInput value={customEnd} onChangeText={setCustomEnd} placeholder={t('Au (AAAA-MM-JJ)')} placeholderTextColor={COLORS.muted} style={[styles.input,styles.dateFilterInput]} />
           </View> : null}
           <View style={styles.periodSummary}>
-            <Text style={styles.periodSummaryText}>{periodSales.length} {t('Ventes')} · {money(periodNet,currency)}</Text>
+            <View style={{flex:1,gap:4}}>
+              <Text style={styles.periodSummaryText}>{periodSales.length} {t('Ventes')} · {money(periodNet,currency)}</Text>
+              <Text style={styles.periodDetailText}>{t('Ventes brutes')}: {money(periodGross,currency)}</Text>
+              <Text style={styles.periodDetailText}>{t('Retours')}: {money(periodReturnTotal,currency)} · {t('Dépenses')}: {money(periodExpenseTotal,currency)}</Text>
+            </View>
             <TouchableOpacity style={styles.pdfButton} onPress={() => void exportDashboardPdf()} disabled={pdfBusy}>
               {pdfBusy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pdfButtonText}>{t('Rapport PDF')}</Text>}
             </TouchableOpacity>
@@ -1727,6 +1731,7 @@ const styles = StyleSheet.create({
   dateFilterInput:{flex:1,minWidth:0,fontSize:11,paddingHorizontal:8},
   periodSummary:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:12,paddingTop:10,borderTopWidth:1,borderTopColor:COLORS.border},
   periodSummaryText:{color:COLORS.navy,fontSize:11,fontWeight:'800',flex:1},
+  periodDetailText:{color:COLORS.muted,fontSize:10,fontWeight:'700'},
   pdfButton:{backgroundColor:COLORS.accent,borderRadius:10,paddingHorizontal:13,paddingVertical:10,minWidth:92,alignItems:'center'},
   pdfButtonText:{color:'#FFFFFF',fontSize:11,fontWeight:'900'},
   header: {
