@@ -950,7 +950,7 @@ export default function App() {
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>STYLEPRO</Text>
-            <Text style={styles.subtitle}>MANAGER · ESPACE COMMERCIAL</Text>
+            <Text style={styles.subtitle}>{t('MANAGER · ESPACE COMMERCIAL')}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
             <TouchableOpacity onPress={() => void changeLanguage(language === 'fr' ? 'ar' : 'fr')} style={styles.languageButton}><Text style={styles.languageButtonText}>{language === 'fr' ? 'عربي' : 'FR'}</Text></TouchableOpacity>
@@ -965,8 +965,8 @@ export default function App() {
         </View>
 
         <View style={styles.welcome}>
-          <Text style={styles.eyebrow}>TABLEAU DE BORD</Text>
-          <Text style={styles.welcomeTitle}>Bonjour 👋</Text>
+          <Text style={styles.eyebrow}>{t('TABLEAU DE BORD')}</Text>
+          <Text style={styles.welcomeTitle}>{t('Bonjour 👋')}</Text>
           <Text style={styles.welcomeEmail}>{user.email ?? 'Utilisateur connecté'}</Text>
 
           <TouchableOpacity
@@ -975,9 +975,9 @@ export default function App() {
           >
             <StoreIcon size={19} color="#FFFFFF" />
             <View style={styles.storeSelectorText}>
-              <Text style={styles.storeSelectorLabel}>Boutique sélectionnée</Text>
+              <Text style={styles.storeSelectorLabel}>{t('Boutique sélectionnée')}</Text>
               <Text style={styles.storeSelectorName}>
-                {currentStore?.name || 'Aucune boutique accessible'}
+                {currentStore?.name || t('Aucune boutique accessible')}
               </Text>
             </View>
             <ChevronDown size={20} color="#FFFFFF" />
@@ -1000,7 +1000,7 @@ export default function App() {
         >
           <ScanLine size={21} color="#FFFFFF" />
           <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
-            Scanner QR / Code-barres
+            {t('Scanner QR / Code-barres')}
           </Text>
         </TouchableOpacity>
 
@@ -1041,7 +1041,7 @@ export default function App() {
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
           ] as [typeof view, string][]).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
-              <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{label}</Text>
+              <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1050,8 +1050,8 @@ export default function App() {
         <>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>Performance commerciale</Text>
-            <Text style={styles.sectionSubtitle}>Les chiffres de votre boutique</Text>
+            <Text style={styles.sectionTitle}>{t('Performance commerciale')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('Les chiffres de votre boutique')}</Text>
           </View>
           <TouchableOpacity
             style={styles.refreshButton}
@@ -1107,42 +1107,42 @@ export default function App() {
           <>
             <View style={styles.metricGrid}>
               <MetricCard
-                title="Ventes nettes aujourd'hui"
+                title={t("Ventes nettes aujourd'hui")}
                 value={money(todayNet, currency)}
                 detail={`${todaySales.length} facture(s), retours déduits`}
                 icon={<TrendingUp size={21} />}
                 tone="green"
               />
               <MetricCard
-                title="Ventes nettes du mois"
+                title={t('Ventes nettes du mois')}
                 value={money(monthNet, currency)}
                 detail={`${monthSales.length} facture(s), retours déduits`}
                 icon={<ShoppingBag size={21} />}
                 tone="blue"
               />
               <MetricCard
-                title="Panier moyen du mois"
+                title={t('Panier moyen du mois')}
                 value={money(monthSales.length ? monthGross / monthSales.length : 0, currency)}
                 detail="Avant déduction des retours"
                 icon={<Wallet size={21} />}
                 tone="gold"
               />
               <MetricCard
-                title="Dépenses du mois"
+                title={t('Dépenses du mois')}
                 value={money(monthExpenses, currency)}
                 detail="Dépenses enregistrées"
                 icon={<CalendarDays size={21} />}
                 tone="red"
               />
               <MetricCard
-                title="Valeur du stock"
+                title={t('Valeur du stock')}
                 value={money(stockValue, currency)}
                 detail={`${totalStockUnits.toLocaleString('fr-DZ')} unité(s), coût d'achat`}
                 icon={<Package size={21} />}
                 tone="gold"
               />
               <MetricCard
-                title="Stock faible"
+                title={t('Stock faible')}
                 value={String(lowStock.length)}
                 detail="Variantes au seuil minimum ou en dessous"
                 icon={<AlertTriangle size={21} />}
@@ -1157,7 +1157,7 @@ export default function App() {
                 </View>
                 <View style={styles.flex}>
                   <Text style={styles.panelTitle}>{t('Évolution des ventes')}</Text>
-                  <Text style={styles.panelSubtitle}>7 derniers jours · avant retours</Text>
+                  <Text style={styles.panelSubtitle}>{t('7 derniers jours')} · avant retours</Text>
                 </View>
               </View>
 
@@ -1191,7 +1191,7 @@ export default function App() {
                 </View>
                 <View style={styles.flex}>
                   <Text style={styles.panelTitle}>{t('Ventes récentes')}</Text>
-                  <Text style={styles.panelSubtitle}>Dernières factures complétées</Text>
+                  <Text style={styles.panelSubtitle}>{t('Dernières factures complétées')}</Text>
                 </View>
                 <Text style={styles.counter}>{sales.length}</Text>
               </View>
@@ -1199,9 +1199,9 @@ export default function App() {
               {periodSales.slice(0, 8).length === 0 ? (
                 <View style={styles.emptyState}>
                   <ShoppingBag size={27} color={COLORS.muted} />
-                  <Text style={styles.emptyTitle}>Aucune vente complétée</Text>
+                  <Text style={styles.emptyTitle}>{t('Aucune vente complétée')}</Text>
                   <Text style={styles.emptyText}>
-                    Les factures terminées apparaîtront ici.
+                    {t('Les factures terminées apparaîtront ici.')}
                   </Text>
                 </View>
               ) : (
@@ -1233,7 +1233,7 @@ export default function App() {
                   <AlertTriangle size={21} color={COLORS.danger} />
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.panelTitle}>Alertes de stock</Text>
+                  <Text style={styles.panelTitle}>{t('Alertes de stock')}</Text>
                   <Text style={styles.panelSubtitle}>Seuil minimum configuré par variante</Text>
                 </View>
                 <Text style={styles.counter}>{lowStock.length}</Text>
@@ -1331,8 +1331,8 @@ export default function App() {
             <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Utilisateur</Text><Text style={styles.moduleDataValue}>{user.email || '—'}</Text></View>
             <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Boutique</Text><Text style={styles.moduleDataValue}>{currentStore?.name || '—'}</Text></View>
             <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Devise</Text><Text style={styles.moduleDataValue}>{currency}</Text></View>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => void refreshAll(true)}><RefreshCw size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>Actualiser les données</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: COLORS.danger, marginTop: 10 }]} onPress={signOut}><LogOut size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>Déconnexion</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => void refreshAll(true)}><RefreshCw size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>{t('Actualiser les données')}</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: COLORS.danger, marginTop: 10 }]} onPress={signOut}><LogOut size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>{t('Déconnexion')}</Text></TouchableOpacity>
             <Text style={styles.disclaimer}>Les paramètres sensibles et les permissions sont gérés côté serveur via Supabase. Aucun réglage de sécurité n’est modifié depuis cet écran.</Text>
           </View>
         ) : view === 'users' ? (
