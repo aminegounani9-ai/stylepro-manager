@@ -127,7 +127,7 @@ const AR: Record<string,string> = {
   'Ce mois':'هذا الشهر','Personnalisée':'فترة مخصصة',
   'Du (AAAA-MM-JJ)':'من (YYYY-MM-DD)','Au (AAAA-MM-JJ)':'إلى (YYYY-MM-DD)',
   'Rapport PDF':'تقرير PDF','Langue':'اللغة','Français':'الفرنسية','العربية':'العربية',
-  'Ventes brutes':'إجمالي المبيعات','Retours':'المرتجعات','Ventes nettes':'صافي المبيعات',
+  'Ventes brutes':'إجمالي المبيعات','Ventes nettes':'صافي المبيعات',
   'Facture':'الفاتورة','Date':'التاريخ','Montant':'المبلغ',
   'Rapport PDF prêt à partager.':'تقرير PDF جاهز للمشاركة.',
   'Impossible de générer le PDF':'تعذر إنشاء تقرير PDF',
