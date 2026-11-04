@@ -12,6 +12,10 @@ on:
       - ".github/workflows/stylepro-mobile.yml"
   workflow_dispatch:
 
+concurrency:
+  group: stylepro-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mobile-typecheck:
     runs-on: ubuntu-latest
