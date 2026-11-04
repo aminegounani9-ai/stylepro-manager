@@ -1,15 +1,7 @@
 name: StylePro Desktop Windows
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "stylepro-manager/**"
-      - ".github/workflows/stylepro-desktop.yml"
-  pull_request:
-    paths:
-      - "stylepro-manager/**"
-      - ".github/workflows/stylepro-desktop.yml"
+  # Build installers manually only after application modules and validation are complete.
   workflow_dispatch:
 
 jobs:
