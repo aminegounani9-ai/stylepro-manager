@@ -48,6 +48,9 @@ jobs:
       - name: Verify PDF dependencies
         run: npm ls expo-print expo-sharing
 
+      - name: Check Expo package compatibility
+        run: npx expo install --check
+
       - name: Validate Expo config
         run: npx expo config --type public
 
