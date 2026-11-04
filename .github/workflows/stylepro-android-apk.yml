@@ -51,14 +51,18 @@ jobs:
       - name: Generate Android native project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build installable Android debug APK
+      - name: Build standalone Android APK with embedded JavaScript bundle
         working-directory: stylepro-manager/mobile/android
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleRelease
 
-      - name: Upload APK
+      - name: Verify standalone APK exists
+        working-directory: stylepro-manager/mobile/android
+        run: test -s app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload standalone APK
         uses: actions/upload-artifact@v4
         with:
-          name: stylepro-manager-android-debug
-          path: stylepro-manager/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: stylepro-manager-android-standalone
+          path: stylepro-manager/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
