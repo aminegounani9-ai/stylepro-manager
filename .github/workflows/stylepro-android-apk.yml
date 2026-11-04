@@ -40,7 +40,10 @@ jobs:
           java-version: 17
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
+      - name: Install Expo-compatible PDF modules
+        run: npx expo install expo-print expo-sharing
 
       - name: Validate Expo config
         run: npx expo config --type public
