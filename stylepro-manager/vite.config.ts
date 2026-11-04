@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'stylepro-icon.svg'],
       manifest: {
         id: '/',
         name: 'StylePro Manager',
@@ -22,7 +22,7 @@ export default defineConfig({
         theme_color: '#a9875b',
         background_color: '#f5f1e9',
         icons: [
-          { src: '/icons.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: '/stylepro-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
       },
       workbox: {
