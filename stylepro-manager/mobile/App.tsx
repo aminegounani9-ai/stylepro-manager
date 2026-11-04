@@ -170,7 +170,16 @@ export default function App() {
   const [error, setError] = useState('')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([])
-  const [view, setView] = useState<'dashboard' | 'products'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'products' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'users' | 'settings'>('dashboard')
+  const [moduleRows, setModuleRows] = useState<Record<string, unknown>[]>([])
+  const [moduleLoading, setModuleLoading] = useState(false)
+  const [moduleSearch, setModuleSearch] = useState('')
+  const [userMembers, setUserMembers] = useState<Record<string, unknown>[]>([])
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserPassword, setNewUserPassword] = useState('')
+  const [newUserRole, setNewUserRole] = useState('cashier')
+  const [userSaving, setUserSaving] = useState(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -430,6 +439,88 @@ export default function App() {
       active = false
     }
   }, [user, storeId, loadProducts, loadAnalytics])
+
+  const moduleLabels: Record<string, string> = {
+    products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
+    clients: 'Clients', expenses: 'Dépenses', atelier: 'Atelier', deliveries: 'Livraisons',
+    users: 'Utilisateurs', settings: 'Paramètres'
+  }
+
+  async function loadModule(nextView: typeof view) {
+    if (!storeId || nextView === 'dashboard' || nextView === 'settings') {
+      setModuleRows([]); setView(nextView); return
+    }
+    setModuleLoading(true); setError(''); setModuleSearch('')
+    try {
+      if (nextView === 'products') {
+        setModuleRows(products.map(row => ({ ...row })))
+      } else if (nextView === 'sales') {
+        const { data, error } = await supabase.from('sales').select('id,sale_number,total,status,created_at,currency').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'stock') {
+        const [variantsResult, movementResult, productResult] = await Promise.all([
+          supabase.from('product_variants').select('id,product_id,sku,barcode,size,color,min_stock,sale_price,active').eq('store_id', storeId).eq('active', true),
+          supabase.from('stock_movements').select('variant_id,quantity_delta').eq('store_id', storeId),
+          supabase.from('products').select('id,name').eq('store_id', storeId)
+        ])
+        if (variantsResult.error) throw variantsResult.error
+        if (movementResult.error) throw movementResult.error
+        if (productResult.error) throw productResult.error
+        const quantities: Record<string, number> = {}
+        for (const movement of movementResult.data ?? []) quantities[movement.variant_id] = (quantities[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
+        const names = new Map((productResult.data ?? []).map(product => [product.id, product.name]))
+        setModuleRows((variantsResult.data ?? []).map(variant => ({ ...variant, product_name: names.get(variant.product_id) ?? 'Produit', current_stock: quantities[variant.id] ?? 0 })))
+      } else if (nextView === 'returns') {
+        const { data, error } = await supabase.from('returns').select('sale_id,total,created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'clients') {
+        const { data, error } = await supabase.from('customers').select('id,full_name,phone').eq('store_id', storeId).order('full_name').limit(300)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'expenses') {
+        const { data, error } = await supabase.from('expenses').select('amount,expense_date').eq('store_id', storeId).order('expense_date', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'atelier') {
+        const { data, error } = await supabase.from('atelier_productions').select('id,production_number,production_date,supplier_name_snapshot,fabric_name,fabric_number,fabric_quantity_m,total_quantity,total_cost,total_sales_price,gross_profit,margin_percent').eq('store_id', storeId).order('production_number', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'deliveries') {
+        const { data, error } = await supabase.from('deliveries').select('id,delivery_number,status,recipient_name,recipient_phone,delivery_address,created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'users') {
+        const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'list', store_id: storeId } })
+        if (error) throw error
+        if (data?.error) throw new Error(data.error)
+        setUserMembers((data?.members ?? []) as Record<string, unknown>[])
+        setModuleRows([])
+      }
+      setView(nextView)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de charger ce module.')
+      setView(nextView)
+    } finally { setModuleLoading(false) }
+  }
+
+  async function createMobileUser() {
+    if (!newUserName.trim() || !newUserEmail.trim() || newUserPassword.length < 8) {
+      Alert.alert('Vérification', 'Renseigne le nom, l’e-mail et un mot de passe de 8 caractères minimum.')
+      return
+    }
+    setUserSaving(true); setError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'create', store_id: storeId, full_name: newUserName.trim(), email: newUserEmail.trim(), password: newUserPassword, role: newUserRole } })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setNewUserName(''); setNewUserEmail(''); setNewUserPassword('')
+      await loadModule('users')
+      Alert.alert('Utilisateur créé', 'Le compte a été créé et associé à la boutique.')
+    } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible.') }
+    finally { setUserSaving(false) }
+  }
 
   async function signIn() {
     if (!email.trim() || !password) {
@@ -806,6 +897,20 @@ export default function App() {
           </View>
         )}
 
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moduleNav}>
+          {([
+            ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
+            ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
+            ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
+          ] as [typeof view, string][]).map(([key, label]) => (
+            <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
+              <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {view === 'dashboard' ? (
+        <>
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>Performance commerciale</Text>
@@ -1058,6 +1163,43 @@ export default function App() {
           </>
         )}
 
+        </>
+        ) : view === 'settings' ? (
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Paramètres de l’application</Text>
+            <Text style={styles.panelSubtitle}>Informations de la session active</Text>
+            <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Utilisateur</Text><Text style={styles.moduleDataValue}>{user.email || '—'}</Text></View>
+            <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Boutique</Text><Text style={styles.moduleDataValue}>{currentStore?.name || '—'}</Text></View>
+            <View style={styles.moduleDataRow}><Text style={styles.moduleDataLabel}>Devise</Text><Text style={styles.moduleDataValue}>{currency}</Text></View>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => void refreshAll(true)}><RefreshCw size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>Actualiser les données</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: COLORS.danger, marginTop: 10 }]} onPress={signOut}><LogOut size={17} color="#FFFFFF"/><Text style={styles.primaryButtonText}>Déconnexion</Text></TouchableOpacity>
+            <Text style={styles.disclaimer}>Les paramètres sensibles et les permissions sont gérés côté serveur via Supabase. Aucun réglage de sécurité n’est modifié depuis cet écran.</Text>
+          </View>
+        ) : view === 'users' ? (
+          <View style={styles.panel}>
+            <View style={styles.panelHeader}><View style={styles.flex}><Text style={styles.panelTitle}>Gestion des utilisateurs</Text><Text style={styles.panelSubtitle}>Comptes associés à cette boutique · accès administrateur requis</Text></View><TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity></View>
+            <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
+            <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
+            <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
+            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+            <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
+            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text></View>)}
+          </View>
+        ) : (
+          <View style={styles.panel}>
+            <View style={styles.panelHeader}><View style={styles.flex}><Text style={styles.panelTitle}>{moduleLabels[view] || 'Module'}</Text><Text style={styles.panelSubtitle}>Données de la boutique sélectionnée · lecture sécurisée</Text></View><TouchableOpacity style={styles.smallButton} onPress={() => void loadModule(view)}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity></View>
+            <TextInput value={moduleSearch} onChangeText={setModuleSearch} placeholder="Rechercher dans ce module…" placeholderTextColor={COLORS.muted} style={styles.input}/>
+            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 20 }}/> : null}
+            {!moduleLoading && moduleRows.length === 0 ? <View style={styles.emptyState}><Package size={26} color={COLORS.muted}/><Text style={styles.emptyTitle}>Aucune donnée à afficher</Text><Text style={styles.emptyText}>Les données apparaîtront ici lorsqu’elles seront enregistrées dans cette boutique.</Text></View> : null}
+            {moduleRows.filter(row => JSON.stringify(row).toLowerCase().includes(moduleSearch.toLowerCase())).map((row,index) => {
+              const title = String(row.name ?? row.product_name ?? row.full_name ?? (row.sale_number ? 'Facture #'+row.sale_number : row.delivery_number ? 'Livraison #'+row.delivery_number : row.production_number ? 'Production #'+row.production_number : row.sku ?? row.id ?? 'Enregistrement'))
+              const detail = [row.phone,row.size,row.color,row.status,row.production_date,row.expense_date,row.created_at].filter(Boolean).map(String).join(' · ')
+              const amount = row.total ?? row.total_sales_price ?? row.amount ?? row.sale_price
+              const quantity = row.current_stock ?? row.total_quantity
+              return <View key={String(row.id ?? row.sale_id ?? index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{title}</Text><Text style={styles.saleDate}>{detail || String(row.description ?? row.fabric_name ?? '')}</Text>{quantity !== undefined ? <Text style={styles.saleDate}>Quantité / stock : {String(quantity)}</Text> : null}</View><View style={{ alignItems: 'flex-end' }}>{amount !== undefined ? <Text style={styles.saleAmount}>{money(Number(amount),currency)}</Text> : null}{row.active !== undefined ? <Text style={row.active?styles.active:styles.inactive}>{row.active?'Actif':'Inactif'}</Text> : null}</View></View>
+            })}
+          </View>
+        )}
         <Text style={styles.footer}>STYLEPRO MANAGER · Gestion commerciale</Text>
       </ScrollView>
 
@@ -1391,6 +1533,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  moduleNav: { gap: 8, paddingVertical: 6, paddingBottom: 14 },
+  moduleNavItem: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+  moduleNavItemActive: { backgroundColor: COLORS.navy, borderColor: COLORS.navy },
+  moduleNavText: { color: COLORS.text, fontSize: 11, fontWeight: '800' },
+  moduleNavTextActive: { color: '#FFFFFF' },
+  moduleDataRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderTopWidth: 1, borderTopColor: '#EEE7DA' },
+  moduleDataLabel: { color: COLORS.muted, fontSize: 12, fontWeight: '700' },
+  moduleDataValue: { color: COLORS.text, fontSize: 13, fontWeight: '800', textAlign: 'right', flexShrink: 1 },
+  rolePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 },
+  roleChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.background },
+  roleChipActive: { backgroundColor: COLORS.navy, borderColor: COLORS.navy },
+  roleChipText: { color: COLORS.text, fontSize: 10, fontWeight: '700' },
+  roleChipTextActive: { color: '#FFFFFF' },
   notificationBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: COLORS.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.surface },
   notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   iconButton: {
