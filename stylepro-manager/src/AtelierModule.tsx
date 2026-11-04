@@ -137,7 +137,7 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
       const [supplierResult, productionResult, integrationResult] = await Promise.all([
         supabase.from('atelier_suppliers').select('id,name,phone,address,notes,supplier_type').eq('store_id', storeId).order('name'),
         supabase.from('atelier_productions').select('id,production_number,production_date,supplier_name_snapshot,confection_supplier_name_snapshot,fabric_name,fabric_number,fabric_quantity_m,fabric_price_per_m,fabric_total_cost,model_name,color,total_quantity,total_production_price,total_confection_cost,total_cost,total_sales_price,gross_profit,margin_percent,notes').eq('store_id', storeId).order('production_number', { ascending: false }).limit(200),
-        supabase.from('atelier_stock_integrations').select('production_id').eq('store_id', storeId)
+        supabase.from('atelier_stock_integrations').select('id,production_id').eq('store_id', storeId)
       ])
       if (supplierResult.error) throw supplierResult.error
       if (productionResult.error) throw productionResult.error
