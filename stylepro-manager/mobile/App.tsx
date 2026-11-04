@@ -840,8 +840,9 @@ export default function App() {
     setPdfBusy(true)
     try {
       const esc = (value: unknown) => String(value ?? '').replace(/[&<>\"']/g, char => {
-        const entities: Record<string,string> = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}
-        return entities[char] || char
+        const entities: Record<string,string> = {'&':'&amp;','<':'&lt;','>':'&gt;'}
+        if (char === String.fromCharCode(34)) return '&quot;'
+        if (char === String.fromCharCode(39)) return '&#39;'
       })
       const rtl = language === 'ar'
       const title = rtl ? 'تقرير المبيعات' : 'Rapport des ventes'
@@ -872,7 +873,8 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" />
-        <ScrollView contentContainerStyle={styles.loginContainer}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={styles.loginContainer}>
           <View style={styles.logo}>
             <StoreIcon color={COLORS.surface} size={30} />
           </View>
@@ -927,6 +929,7 @@ export default function App() {
             StylePro Manager · Gestion commerciale
           </Text>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     )
   }
