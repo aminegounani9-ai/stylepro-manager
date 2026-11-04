@@ -200,7 +200,8 @@ export default function App() {
   const currentStore = stores.find(store => store.id === storeId)
   const currency = currentStore?.currency || 'DZD'
   const notificationStorageKey = user && storeId ? `stylepro.notifications.read.${user.id}.${storeId}` : ''
-  const unreadNotifications = lowStock.filter(item => !readNotificationIds.includes(item.id))
+  const notificationIds = [...lowStock.map(item => `stock:${item.id}`), ...sales.slice(0, 5).map(item => `sale:${item.id}`), ...returns.slice(0, 5).map((item, index) => `return:${item.sale_id}:${index}`)]
+  const unreadNotifications = notificationIds.filter(id => !readNotificationIds.includes(id))
 
   useEffect(() => {
     let active = true
@@ -222,7 +223,7 @@ export default function App() {
 
   async function openNotifications() {
     setNotificationsOpen(true)
-    const ids = lowStock.map(item => item.id)
+    const ids = notificationIds
     setReadNotificationIds(ids)
     if (notificationStorageKey) {
       try { await AsyncStorage.setItem(notificationStorageKey, JSON.stringify(ids)) } catch { /* Notifications remain visible for this session. */ }
@@ -1289,7 +1290,28 @@ export default function App() {
                 </View>
               ))}
             </View>
-            <Text style={styles.disclaimer}>Ces notifications sont calculées à partir des mouvements de stock enregistrés. Elles ne modifient aucune donnée.</Text>
+            <View style={styles.panel}>
+              <View style={styles.panelHeader}>
+                <View style={styles.panelHeadingIcon}><ShoppingBag size={20} color={COLORS.accent}/></View>
+                <View style={styles.flex}><Text style={styles.panelTitle}>Activité récente</Text><Text style={styles.panelSubtitle}>Dernières ventes et retours enregistrés</Text></View>
+              </View>
+              {sales.slice(0,5).map(sale => (
+                <View key={sale.id} style={styles.saleRow}>
+                  <View style={styles.saleIcon}><ShoppingBag size={17} color={COLORS.navy}/></View>
+                  <View style={styles.flex}><Text style={styles.saleNumber}>Nouvelle vente · #{sale.sale_number}</Text><Text style={styles.saleDate}>{dateLabel(sale.completed_at || sale.created_at)}</Text></View>
+                  <Text style={styles.saleAmount}>{money(Number(sale.total || 0),currency)}</Text>
+                </View>
+              ))}
+              {returns.slice(0,5).map((item,index) => (
+                <View key={item.sale_id+':'+index} style={styles.saleRow}>
+                  <View style={styles.stockIcon}><RefreshCw size={17} color={COLORS.danger}/></View>
+                  <View style={styles.flex}><Text style={styles.saleNumber}>Retour enregistré</Text><Text style={styles.saleDate}>{dateLabel(item.created_at)}</Text></View>
+                  <Text style={styles.saleAmount}>{money(Number(item.total || 0),currency)}</Text>
+                </View>
+              ))}
+              {sales.length === 0 && returns.length === 0 ? <Text style={styles.emptyText}>Aucune activité récente.</Text> : null}
+            </View>
+            <Text style={styles.disclaimer}>Les alertes sont générées à partir des ventes, retours et mouvements de stock enregistrés dans la boutique. Elles ne modifient aucune donnée.</Text>
           </ScrollView>
         </SafeAreaView>
       </Modal>
