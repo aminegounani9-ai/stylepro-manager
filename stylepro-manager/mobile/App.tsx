@@ -839,7 +839,7 @@ export default function App() {
     if (pdfBusy) return
     setPdfBusy(true)
     try {
-      const esc = (value: unknown) => String(value ?? '').replace(/[&<>\"']/g, char => {
+      const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => {
         const entities: Record<string,string> = {'&':'&amp;','<':'&lt;','>':'&gt;'}
         if (char === String.fromCharCode(34)) return '&quot;'
         if (char === String.fromCharCode(39)) return '&#39;'
