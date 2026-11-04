@@ -1196,10 +1196,8 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
   useEffect(() => {
     if (user && storeId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh products when the active store changes or Catalogue/Stock is opened after an Atelier integration.
-      if (currentView === 'catalogue' || currentView === 'stock' || !products.length) {
-        void loadProducts()
-      }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Refresh products when the active store or view changes, including after an Atelier integration.
+      void loadProducts()
     }
     else setProducts([])
   }, [user, storeId, currentView, loadProducts])
