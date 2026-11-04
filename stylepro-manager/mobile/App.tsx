@@ -170,7 +170,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([])
-  const [view, setView] = useState<'dashboard' | 'products' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'users' | 'settings'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'products' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'promotions' | 'labels' | 'users' | 'settings'>('dashboard')
   const [moduleRows, setModuleRows] = useState<Record<string, unknown>[]>([])
   const [moduleLoading, setModuleLoading] = useState(false)
   const [moduleSearch, setModuleSearch] = useState('')
@@ -443,7 +443,7 @@ export default function App() {
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
     clients: 'Clients', expenses: 'Dépenses', atelier: 'Atelier', deliveries: 'Livraisons',
-    users: 'Utilisateurs', settings: 'Paramètres'
+    promotions: 'Promotions', labels: 'Étiquettes QR', users: 'Utilisateurs', settings: 'Paramètres'
   }
 
   async function loadModule(nextView: typeof view) {
@@ -489,6 +489,14 @@ export default function App() {
         setModuleRows((data ?? []) as Record<string, unknown>[])
       } else if (nextView === 'deliveries') {
         const { data, error } = await supabase.from('deliveries').select('id,delivery_number,status,recipient_name,recipient_phone,delivery_address,created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'promotions') {
+        const { data, error } = await supabase.from('promotions').select('id,name,description,discount_type,discount_value,start_at,end_at,is_active,created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(200)
+        if (error) throw error
+        setModuleRows((data ?? []) as Record<string, unknown>[])
+      } else if (nextView === 'labels') {
+        const { data, error } = await supabase.from('product_variants').select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active').eq('store_id', storeId).eq('active', true).order('sku').limit(500)
         if (error) throw error
         setModuleRows((data ?? []) as Record<string, unknown>[])
       } else if (nextView === 'users') {
@@ -935,7 +943,7 @@ export default function App() {
           {([
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
-            ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
+            ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
           ] as [typeof view, string][]).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{label}</Text>
@@ -1225,7 +1233,7 @@ export default function App() {
             {!moduleLoading && moduleRows.length === 0 ? <View style={styles.emptyState}><Package size={26} color={COLORS.muted}/><Text style={styles.emptyTitle}>Aucune donnée à afficher</Text><Text style={styles.emptyText}>Les données apparaîtront ici lorsqu’elles seront enregistrées dans cette boutique.</Text></View> : null}
             {moduleRows.filter(row => JSON.stringify(row).toLowerCase().includes(moduleSearch.toLowerCase())).map((row,index) => {
               const title = String(row.name ?? row.product_name ?? row.full_name ?? (row.sale_number ? 'Facture #'+row.sale_number : row.delivery_number ? 'Livraison #'+row.delivery_number : row.production_number ? 'Production #'+row.production_number : row.sku ?? row.id ?? 'Enregistrement'))
-              const detail = [row.phone,row.size,row.color,row.status,row.production_date,row.expense_date,row.created_at].filter(Boolean).map(String).join(' · ')
+              const detail = [row.phone,row.size,row.color,row.status,row.discount_type ? String(row.discount_value)+' '+String(row.discount_type) : null,row.barcode ? 'EAN '+String(row.barcode) : null,row.qr_token ? 'QR '+String(row.qr_token) : null,row.production_date,row.expense_date,row.created_at].filter(Boolean).map(String).join(' · ')
               const amount = row.total ?? row.total_sales_price ?? row.amount ?? row.sale_price
               const quantity = row.current_stock ?? row.total_quantity
               return <View key={String(row.id ?? row.sale_id ?? index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{title}</Text><Text style={styles.saleDate}>{detail || String(row.description ?? row.fabric_name ?? '')}</Text>{quantity !== undefined ? <Text style={styles.saleDate}>Quantité / stock : {String(quantity)}</Text> : null}</View><View style={{ alignItems: 'flex-end' }}>{amount !== undefined ? <Text style={styles.saleAmount}>{money(Number(amount),currency)}</Text> : null}{row.active !== undefined ? <Text style={row.active?styles.active:styles.inactive}>{row.active?'Actif':'Inactif'}</Text> : null}</View></View>
