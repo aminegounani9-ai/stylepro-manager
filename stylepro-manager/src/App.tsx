@@ -917,6 +917,7 @@ export default function App() {
   | 'settings'
 >('dashboard')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
   const [modulePermissions, setModulePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
   const hasModuleView = useCallback((moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true, [currentRole, modulePermissions])
   useEffect(() => {
@@ -924,6 +925,7 @@ export default function App() {
     async function loadAccess() {
       if (!user || !storeId) {
         setCurrentRole(null)
+        setIsGlobalAdmin(false)
         setModulePermissions({})
         return
       }
@@ -933,10 +935,12 @@ export default function App() {
       if (cancelled) return
       if (permissionError || permissionResult?.error || !permissionResult?.role) {
         setCurrentRole(null)
+        setIsGlobalAdmin(false)
         setModulePermissions({})
         return
       }
       setCurrentRole(permissionResult.role)
+      setIsGlobalAdmin(permissionResult.is_global_admin === true)
       if (permissionResult.is_global_admin === true || permissionResult.role === 'admin') {
         setModulePermissions({})
         return
@@ -6096,7 +6100,7 @@ const loadPromotions = useCallback(async () => {
                 </label>
               )}
 
-              <form onSubmit={createStore} className="inline-form">
+              {isGlobalAdmin && <form onSubmit={createStore} className="inline-form">
                 <input
                   aria-label="Nom de la boutique"
                   placeholder="Ex. Boutique Élégance"
@@ -6108,7 +6112,7 @@ const loadPromotions = useCallback(async () => {
                 <button className="primary-button" disabled={loading}>
                   <Plus size={17} /> Créer une boutique
                 </button>
-              </form>
+              </form>}
             </section>
 
               </>
