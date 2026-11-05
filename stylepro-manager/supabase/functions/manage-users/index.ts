@@ -125,17 +125,18 @@ Deno.serve(async (req) => {
         ]);
       if (ownMembershipError) return json({ error: ownMembershipError.message }, 400);
       if (ownAdminError) return json({ error: ownAdminError.message }, 400);
-      if (!ownMembership || ownMembership.is_active === false) {
-        return json({ error: "Aucune adhésion active dans cette boutique" }, 403);
-      }
       if ((ownAdminMemberships || []).length > 0) {
+        // A global Admin may select a store without having a separate membership row in it.
         return json({
           is_global_admin: true,
-          role: ownMembership.role,
+          role: ownMembership?.role || "admin",
           permissions: moduleKeys.map((module_key) => ({
             module_key, can_view: true, can_create: true, can_update: true, can_delete: true,
           })),
         });
+      }
+      if (!ownMembership || ownMembership.is_active === false) {
+        return json({ error: "Aucune adhésion active dans cette boutique" }, 403);
       }
       const { data: ownGrants, error: ownGrantsError } = await adminClient
         .from("store_member_module_permissions")
