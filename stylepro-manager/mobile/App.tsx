@@ -1589,7 +1589,6 @@ export default function App() {
             <Text style={styles.panelSubtitle}>Permissions du nouvel utilisateur</Text>
             {MOBILE_MODULES.filter(module => !(['cashier','stock_manager'].includes(newUserRole) && module.key === 'users')).map(module => {
               const grant = newUserPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
-              const allowed = isGlobalAdmin || canViewMobileModule(module.key)
               const change = (action: keyof MobilePermission, value: boolean) => setNewUserPermissions(current => ({
                 ...current,
                 [module.key]: action === 'can_view' && !value
