@@ -411,6 +411,8 @@ export default function App() {
   const canViewMobileModule = useCallback((key: string) =>
     isGlobalAdmin || modulePermissions[key]?.can_view === true,
   [isGlobalAdmin, modulePermissions])
+  const canCreateUsers = isGlobalAdmin || modulePermissions.users?.can_create === true
+  const canUpdateUsers = isGlobalAdmin || modulePermissions.users?.can_update === true
 
 
   const loadProducts = useCallback(async (id: string) => {
@@ -1573,6 +1575,7 @@ export default function App() {
               </View>
               <TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity>
             </View>
+            {canCreateUsers ? <>
             <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
@@ -1609,7 +1612,9 @@ export default function App() {
               <Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text>
             </TouchableOpacity>
 
-            {editingUserId ? <View style={{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:COLORS.border}}>
+            </> : <Text style={styles.emptyText}>Vous pouvez consulter les utilisateurs, mais la permission Ajouter n’est pas accordée.</Text>}
+
+            {canUpdateUsers && editingUserId ? <View style={{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:COLORS.border}}>
               <View style={styles.panelHeader}>
                 <View style={styles.flex}><Text style={styles.panelTitle}>Permissions : {editingUserName}</Text><Text style={styles.panelSubtitle}>Accès accordés dans cette boutique uniquement.</Text></View>
                 <TouchableOpacity style={styles.smallButton} onPress={() => { setEditingUserId(''); setEditingUserRole('cashier') }}><Text style={styles.smallButtonText}>Fermer</Text></TouchableOpacity>
@@ -1648,7 +1653,7 @@ export default function App() {
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 7 }}>
                   <Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text>
-                  {String(member.user_id) !== user?.id && editable ? <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:5}}>
+                  {String(member.user_id) !== user?.id && editable && canUpdateUsers ? <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:5}}>
                     {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void openMobileUserPermissions(member)}><Text style={styles.smallButtonText}>Permissions</Text></TouchableOpacity> : null}
                     {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity> : null}
                     <TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity>
