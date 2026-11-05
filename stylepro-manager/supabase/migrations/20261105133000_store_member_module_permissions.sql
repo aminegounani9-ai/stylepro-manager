@@ -22,7 +22,9 @@ create table if not exists public.store_member_module_permissions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint store_member_module_permissions_unique
-    unique (store_id, user_id, module_key)
+    unique (store_id, user_id, module_key),
+  constraint store_member_module_permissions_view_required
+    check (can_view or not (can_create or can_update or can_delete))
 );
 
 create index if not exists idx_store_member_module_permissions_user_store
