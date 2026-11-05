@@ -1623,7 +1623,7 @@ export default function App() {
                     {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
                       <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
                         <Text style={styles.saleDate}>{label}</Text>
-                        <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !allowed} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                        <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !(isGlobalAdmin || modulePermissions[module.key]?.[key] === true)} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
                       </View>
                     )}
                   </View>
