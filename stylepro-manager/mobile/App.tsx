@@ -558,7 +558,7 @@ export default function App() {
   }
 
   async function changeMobileUserRole(member: Record<string, unknown>) {
-    const roles = ['cashier', 'manager', 'stock_manager', 'accountant', 'admin']
+    const roles = ['cashier', 'manager', 'stock_manager', 'admin']
     const current = String(member.role || 'cashier')
     const next = roles[(roles.indexOf(current) + 1) % roles.length]
     Alert.alert('Modifier le rôle', `Attribuer le rôle ${next} à ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
@@ -1348,7 +1348,7 @@ export default function App() {
             <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
-            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
             <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
             {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><View style={{ alignItems: 'flex-end', gap: 7 }}><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text><View style={{ flexDirection: 'row', gap: 5 }}><TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity><TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity></View></View></View>)}
           </View>
