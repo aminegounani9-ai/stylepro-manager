@@ -33,6 +33,16 @@ const roles: { value: Role; label: string }[] = [
 const emptyPermissions = (): Permission[] => modules.map(({ key }) => ({
   module_key: key, can_view: false, can_add: false, can_edit: false, can_delete: false,
 }))
+// Sensible starting grants by role. The creator can still remove any module/action.
+const permissionsForRole = (role: Role): Permission[] => modules.map(({ key }) => {
+  const all = role === 'manager' || role === 'admin'
+  const stock = role === 'stock_manager' && ['dashboard', 'catalogue', 'stock', 'labels', 'deliveries'].includes(key)
+  const cashier = role === 'cashier' && ['dashboard', 'sales', 'returns', 'clients'].includes(key)
+  const enabled = all || stock || cashier
+  const canWrite = all || (role === 'stock_manager' && ['stock', 'deliveries'].includes(key)) ||
+    (role === 'cashier' && ['sales', 'returns', 'clients'].includes(key))
+  return { module_key: key, can_view: enabled, can_add: canWrite, can_edit: canWrite, can_delete: all }
+})
 const normalize = (items: Permission[] = []): Permission[] => {
   const byKey = new Map(items.map(item => [item.module_key, item]))
   return modules.map(({ key }) => {
@@ -75,7 +85,7 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
   const [canAddUsers, setCanAddUsers] = useState(false)
   const [canEditUsers, setCanEditUsers] = useState(false)
-  const [draftPermissions, setDraftPermissions] = useState<Permission[]>(emptyPermissions)
+  const [draftPermissions, setDraftPermissions] = useState<Permission[]>(() => permissionsForRole('cashier'))
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Permission[]>(emptyPermissions)
 
@@ -122,7 +132,7 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
     event.preventDefault(); setSaving(true); setError(''); setNotice('')
     try {
       await call({ action: 'create', email, full_name: fullName, password, role, permissions: draftPermissions })
-      setEmail(''); setFullName(''); setPassword(''); setRole('cashier'); setDraftPermissions(emptyPermissions())
+      setEmail(''); setFullName(''); setPassword(''); setRole('cashier'); setDraftPermissions(permissionsForRole('cashier'))
       setNotice('Compte créé, associé à cette boutique et doté des permissions sélectionnées.')
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible') }
@@ -169,7 +179,7 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
             <label className="field">Nom complet<input value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100} /></label>
             <label className="field">Adresse e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="off"/></label>
             <label className="field">Mot de passe temporaire<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8} autoComplete="new-password"/></label>
-            <label className="field">Rôle<select value={role} onChange={e=>setRole(e.target.value as Role)}>{availableRoles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
+            <label className="field">Rôle<select value={role} onChange={e=>{const nextRole=e.target.value as Role;setRole(nextRole);setDraftPermissions(permissionsForRole(nextRole))}}>{availableRoles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
             <div className="user-permission-card">
               <h3>Permissions du nouvel utilisateur</h3>
               <PermissionEditor value={draftPermissions} onChange={setDraftPermissions} disabled={saving}/>
