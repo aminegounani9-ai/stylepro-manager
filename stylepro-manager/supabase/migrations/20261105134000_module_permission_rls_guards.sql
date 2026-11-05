@@ -239,6 +239,74 @@ begin
 end;
 $module_grant_allow$;
 
+-- Child-row policies preserve the same-store parent relationship explicitly.
+-- The sale_items condition also avoids the tautological store comparison noted
+-- in the supplied audit (s.store_id = s.store_id).
+do $module_child_allow$
+declare
+  child_table text;
+  parent_table text;
+  child_fk text;
+  action_name text;
+  policy_name text;
+  has_columns boolean;
+begin
+  for child_table, parent_table, child_fk in
+    select * from (values
+      ('sale_items', 'sales', 'sale_id'),
+      ('payments', 'sales', 'sale_id'),
+      ('returns', 'sales', 'sale_id'),
+      ('return_items', 'returns', 'return_id')
+    ) as child_map(child_table, parent_table, child_fk)
+  loop
+    select
+      exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name=child_table and c.column_name='store_id')
+      and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name=child_table and c.column_name=child_fk)
+      and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name=parent_table and c.column_name='id')
+      and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name=parent_table and c.column_name='store_id')
+    into has_columns;
+
+    if not has_columns then
+      raise notice 'Skipping parent-scoped module policy for %. Required store or parent key column not found.', child_table;
+      continue;
+    end if;
+
+    if child_table = 'sale_items' then
+      foreach action_name in array array['insert', 'update', 'delete']
+      loop
+        policy_name := 'module_grant_allow_' || action_name;
+        execute format('drop policy if exists %I on public.%I', policy_name, child_table);
+        if action_name = 'insert' then
+          execute format(
+            'create policy %I on public.%I for insert to authenticated with check (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id))',
+            policy_name, child_table, 'sales', 'create', parent_table, child_table, child_fk, child_table
+          );
+        elsif action_name = 'update' then
+          execute format(
+            'create policy %I on public.%I for update to authenticated using (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id)) with check (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id))',
+            policy_name, child_table, 'sales', 'update', parent_table, child_table, child_fk, child_table,
+            'sales', 'update', parent_table, child_table, child_fk, child_table
+          );
+        else
+          execute format(
+            'create policy %I on public.%I for delete to authenticated using (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id))',
+            policy_name, child_table, 'sales', 'delete', parent_table, child_table, child_fk, child_table
+          );
+        end if;
+      end loop;
+    else
+      policy_name := 'module_grant_allow_insert';
+      execute format('drop policy if exists %I on public.%I', policy_name, child_table);
+      execute format(
+        'create policy %I on public.%I for insert to authenticated with check (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id))',
+        policy_name, child_table, case when child_table = 'payments' or child_table = 'returns' then 'sales' else 'returns' end,
+        'create', parent_table, child_table, child_fk, child_table
+      );
+    end if;
+  end loop;
+end;
+$module_child_allow$;
+
 -- Global Admin must be able to discover and open every store, not only stores
 -- where a separate store_members row exists.
 drop policy if exists global_admin_all_stores on public.stores;
