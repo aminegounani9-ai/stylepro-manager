@@ -12,6 +12,7 @@ html {
 body {
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -41,5 +42,137 @@ svg {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+}
+
+/* PWA safe areas: keep the application clear of the status bar, camera cutouts
+   and bottom system gesture/navigation area on iOS and Android. */
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Compact permission matrix — module cards instead of a wide, oversized table. */
+.user-permission-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border, #e6ddd0);
+  border-radius: 15px;
+  background: var(--surface, #fffdf9);
+}
+
+.user-permission-card > h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.user-permission-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr));
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+}
+
+.user-permission-heading {
+  display: none;
+}
+
+.user-permission-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border, #e6ddd0);
+  border-radius: 12px;
+  background: var(--bg, #f5f1e9);
+}
+
+.user-permission-row > span {
+  min-width: 0;
+  color: var(--text, #30291f);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.user-permission-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 3px;
+  border: 1px solid var(--border, #e6ddd0);
+  border-radius: 9px;
+  background: var(--surface, #fffdf9);
+  color: var(--muted, #786f61);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.user-permission-check:nth-of-type(1)::after { content: "Voir"; }
+.user-permission-check:nth-of-type(2)::after { content: "Ajouter"; }
+.user-permission-check:nth-of-type(3)::after { content: "Modifier"; }
+.user-permission-check:nth-of-type(4)::after { content: "Supprimer"; }
+
+.user-permission-check input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  margin: 0;
+  accent-color: var(--primary, #98764b);
+}
+
+.user-permission-check:has(input:checked) {
+  border-color: var(--primary, #98764b);
+  background: var(--soft, #eee6da);
+  color: var(--text, #30291f);
+}
+
+.user-permission-check:has(input:disabled) {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .user-permission-card {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .user-permission-editor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .user-permission-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .user-permission-row > span {
+    font-size: 12px;
+  }
+
+  .user-permission-check {
+    min-height: 38px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-permission-check {
+    transition: none !important;
+  }
 }
