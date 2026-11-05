@@ -403,7 +403,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
                   <select
                     aria-label="Rôle utilisateur"
                     value={member.role}
-                    disabled={saving || member.user_id === user?.id || !editableByManager}
+                    disabled={saving || member.user_id === user?.id || !editableByManager || !member.is_active}
                     onChange={e => void updateRole(member, e.target.value as Role)}
                   >
                     {member.role === 'accountant' && <option value="accountant">Comptable (existant)</option>}
@@ -411,7 +411,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
                   </select>
                   <span className={member.is_active ? 'user-status active' : 'user-status'}>{member.is_active ? 'Actif' : 'Désactivé'}</span>
                   {member.user_id !== user?.id && editableByManager && <>
-                    <button type="button" className="secondary-button" disabled={saving} onClick={() => void openPermissions(member)}><KeyRound size={15}/> Permissions</button>
+                    {member.is_active && <button type="button" className="secondary-button" disabled={saving} onClick={() => void openPermissions(member)}><KeyRound size={15}/> Permissions</button>}
                     <button type="button" className="secondary-button" disabled={saving} onClick={() => void toggleActive(member)}>
                       {member.is_active ? <><UserX size={15}/> Désactiver</> : <><UserCheck size={15}/> Activer</>}
                     </button>
