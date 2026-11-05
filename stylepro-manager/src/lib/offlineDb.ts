@@ -128,6 +128,35 @@ export async function saveLocalRecord<T extends Record<string, unknown>>(
   return record
 }
 
+/** Store a row fetched from Supabase as a confirmed server snapshot.
+ * This is a cache write, not a local business mutation, so it must not enter
+ * the outbound sync queue or appear as pending work.
+ */
+export async function cacheServerRecord<T extends Record<string, unknown>>(
+  table: EntityTable,
+  storeId: string,
+  data: T,
+): Promise<LocalRecord<T>> {
+  if (!storeId || typeof data.id !== 'string' || !data.id) {
+    throw new Error('store_id et id sont obligatoires pour mettre en cache un enregistrement.')
+  }
+  const now = new Date().toISOString()
+  const db = await openLocalDatabase()
+  const record: LocalRecord<T> = {
+    id: `${storeId}:${table}:${data.id}`,
+    store_id: storeId,
+    table_name: table,
+    data,
+    updated_at: now,
+    sync_state: 'synced',
+    last_sync_at: now,
+  }
+  const tx = db.transaction(RECORDS, 'readwrite')
+  tx.objectStore(RECORDS).put(record)
+  await transactionDone(tx)
+  return record
+}
+
 export async function getLocalRecords<T = Record<string, unknown>>(
   storeId: string,
   table: EntityTable,
