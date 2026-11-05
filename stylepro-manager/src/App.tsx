@@ -93,6 +93,13 @@ type StoreRow = {
   currency: string
 }
 
+type ModulePermissionState = {
+  can_view: boolean
+  can_create: boolean
+  can_update: boolean
+  can_delete: boolean
+}
+
 type ProductRow = {
   id: string
   name: string
@@ -895,6 +902,9 @@ export default function App() {
   const [storeName, setStoreName] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
+  const [modulePermissions, setModulePermissions] = useState<Record<string, ModulePermissionState>>({})
+  const [permissionsReady, setPermissionsReady] = useState(false)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentView, setCurrentView] = useState<
   | 'dashboard'
@@ -1386,6 +1396,79 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
     )
     setLoading(false)
   }, [user])
+
+  const loadModulePermissions = useCallback(async () => {
+    if (!user || !storeId) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(false)
+      return
+    }
+    setPermissionsReady(false)
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'my_permissions', store_id: storeId },
+    })
+    if (error || data?.error) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(true)
+      setError(`Permissions : ${error?.message || data?.error || 'Chargement impossible'}`)
+      return
+    }
+    const next: Record<string, ModulePermissionState> = {}
+    for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
+      const key = String(grant.module_key || '')
+      next[key] = {
+        can_view: grant.can_view === true,
+        can_create: grant.can_create === true,
+        can_update: grant.can_update === true,
+        can_delete: grant.can_delete === true,
+      }
+    }
+    setModulePermissions(next)
+    setIsGlobalAdmin(data?.is_global_admin === true)
+    setPermissionsReady(true)
+  }, [user, storeId])
+
+  const canViewModule = (moduleKey: string) =>
+    isGlobalAdmin || modulePermissions[moduleKey]?.can_view === true
+
+  const viewModuleKey: Record<string, string> = {
+    dashboard: 'dashboard',
+    statistics: 'dashboard',
+    catalogue: 'catalogue',
+    atelier: 'atelier',
+    livraisons: 'deliveries',
+    stock: 'stock',
+    sales: 'sales',
+    returns: 'returns',
+    customers: 'clients',
+    labels: 'labels',
+    promotions: 'promotions',
+    settings: 'settings',
+    users: 'users',
+  }
+
+  useEffect(() => {
+    if (!permissionsReady || !user || !storeId) return
+    const moduleKey = viewModuleKey[currentView] || 'dashboard'
+    if (canViewModule(moduleKey)) return
+    const fallback = [
+      'dashboard', 'catalogue', 'sales', 'stock', 'returns', 'customers',
+      'atelier', 'livraisons', 'promotions', 'labels', 'users', 'settings',
+    ].find((view) => canViewModule(viewModuleKey[view] || view))
+    if (fallback && fallback !== currentView) setCurrentView(fallback as typeof currentView)
+  }, [permissionsReady, user, storeId, currentView, modulePermissions, isGlobalAdmin])
+
+  useEffect(() => {
+    if (user && storeId) {
+      void loadModulePermissions()
+    } else {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(false)
+    }
+  }, [user, storeId, loadModulePermissions])
 
   const loadProducts = useCallback(async () => {
     if (!storeId) {
