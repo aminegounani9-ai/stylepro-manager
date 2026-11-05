@@ -918,6 +918,7 @@ export default function App() {
   | 'statistics'
   | 'labels'
   | 'promotions'
+  | 'users'
   | 'settings'
 >('dashboard')
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
@@ -3725,15 +3726,15 @@ const loadPromotions = useCallback(async () => {
             <p className="sidebar-caption">VOTRE ESPACE</p>
 
             <p className="sidebar-group-label">GÉNÉRAL</p>
-            <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
+            {canViewModule('dashboard') && <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
               <Gauge size={19} /> <span>Tableau de bord</span>
-            </button>
+            </button>}
 
             <p className="sidebar-group-label">BOUTIQUE</p>
-            <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
+            {canViewModule('catalogue') && <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
               <Grid2X2 size={19} /> <span>Catalogue articles</span>
-            </button>
-            <button
+            </button>}
+            {canViewModule('atelier') && <button
   type="button"
   className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
   onClick={() => {
@@ -3744,37 +3745,40 @@ const loadPromotions = useCallback(async () => {
 >
   <Scissors size={19} />
   <span>Atelier / Production</span>
-</button>
-            <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
+</button>}
+            {canViewModule('promotions') && <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
               <BadgePercent size={19} /> <span>Promotions</span>
-            </button>
-            <button type="button" className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
+            </button>}
+            {canViewModule('labels') && <button type="button" className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
               <QrCode size={19} /> <span>Étiquettes QR</span>
-            </button>
+            </button>}
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
-            <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
+            {canViewModule('deliveries') && <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
               <Truck size={19} /> <span>Livraisons</span>
-            </button>
-            <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
+            </button>}
+            {canViewModule('stock') && <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
               <Warehouse size={19} /> <span>Gestion du stock</span>
-            </button>
-            <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
+            </button>}
+            {canViewModule('sales') && <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
               <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
-            </button>
-            <button type="button" className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
+            </button>}
+            {canViewModule('returns') && <button type="button" className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
               <Undo2 size={19} /> <span>Retours / Remboursements</span>
-            </button>
-            <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
+            </button>}
+            {canViewModule('clients') && <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
               <ContactRound size={19} /> <span>Clients</span>
-            </button>
+            </button>}
 
             <p className="sidebar-group-label">ANALYSE</p>
-            <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
+            {canViewModule('dashboard') && <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
               <ChartNoAxesCombined size={19} /> <span>Statistiques</span>
-            </button>
+            </button>}
 
-            <button
+            {canViewModule('users') && <button type="button" className={`nav-item ${currentView === 'users' ? 'active' : ''}`} onClick={() => setCurrentView('users')}>
+              <Users size={19} /> <span>Utilisateurs</span>
+            </button>}
+            {canViewModule('settings') && <button
               type="button"
               className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
               onClick={() => setCurrentView('settings')}
@@ -3782,7 +3786,7 @@ const loadPromotions = useCallback(async () => {
               <SlidersHorizontal size={18} />
               <span>Paramètres</span>
               <ChevronRight size={15} className={currentView === 'settings' ? 'rotate-chevron' : ''} />
-            </button>
+            </button>}
 
             <div className="sidebar-user">
               <div className="avatar">{(user.email?.[0] ?? 'A').toUpperCase()}</div>
@@ -3798,7 +3802,11 @@ const loadPromotions = useCallback(async () => {
             {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
             {message && <div className="alert success">{message}</div>}
 
-            {currentView === 'atelier' ? (
+            {!permissionsReady ? (
+              <section className="panel"><p className="muted">Chargement des permissions…</p></section>
+            ) : !(isGlobalAdmin || modulePermissions[viewModuleKey[currentView] || 'dashboard']?.can_view) ? (
+              <section className="panel"><div className="empty-state"><ShieldCheck size={28}/><strong>Accès non autorisé</strong><p>Ce module ne fait pas partie des permissions de votre compte dans cette boutique.</p></div></section>
+            ) : currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} />
 ) : currentView === 'livraisons' ? (
               <LivraisonModule storeId={storeId} userId={user.id} />
@@ -5732,7 +5740,18 @@ const loadPromotions = useCallback(async () => {
                     )}
                 </section>
               </>
-   ) : currentView === 'settings' ? (
+   ) : currentView === 'users' ? (
+              <div className="settings-page">
+                <div className="welcome">
+                  <div>
+                    <p className="eyebrow">GESTION DES ACCÈS</p>
+                    <h1>Utilisateurs</h1>
+                    <p className="muted">Gérez les comptes et les permissions de la boutique sélectionnée.</p>
+                  </div>
+                </div>
+                <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />
+              </div>
+            ) : currentView === 'settings' ? (
               <div className="settings-page">
                 <div className="welcome">
                   <div>
@@ -5802,8 +5821,6 @@ const loadPromotions = useCallback(async () => {
                   </label>
                   <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
                 </section>
-
-                <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />
 
                 <section className="panel settings-account">
                   <div className="panel-title">
