@@ -22,6 +22,7 @@ begin
       ('brands', 'catalogue'),
       ('customers', 'clients'),
       ('sales', 'sales'),
+      ('stock_movements', 'stock'),
       ('sale_items', 'sales'),
       ('payments', 'sales'),
       ('stock_movements', 'stock'),
@@ -194,6 +195,9 @@ begin
 
     foreach action_name in array array['select', 'insert', 'update', 'delete']
     loop
+      if item.table_name = 'stock_movements' and action_name <> 'select' then
+        continue;
+      end if;
       policy_name := 'module_grant_allow_' || action_name;
       execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
 
@@ -202,6 +206,11 @@ begin
           execute format(
             'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L))',
             policy_name, item.table_name, item.module_name, 'view', 'dashboard', 'view'
+          );
+        elsif item.table_name = 'stock_movements' then
+          execute format(
+            'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L))',
+            policy_name, item.table_name, 'stock', 'view', 'sales', 'view', 'dashboard', 'view', 'deliveries', 'view'
           );
         else
           execute format(
