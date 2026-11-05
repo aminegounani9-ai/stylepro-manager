@@ -1522,13 +1522,97 @@ export default function App() {
           </View>
         ) : view === 'users' ? (
           <View style={styles.panel}>
-            <View style={styles.panelHeader}><View style={styles.flex}><Text style={styles.panelTitle}>Gestion des utilisateurs</Text><Text style={styles.panelSubtitle}>Comptes associés à cette boutique · accès administrateur requis</Text></View><TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity></View>
+            <View style={styles.panelHeader}>
+              <View style={styles.flex}>
+                <Text style={styles.panelTitle}>Gestion des utilisateurs</Text>
+                <Text style={styles.panelSubtitle}>Permissions par module et par opération · {isGlobalAdmin ? 'Admin global' : 'Manager de la boutique'}</Text>
+              </View>
+              <TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity>
+            </View>
             <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
-            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
-            <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
-            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><View style={{ alignItems: 'flex-end', gap: 7 }}><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text><View style={{ flexDirection: 'row', gap: 5 }}><TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity><TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity></View></View></View>)}
+            <View style={styles.rolePicker}>
+              {MOBILE_ROLES.filter(item => isGlobalAdmin || ['cashier','stock_manager'].includes(item.value)).map(item =>
+                <TouchableOpacity key={item.value} onPress={() => { setNewUserRole(item.value); setNewUserPermissions(defaultMobilePermissions(item.value)) }} style={[styles.roleChip,newUserRole===item.value&&styles.roleChipActive]}>
+                  <Text style={[styles.roleChipText,newUserRole===item.value&&styles.roleChipTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.panelSubtitle}>Permissions du nouvel utilisateur</Text>
+            {MOBILE_MODULES.map(module => {
+              const grant = newUserPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
+              const allowed = isGlobalAdmin || canViewMobileModule(module.key)
+              const change = (action: keyof MobilePermission, value: boolean) => setNewUserPermissions(current => ({
+                ...current,
+                [module.key]: action === 'can_view' && !value
+                  ? {can_view:false,can_create:false,can_update:false,can_delete:false}
+                  : {...(current[module.key] || grant), [action]:value, ...(action !== 'can_view' && value ? {can_view:true} : {})},
+              }))
+              return <View key={module.key} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:COLORS.border,gap:6}}>
+                <Text style={styles.saleNumber}>{module.label}</Text>
+                <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8}}>
+                  {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
+                    <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <Text style={styles.saleDate}>{label}</Text>
+                      <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !allowed} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                    </View>
+                  )}
+                </View>
+              </View>
+            })}
+            <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}>
+              <Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text>
+            </TouchableOpacity>
+
+            {editingUserId ? <View style={{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:COLORS.border}}>
+              <View style={styles.panelHeader}>
+                <View style={styles.flex}><Text style={styles.panelTitle}>Permissions : {editingUserName}</Text><Text style={styles.panelSubtitle}>Accès accordés dans cette boutique uniquement.</Text></View>
+                <TouchableOpacity style={styles.smallButton} onPress={() => setEditingUserId('')}><Text style={styles.smallButtonText}>Fermer</Text></TouchableOpacity>
+              </View>
+              {MOBILE_MODULES.map(module => {
+                const grant = editingPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
+                const allowed = isGlobalAdmin || canViewMobileModule(module.key)
+                const change = (action: keyof MobilePermission, value: boolean) => setEditingPermissions(current => ({
+                  ...current,
+                  [module.key]: action === 'can_view' && !value
+                    ? {can_view:false,can_create:false,can_update:false,can_delete:false}
+                    : {...(current[module.key] || grant), [action]:value, ...(action !== 'can_view' && value ? {can_view:true} : {})},
+                }))
+                return <View key={module.key} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:COLORS.border,gap:6}}>
+                  <Text style={styles.saleNumber}>{module.label}</Text>
+                  <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8}}>
+                    {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
+                      <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                        <Text style={styles.saleDate}>{label}</Text>
+                        <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !allowed} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              })}
+              <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void saveMobileUserPermissions()} disabled={userSaving}>
+                <Text style={styles.primaryButtonText}>Enregistrer les permissions</Text>
+              </TouchableOpacity>
+            </View> : null}
+
+            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché.</Text> : userMembers.map((member,index) => {
+              const editable = isGlobalAdmin || ['cashier','stock_manager'].includes(String(member.role))
+              return <View key={String(member.user_id||index)} style={styles.moduleDataRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text>
+                  <Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 7 }}>
+                  <Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text>
+                  {String(member.user_id) !== user?.id && editable ? <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:5}}>
+                    <TouchableOpacity style={styles.smallButton} onPress={() => void openMobileUserPermissions(member)}><Text style={styles.smallButtonText}>Permissions</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity>
+                  </View> : null}
+                </View>
+              </View>
+            })}
           </View>
         ) : (
           <View style={styles.panel}>
