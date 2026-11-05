@@ -241,6 +241,18 @@ Deno.serve(async (req) => {
 
       const profileById = new Map((profilesResult.data || []).map((profile) => [profile.id, profile.full_name]));
       const userById = new Map((authUsersResult.data.users || []).map((user) => [user.id, user.email || ""]));
+      let grantablePermissions: Array<Record<string, unknown>> = moduleKeys.map((module_key) => ({
+        module_key, can_view: true, can_create: true, can_update: true, can_delete: true,
+      }));
+      if (!isGlobalAdmin) {
+        const { data: ownGrants, error: ownGrantError } = await adminClient
+          .from("store_member_module_permissions")
+          .select("module_key,can_view,can_create,can_update,can_delete")
+          .eq("store_id", storeId)
+          .eq("user_id", authData.user.id);
+        if (ownGrantError) return json({ error: ownGrantError.message }, 400);
+        grantablePermissions = (ownGrants || []) as Array<Record<string, unknown>>;
+      }
       return json({
         members: (members || []).map((member) => ({
           ...member,
@@ -250,6 +262,7 @@ Deno.serve(async (req) => {
         })),
         is_global_admin: isGlobalAdmin,
         is_store_manager: isStoreManager,
+        grantable_permissions: grantablePermissions,
       });
     }
 
