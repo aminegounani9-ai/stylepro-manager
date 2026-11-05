@@ -292,6 +292,9 @@ Deno.serve(async (req) => {
       if (!isGlobalAdmin && !["cashier", "stock_manager"].includes(role)) {
         return json({ error: "Un Manager peut créer uniquement un Vendeur ou un Gestionnaire de stock" }, 403);
       }
+      if (role !== "manager" && role !== "admin" && grants.some((grant) => grant.module_key === "users")) {
+        return json({ error: "Le module Utilisateurs est réservé aux rôles Admin et Manager" }, 400);
+      }
       await validateManagerGrants(grants);
 
       const { data: created, error: createError } = await adminClient.auth.admin.createUser({
@@ -407,8 +410,11 @@ Deno.serve(async (req) => {
     if (action === "set_permissions") {
       const userId = String(body.user_id || "");
       if (!userId) return json({ error: "user_id is required" }, 400);
-      await canManageTarget(userId);
+      const target = await canManageTarget(userId);
       const grants = parseGrants(body.permissions);
+      if (target.role !== "manager" && target.role !== "admin" && grants.some((grant) => grant.module_key === "users")) {
+        return json({ error: "Le module Utilisateurs est réservé aux rôles Admin et Manager" }, 400);
+      }
       await validateManagerGrants(grants);
 
       if (grants.length) {
