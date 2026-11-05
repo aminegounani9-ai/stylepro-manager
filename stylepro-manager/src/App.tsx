@@ -801,6 +801,12 @@ const STOCK_LOCATIONS = {
   reserve: 'd67f391c-a873-4b56-a8db-0e709117eae6'
 } as const
 
+const APP_MODULE_FOR_VIEW: Record<string, string> = {
+  dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
+  stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
+  statistics: 'dashboard', labels: 'labels', promotions: 'promotions', settings: 'settings',
+}
+
 export default function App() {
   const [language, setLanguage] = useState<AppLanguage>(() => (localStorage.getItem('stylepro-language') as AppLanguage) || 'fr')
   const [printSize, setPrintSize] = useState<'a4' | '80mm'>(() => localStorage.getItem('stylepro-print-size') === '80mm' ? '80mm' : 'a4')
@@ -912,12 +918,7 @@ export default function App() {
 >('dashboard')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [modulePermissions, setModulePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
-  const hasModuleView = (moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true
-  const moduleForView: Record<string, string> = {
-    dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
-    stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
-    statistics: 'dashboard', labels: 'labels', promotions: 'promotions', settings: 'settings',
-  }
+  const hasModuleView = useCallback((moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true, [currentRole, modulePermissions])
   useEffect(() => {
     let cancelled = false
     async function loadAccess() {
@@ -952,7 +953,7 @@ export default function App() {
   }, [user?.id, storeId])
   useEffect(() => {
     if (!currentRole) return
-    const moduleKey = moduleForView[currentView]
+    const moduleKey = APP_MODULE_FOR_VIEW[currentView]
     const canOpenSettings = currentView === 'settings' && (hasModuleView('settings') || hasModuleView('users'))
     if (moduleKey && !hasModuleView(moduleKey) && !canOpenSettings) {
       const firstAllowed = [
@@ -962,7 +963,7 @@ export default function App() {
       ].find(([key]) => hasModuleView(key))
       if (firstAllowed) setCurrentView(firstAllowed[1] as typeof currentView)
     }
-  }, [currentRole, modulePermissions, currentView])
+  }, [currentRole, modulePermissions, currentView, hasModuleView])
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
   const [promotionProductIdsByPromotion, setPromotionProductIdsByPromotion] = useState<Record<string, string[]>>({})
   const [promotionLoading, setPromotionLoading] = useState(false)
