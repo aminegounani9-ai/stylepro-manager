@@ -524,7 +524,7 @@ export default function App() {
     }
     void loadMobileAccess()
     return () => { active = false }
-  }, [user?.id, storeId])
+  }, [user, storeId])
 
   useEffect(() => {
     if (!mobileRole) return
