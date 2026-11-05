@@ -101,6 +101,14 @@ Deno.serve(async (req) => {
       return json({ error: "Active store membership required" }, 403);
     }
     const callerRole = callerMembership.role as Role;
+    if (action === "my_permissions") {
+      if (callerRole === "admin") return json({ permissions: [] });
+      const { data, error } = await adminClient.from("store_member_module_permissions")
+        .select("module_key, can_view, can_add, can_edit, can_delete")
+        .eq("store_id", storeId).eq("user_id", authData.user.id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ permissions: data || [] });
+    }
     if (callerRole !== "admin" && callerRole !== "manager") {
       return json({ error: "Manager permission required for this store" }, 403);
     }
