@@ -667,9 +667,9 @@ export default function App() {
   }
 
   async function changeMobileUserRole(member: Record<string, unknown>) {
-    const roles = ['cashier', 'manager', 'stock_manager', 'accountant', 'admin']
+    const roles = isGlobalAdmin ? ['admin', 'manager', 'cashier', 'stock_manager'] : ['cashier', 'stock_manager']
     const current = String(member.role || 'cashier')
-    const next = roles[(roles.indexOf(current) + 1) % roles.length]
+    const next = roles[(Math.max(0, roles.indexOf(current)) + 1) % roles.length]
     Alert.alert('Modifier le rôle', `Attribuer le rôle ${next} à ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Confirmer', onPress: () => { void (async () => {
@@ -681,6 +681,60 @@ export default function App() {
         } catch (e) { setError(e instanceof Error ? e.message : 'Modification du rôle impossible.') }
       })() } }
     ])
+  }
+
+  async function openMobileUserPermissions(member: Record<string, unknown>) {
+    setUserSaving(true)
+    setError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'get_permissions', store_id: storeId, user_id: member.user_id },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      const next = defaultMobilePermissions(String(member.role || 'cashier'))
+      for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
+        const key = String(grant.module_key || '')
+        if (next[key]) next[key] = {
+          can_view: grant.can_view === true,
+          can_create: grant.can_create === true,
+          can_update: grant.can_update === true,
+          can_delete: grant.can_delete === true,
+        }
+      }
+      setEditingUserId(String(member.user_id))
+      setEditingUserName(String(member.full_name || member.email || 'Utilisateur'))
+      setEditingPermissions(next)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Chargement des permissions impossible.')
+    } finally {
+      setUserSaving(false)
+    }
+  }
+
+  async function saveMobileUserPermissions() {
+    if (!editingUserId) return
+    setUserSaving(true)
+    setError('')
+    try {
+      const permissions = Object.entries(editingPermissions)
+        .filter(([key, grant]) => (isGlobalAdmin || canViewMobileModule(key)) && (grant.can_view || grant.can_create || grant.can_update || grant.can_delete))
+        .map(([module_key, grant]) => ({ module_key, ...grant }))
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'set_permissions', store_id: storeId, user_id: editingUserId, permissions },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setEditingUserId('')
+      setEditingUserName('')
+      setEditingPermissions({})
+      await loadModule('users')
+      Alert.alert('Permissions', 'Les permissions ont été enregistrées.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Enregistrement des permissions impossible.')
+    } finally {
+      setUserSaving(false)
+    }
   }
 
   async function toggleMobileUser(member: Record<string, unknown>) {
@@ -705,12 +759,23 @@ export default function App() {
     }
     setUserSaving(true); setError('')
     try {
-      const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'create', store_id: storeId, full_name: newUserName.trim(), email: newUserEmail.trim(), password: newUserPassword, role: newUserRole } })
+      const permissions = Object.entries(newUserPermissions)
+        .filter(([key, grant]) => (isGlobalAdmin || canViewMobileModule(key)) && (grant.can_view || grant.can_create || grant.can_update || grant.can_delete))
+        .map(([module_key, grant]) => ({ module_key, ...grant }))
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'create', store_id: storeId, full_name: newUserName.trim(),
+          email: newUserEmail.trim(), password: newUserPassword,
+          role: newUserRole, permissions,
+        },
+      })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword('')
+      setNewUserRole('cashier')
+      setNewUserPermissions(defaultMobilePermissions('cashier'))
       await loadModule('users')
-      Alert.alert('Utilisateur créé', 'Le compte a été créé et associé à la boutique.')
+      Alert.alert('Utilisateur créé', 'Le compte a été créé avec les permissions sélectionnées.')
     } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible.') }
     finally { setUserSaving(false) }
   }
