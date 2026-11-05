@@ -391,7 +391,19 @@ export default function App() {
       }
     }
     setModulePermissions(next)
-    setIsGlobalAdmin(data?.is_global_admin === true)
+    const globalAdmin = data?.is_global_admin === true
+    setIsGlobalAdmin(globalAdmin)
+    if (!globalAdmin) {
+      setNewUserPermissions(current => Object.fromEntries(Object.entries(current).map(([key, grant]) => [
+        key,
+        {
+          can_view: grant.can_view && next[key]?.can_view === true,
+          can_create: grant.can_create && next[key]?.can_create === true,
+          can_update: grant.can_update && next[key]?.can_update === true,
+          can_delete: grant.can_delete && next[key]?.can_delete === true,
+        },
+      ])))
+    }
     setPermissionsReady(true)
   }, [])
 
