@@ -112,6 +112,15 @@ Before release, complete these steps:
 - The additive SQL foundation is drafted on that branch only. No SQL has been run against Supabase; no production data, policies, or Auth users were changed.
 - `manage-users` has been updated in the branch to distinguish global Admin from store-scoped Manager, restrict Manager delegation to Cashier/Stock Manager, store per-user module/CRUD grants, and disable a membership per store instead of banning the whole Auth account.
 - The Web/Desktop user-management component now contains a per-module Voir / Ajouter / Modifier / Supprimer editor and uses the Edge Function as its authorization source.
-- The Web app has begun loading authorized store lists and server permission snapshots. Complete navigation gating and direct-route handling are still pending.
-- Android user-management and navigation have not yet been integrated with the new permission contract.
-- Most importantly, existing business-table RLS policies have not yet been narrowed by module/action. The new permission table and helper functions alone do not secure business data. Do not deploy or apply this phase as a completed authorization solution.
+- The Web app now loads authorized store lists and server permission snapshots, hides ungranted navigation, blocks ungranted views, and has a separate Users view.
+- Android now loads the same permission snapshot, filters module navigation, blocks ungranted module views, and has module/action controls when creating or editing a member.
+- A second additive migration drafts restrictive RLS guards for the mapped store-owned tables and a global-Admin allow policy. It is not applied to Supabase.
+- The RLS guard migration deliberately preserves all existing permissive policies and their parent-row / draft-state checks. As a result, it narrows access according to module grants but does not yet expand actions beyond the original role policies. Full role-independent delegation still requires a reviewed refactor of each original permissive policy, preserving its tenant and business-state checks.
+- Neither migration has been run against Supabase. No production data, policies, Auth users, or store memberships were changed. Do not deploy this phase as a completed authorization solution.
+
+
+## 9. Draft migrations
+
+- `20261105133000_store_member_module_permissions.sql`: adds `store_members.is_active`, the per-user module/CRUD grant table, helper functions, and RLS for the grant table.
+- `20261105134000_module_permission_rls_guards.sql`: adds restrictive guards for mapped business tables and a global Admin allow policy. It intentionally leaves the existing permissive policies in place.
+- These migrations are additive drafts only. Review SQL against the live database and test on staging before applying.
