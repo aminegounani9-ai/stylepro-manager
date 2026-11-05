@@ -11,6 +11,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -212,6 +213,13 @@ export default function App() {
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('cashier')
+  const [modulePermissions, setModulePermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
+  const [permissionsReady, setPermissionsReady] = useState(false)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
+  const [newUserPermissions, setNewUserPermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
+  const [editingUserId, setEditingUserId] = useState('')
+  const [editingUserName, setEditingUserName] = useState('')
+  const [editingPermissions, setEditingPermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
   const [userSaving, setUserSaving] = useState(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
