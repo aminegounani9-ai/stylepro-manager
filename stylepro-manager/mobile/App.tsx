@@ -11,6 +11,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -133,6 +134,57 @@ const AR: Record<string,string> = {
   'Aucune vente sur cette période':'لا توجد مبيعات خلال هذه الفترة'
 }
 
+type MobilePermission = { can_view: boolean; can_create: boolean; can_update: boolean; can_delete: boolean }
+const MOBILE_MODULES: { key: string; label: string }[] = [
+  { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'catalogue', label: 'Catalogue' },
+  { key: 'sales', label: 'Ventes / Caisse' },
+  { key: 'stock', label: 'Stock' },
+  { key: 'returns', label: 'Retours' },
+  { key: 'clients', label: 'Clients' },
+  { key: 'expenses', label: 'Dépenses' },
+  { key: 'atelier', label: 'Atelier' },
+  { key: 'deliveries', label: 'Livraisons' },
+  { key: 'promotions', label: 'Promotions' },
+  { key: 'labels', label: 'Étiquettes QR' },
+  { key: 'users', label: 'Utilisateurs' },
+  { key: 'settings', label: 'Paramètres' },
+]
+const MOBILE_ROLES = [
+  { value: 'admin', label: 'Administrateur' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'cashier', label: 'Vendeur / Caisse' },
+  { value: 'stock_manager', label: 'Gestionnaire stock' },
+]
+const MOBILE_VIEW_MODULE_KEY: Record<string,string> = {
+  dashboard:'dashboard', products:'catalogue', sales:'sales', stock:'stock',
+  returns:'returns', clients:'clients', expenses:'expenses', atelier:'atelier',
+  deliveries:'deliveries', promotions:'promotions', labels:'labels',
+  users:'users', settings:'settings',
+}
+function blankMobilePermissions(): Record<string, MobilePermission> {
+  return Object.fromEntries(
+    MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
+  )
+}
+function defaultMobilePermissions(role: string): Record<string, MobilePermission> {
+  const grants: Record<string, MobilePermission> = Object.fromEntries(
+    MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
+  )
+  grants.dashboard.can_view = true
+  if (role === 'cashier') {
+    grants.sales = { can_view: true, can_create: true, can_update: false, can_delete: false }
+    grants.deliveries = { can_view: true, can_create: true, can_update: false, can_delete: false }
+    grants.clients = { can_view: true, can_create: true, can_update: true, can_delete: false }
+  } else if (role === 'stock_manager') {
+    grants.stock = { can_view: true, can_create: true, can_update: true, can_delete: false }
+    grants.atelier = { can_view: true, can_create: true, can_update: true, can_delete: false }
+    grants.catalogue.can_view = true
+    grants.deliveries = { can_view: true, can_create: true, can_update: true, can_delete: false }
+  }
+  return grants
+}
+
 function dateLabel(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
@@ -212,6 +264,14 @@ export default function App() {
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('cashier')
+  const [modulePermissions, setModulePermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
+  const [permissionsReady, setPermissionsReady] = useState(false)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
+  const [newUserPermissions, setNewUserPermissions] = useState<Record<string, MobilePermission>>(() => defaultMobilePermissions('cashier'))
+  const [editingUserId, setEditingUserId] = useState('')
+  const [editingUserName, setEditingUserName] = useState('')
+  const [editingUserRole, setEditingUserRole] = useState('cashier')
+  const [editingPermissions, setEditingPermissions] = useState<Record<string, MobilePermission>>({})
   const [userSaving, setUserSaving] = useState(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
@@ -293,22 +353,70 @@ export default function App() {
   }, [])
 
   const loadStores = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id,name,currency')
-      .order('created_at', { ascending: true })
-
-    if (error) throw new Error(`Boutiques : ${error.message}`)
-
-    const rows = (data ?? []) as StoreRow[]
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'list_stores' },
+    })
+    if (error || data?.error) throw new Error(`Boutiques : ${error?.message || data?.error || 'Accès refusé'}`)
+    const rows = (data?.stores ?? []) as StoreRow[]
     setStores(rows)
     setStoreId(current =>
       rows.some(row => row.id === current) ? current : rows[0]?.id ?? '',
     )
   }, [])
 
-  const loadProducts = useCallback(async (id: string) => {
+  const loadPermissions = useCallback(async (id: string) => {
     if (!id) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(false)
+      return
+    }
+    setPermissionsReady(false)
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'my_permissions', store_id: id },
+    })
+    if (error || data?.error) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(true)
+      throw new Error(`Permissions : ${error?.message || data?.error || 'Chargement impossible'}`)
+    }
+    const next: Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}> = {}
+    for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
+      const key = String(grant.module_key || '')
+      next[key] = {
+        can_view: grant.can_view === true,
+        can_create: grant.can_create === true,
+        can_update: grant.can_update === true,
+        can_delete: grant.can_delete === true,
+      }
+    }
+    setModulePermissions(next)
+    const globalAdmin = data?.is_global_admin === true
+    setIsGlobalAdmin(globalAdmin)
+    if (!globalAdmin) {
+      setNewUserPermissions(current => Object.fromEntries(Object.entries(current).map(([key, grant]) => [
+        key,
+        {
+          can_view: grant.can_view && next[key]?.can_view === true,
+          can_create: grant.can_create && next[key]?.can_create === true,
+          can_update: grant.can_update && next[key]?.can_update === true,
+          can_delete: grant.can_delete && next[key]?.can_delete === true,
+        },
+      ])))
+    }
+    setPermissionsReady(true)
+  }, [])
+
+  const canViewMobileModule = useCallback((key: string) =>
+    isGlobalAdmin || modulePermissions[key]?.can_view === true,
+  [isGlobalAdmin, modulePermissions])
+  const canCreateUsers = isGlobalAdmin || modulePermissions.users?.can_create === true
+  const canUpdateUsers = isGlobalAdmin || modulePermissions.users?.can_update === true
+
+
+  const loadProducts = useCallback(async (id: string) => {
+    if (!id || !['catalogue','sales','stock','atelier','labels','promotions','deliveries','dashboard'].some(canViewMobileModule)) {
       setProducts([])
       return
     }
@@ -321,10 +429,10 @@ export default function App() {
 
     if (error) throw new Error(`Catalogue : ${error.message}`)
     setProducts((data ?? []) as ProductRow[])
-  }, [])
+  }, [canViewMobileModule])
 
   const loadAnalytics = useCallback(async (id: string) => {
-    if (!id) {
+    if (!id || !canViewMobileModule('dashboard')) {
       setSales([])
       setReturns([])
       setExpenses([])
@@ -411,7 +519,7 @@ export default function App() {
     if (warnings.length) {
       setError(`Tableau de bord partiel — ${warnings.join(' ; ')}`)
     }
-  }, [])
+  }, [canViewMobileModule])
 
   const refreshAll = useCallback(async (manual = false) => {
     if (!user) return
@@ -484,6 +592,28 @@ export default function App() {
     }
   }, [user, storeId, loadProducts, loadAnalytics])
 
+  useEffect(() => {
+    if (!user || !storeId) return
+    const timer = setTimeout(() => {
+      void loadPermissions(storeId).catch(e => setError(e instanceof Error ? e.message : 'Permissions indisponibles.'))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [user, storeId, loadPermissions])
+
+  useEffect(() => {
+    if (!permissionsReady || !user || !storeId) return
+    const moduleKey = MOBILE_VIEW_MODULE_KEY[view] || 'dashboard'
+    if (canViewMobileModule(moduleKey)) return
+    const fallback = [
+      'dashboard', 'products', 'sales', 'stock', 'returns', 'clients',
+      'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'users', 'settings',
+    ].find(key => canViewMobileModule(MOBILE_VIEW_MODULE_KEY[key] || key))
+    if (fallback && fallback !== view) {
+      const timer = setTimeout(() => setView(fallback as typeof view), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [permissionsReady, user, storeId, view, canViewMobileModule])
+
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
     clients: 'Clients', expenses: 'Dépenses', atelier: 'Atelier', deliveries: 'Livraisons',
@@ -491,7 +621,13 @@ export default function App() {
   }
 
   async function loadModule(nextView: typeof view) {
-    if (!storeId || nextView === 'dashboard' || nextView === 'settings') {
+    if (!storeId) return
+    const requiredModule = MOBILE_VIEW_MODULE_KEY[nextView] || nextView
+    if (!permissionsReady || !canViewMobileModule(requiredModule)) {
+      setError('Accès non autorisé : ce module ne fait pas partie de vos permissions.')
+      return
+    }
+    if (nextView === 'dashboard' || nextView === 'settings') {
       setModuleRows([]); setView(nextView); return
     }
     setModuleLoading(true); setError(''); setModuleSearch('')
@@ -558,9 +694,9 @@ export default function App() {
   }
 
   async function changeMobileUserRole(member: Record<string, unknown>) {
-    const roles = ['cashier', 'manager', 'stock_manager', 'accountant', 'admin']
+    const roles = isGlobalAdmin ? ['admin', 'manager', 'cashier', 'stock_manager'] : ['cashier', 'stock_manager']
     const current = String(member.role || 'cashier')
-    const next = roles[(roles.indexOf(current) + 1) % roles.length]
+    const next = roles[(Math.max(0, roles.indexOf(current)) + 1) % roles.length]
     Alert.alert('Modifier le rôle', `Attribuer le rôle ${next} à ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Confirmer', onPress: () => { void (async () => {
@@ -572,6 +708,68 @@ export default function App() {
         } catch (e) { setError(e instanceof Error ? e.message : 'Modification du rôle impossible.') }
       })() } }
     ])
+  }
+
+  async function openMobileUserPermissions(member: Record<string, unknown>) {
+    setUserSaving(true)
+    setError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'get_permissions', store_id: storeId, user_id: member.user_id },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      const next = blankMobilePermissions()
+      for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
+        const key = String(grant.module_key || '')
+        if (next[key]) next[key] = {
+          can_view: grant.can_view === true,
+          can_create: grant.can_create === true,
+          can_update: grant.can_update === true,
+          can_delete: grant.can_delete === true,
+        }
+      }
+      setEditingUserId(String(member.user_id))
+      setEditingUserName(String(member.full_name || member.email || 'Utilisateur'))
+      setEditingUserRole(String(member.role || 'cashier'))
+      setEditingPermissions(next)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Chargement des permissions impossible.')
+    } finally {
+      setUserSaving(false)
+    }
+  }
+
+  async function saveMobileUserPermissions() {
+    if (!editingUserId) return
+    setUserSaving(true)
+    setError('')
+    try {
+      const permissions = Object.entries(editingPermissions)
+        .map(([module_key, grant]) => ({
+          module_key,
+          can_view: isGlobalAdmin ? grant.can_view : grant.can_view && modulePermissions[module_key]?.can_view === true,
+          can_create: isGlobalAdmin ? grant.can_create : grant.can_create && modulePermissions[module_key]?.can_create === true,
+          can_update: isGlobalAdmin ? grant.can_update : grant.can_update && modulePermissions[module_key]?.can_update === true,
+          can_delete: isGlobalAdmin ? grant.can_delete : grant.can_delete && modulePermissions[module_key]?.can_delete === true,
+        }))
+        .filter(grant => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'set_permissions', store_id: storeId, user_id: editingUserId, permissions },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setEditingUserId('')
+      setEditingUserName('')
+      setEditingUserRole('cashier')
+      setEditingPermissions({})
+      await loadModule('users')
+      Alert.alert('Permissions', 'Les permissions ont été enregistrées.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Enregistrement des permissions impossible.')
+    } finally {
+      setUserSaving(false)
+    }
   }
 
   async function toggleMobileUser(member: Record<string, unknown>) {
@@ -596,12 +794,29 @@ export default function App() {
     }
     setUserSaving(true); setError('')
     try {
-      const { data, error } = await supabase.functions.invoke('manage-users', { body: { action: 'create', store_id: storeId, full_name: newUserName.trim(), email: newUserEmail.trim(), password: newUserPassword, role: newUserRole } })
+      const permissions = Object.entries(newUserPermissions)
+        .map(([module_key, grant]) => ({
+          module_key,
+          can_view: isGlobalAdmin ? grant.can_view : grant.can_view && modulePermissions[module_key]?.can_view === true,
+          can_create: isGlobalAdmin ? grant.can_create : grant.can_create && modulePermissions[module_key]?.can_create === true,
+          can_update: isGlobalAdmin ? grant.can_update : grant.can_update && modulePermissions[module_key]?.can_update === true,
+          can_delete: isGlobalAdmin ? grant.can_delete : grant.can_delete && modulePermissions[module_key]?.can_delete === true,
+        }))
+        .filter(grant => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'create', store_id: storeId, full_name: newUserName.trim(),
+          email: newUserEmail.trim(), password: newUserPassword,
+          role: newUserRole, permissions,
+        },
+      })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword('')
+      setNewUserRole('cashier')
+      setNewUserPermissions(defaultMobilePermissions('cashier'))
       await loadModule('users')
-      Alert.alert('Utilisateur créé', 'Le compte a été créé et associé à la boutique.')
+      Alert.alert('Utilisateur créé', 'Le compte a été créé avec les permissions sélectionnées.')
     } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible.') }
     finally { setUserSaving(false) }
   }
@@ -631,6 +846,10 @@ export default function App() {
 
   // STYLEPRO_SCANNER_ADDED
   async function openScanner() {
+    if (!permissionsReady || (!canViewMobileModule('sales') && !canViewMobileModule('labels'))) {
+      Alert.alert('Accès non autorisé', 'Le scanner nécessite le module Ventes ou Étiquettes QR.')
+      return
+    }
     setScanResult(null)
     setScanMessage('')
     setScanLocked(false)
@@ -651,6 +870,7 @@ export default function App() {
   }
 
   async function handleBarcodeScanned(result: { data: string }, fromHardwareScanner = false) {
+    if (!permissionsReady || (!canViewMobileModule('sales') && !canViewMobileModule('labels'))) return
     if ((!fromHardwareScanner && scanLocked) || scannerLoading) return
 
     const code = result.data?.trim()
@@ -987,7 +1207,7 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
+        {(canViewMobileModule('sales') || canViewMobileModule('labels')) && <TouchableOpacity
           onPress={() => void openScanner()}
           style={{
             marginTop: 14,
@@ -1005,7 +1225,7 @@ export default function App() {
           <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
             {t('Scanner QR / Code-barres')}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         {storePickerOpen && (
           <View style={styles.storePicker}>
@@ -1042,14 +1262,18 @@ export default function App() {
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
-          ] as [typeof view, string][]).map(([key, label]) => (
+          ] as [typeof view, string][]).filter(([key]) => canViewMobileModule(MOBILE_VIEW_MODULE_KEY[key] || key)).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {view === 'dashboard' ? (
+        {!permissionsReady ? (
+          <View style={styles.panel}><ActivityIndicator color={COLORS.accent}/><Text style={styles.muted}>Chargement des permissions…</Text></View>
+        ) : !canViewMobileModule(MOBILE_VIEW_MODULE_KEY[view] || view) ? (
+          <View style={styles.panel}><ShieldCheck size={28} color={COLORS.accent}/><Text style={styles.panelTitle}>Accès non autorisé</Text><Text style={styles.panelSubtitle}>Ce module ne fait pas partie des permissions de votre compte dans cette boutique.</Text></View>
+        ) : view === 'dashboard' ? (
         <>
         <View style={styles.sectionHeader}>
           <View>
@@ -1344,13 +1568,98 @@ export default function App() {
           </View>
         ) : view === 'users' ? (
           <View style={styles.panel}>
-            <View style={styles.panelHeader}><View style={styles.flex}><Text style={styles.panelTitle}>Gestion des utilisateurs</Text><Text style={styles.panelSubtitle}>Comptes associés à cette boutique · accès administrateur requis</Text></View><TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity></View>
+            <View style={styles.panelHeader}>
+              <View style={styles.flex}>
+                <Text style={styles.panelTitle}>Gestion des utilisateurs</Text>
+                <Text style={styles.panelSubtitle}>Permissions par module et par opération · {isGlobalAdmin ? 'Admin global' : 'Manager de la boutique'}</Text>
+              </View>
+              <TouchableOpacity style={styles.smallButton} onPress={() => void loadModule('users')}><Text style={styles.smallButtonText}>Actualiser</Text></TouchableOpacity>
+            </View>
+            {canCreateUsers ? <>
             <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
-            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
-            <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
-            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><View style={{ alignItems: 'flex-end', gap: 7 }}><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text><View style={{ flexDirection: 'row', gap: 5 }}><TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity><TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity></View></View></View>)}
+            <View style={styles.rolePicker}>
+              {MOBILE_ROLES.filter(item => isGlobalAdmin || ['cashier','stock_manager'].includes(item.value)).map(item =>
+                <TouchableOpacity key={item.value} onPress={() => { setNewUserRole(item.value); setNewUserPermissions(defaultMobilePermissions(item.value)) }} style={[styles.roleChip,newUserRole===item.value&&styles.roleChipActive]}>
+                  <Text style={[styles.roleChipText,newUserRole===item.value&&styles.roleChipTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.panelSubtitle}>Permissions du nouvel utilisateur</Text>
+            {MOBILE_MODULES.filter(module => !(['cashier','stock_manager'].includes(newUserRole) && module.key === 'users')).map(module => {
+              const grant = newUserPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
+              const change = (action: keyof MobilePermission, value: boolean) => setNewUserPermissions(current => ({
+                ...current,
+                [module.key]: action === 'can_view' && !value
+                  ? {can_view:false,can_create:false,can_update:false,can_delete:false}
+                  : {...(current[module.key] || grant), [action]:value, ...(action !== 'can_view' && value ? {can_view:true} : {})},
+              }))
+              return <View key={module.key} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:COLORS.border,gap:6}}>
+                <Text style={styles.saleNumber}>{module.label}</Text>
+                <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8}}>
+                  {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
+                    <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <Text style={styles.saleDate}>{label}</Text>
+                      <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !(isGlobalAdmin || modulePermissions[module.key]?.[key] === true)} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                    </View>
+                  )}
+                </View>
+              </View>
+            })}
+            <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}>
+              <Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text>
+            </TouchableOpacity>
+
+            </> : <Text style={styles.emptyText}>Vous pouvez consulter les utilisateurs, mais la permission Ajouter n’est pas accordée.</Text>}
+
+            {canUpdateUsers && editingUserId ? <View style={{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:COLORS.border}}>
+              <View style={styles.panelHeader}>
+                <View style={styles.flex}><Text style={styles.panelTitle}>Permissions : {editingUserName}</Text><Text style={styles.panelSubtitle}>Accès accordés dans cette boutique uniquement.</Text></View>
+                <TouchableOpacity style={styles.smallButton} onPress={() => { setEditingUserId(''); setEditingUserRole('cashier') }}><Text style={styles.smallButtonText}>Fermer</Text></TouchableOpacity>
+              </View>
+              {MOBILE_MODULES.filter(module => !(['cashier','stock_manager'].includes(editingUserRole) && module.key === 'users')).map(module => {
+                const grant = editingPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
+                const change = (action: keyof MobilePermission, value: boolean) => setEditingPermissions(current => ({
+                  ...current,
+                  [module.key]: action === 'can_view' && !value
+                    ? {can_view:false,can_create:false,can_update:false,can_delete:false}
+                    : {...(current[module.key] || grant), [action]:value, ...(action !== 'can_view' && value ? {can_view:true} : {})},
+                }))
+                return <View key={module.key} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:COLORS.border,gap:6}}>
+                  <Text style={styles.saleNumber}>{module.label}</Text>
+                  <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8}}>
+                    {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
+                      <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                        <Text style={styles.saleDate}>{label}</Text>
+                        <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !(isGlobalAdmin || modulePermissions[module.key]?.[key] === true)} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              })}
+              <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void saveMobileUserPermissions()} disabled={userSaving}>
+                <Text style={styles.primaryButtonText}>Enregistrer les permissions</Text>
+              </TouchableOpacity>
+            </View> : null}
+
+            {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché.</Text> : userMembers.map((member,index) => {
+              const editable = isGlobalAdmin || ['cashier','stock_manager'].includes(String(member.role))
+              return <View key={String(member.user_id||index)} style={styles.moduleDataRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text>
+                  <Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 7 }}>
+                  <Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text>
+                  {String(member.user_id) !== user?.id && editable && canUpdateUsers ? <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:5}}>
+                    {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void openMobileUserPermissions(member)}><Text style={styles.smallButtonText}>Permissions</Text></TouchableOpacity> : null}
+                    {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity> : null}
+                    <TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity>
+                  </View> : null}
+                </View>
+              </View>
+            })}
           </View>
         ) : (
           <View style={styles.panel}>

@@ -5416,3 +5416,92 @@ tbody tr:last-child td { border-bottom: 0; }
     box-shadow: -12px 0 35px rgba(0,0,0,.2) !important;
   }
 }
+
+
+/* Per-user module and CRUD permissions */
+.module-permission-editor {
+  margin: 14px 0 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--text-primary);
+}
+.module-permission-heading,
+.user-permissions-edit-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.module-permission-heading > strong {
+  margin-right: auto;
+}
+.module-permission-list {
+  display: grid;
+  gap: 7px;
+}
+.module-permission-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.5fr) repeat(4, minmax(70px, .55fr));
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.module-permission-row > strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.module-permission-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.module-permission-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+}
+.user-permissions-create,
+.user-permissions-edit {
+  margin-top: 18px;
+}
+.user-permissions-create > h3,
+.user-permissions-edit h3 {
+  margin: 0 0 5px;
+}
+.user-permissions-edit {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+.user-permissions-edit-title > div {
+  flex: 1;
+}
+.user-permissions-edit-title p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .module-permission-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .module-permission-row > strong {
+    grid-column: 1 / -1;
+  }
+  .module-permission-heading {
+    align-items: flex-start;
+  }
+  .module-permission-heading > strong {
+    flex-basis: 100%;
+  }
+}
