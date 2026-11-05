@@ -134,6 +134,46 @@ const AR: Record<string,string> = {
   'Aucune vente sur cette période':'لا توجد مبيعات خلال هذه الفترة'
 }
 
+type MobilePermission = { can_view: boolean; can_create: boolean; can_update: boolean; can_delete: boolean }
+const MOBILE_MODULES: { key: string; label: string }[] = [
+  { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'catalogue', label: 'Catalogue' },
+  { key: 'sales', label: 'Ventes / Caisse' },
+  { key: 'stock', label: 'Stock' },
+  { key: 'returns', label: 'Retours' },
+  { key: 'clients', label: 'Clients' },
+  { key: 'expenses', label: 'Dépenses' },
+  { key: 'atelier', label: 'Atelier' },
+  { key: 'deliveries', label: 'Livraisons' },
+  { key: 'promotions', label: 'Promotions' },
+  { key: 'labels', label: 'Étiquettes QR' },
+  { key: 'users', label: 'Utilisateurs' },
+  { key: 'settings', label: 'Paramètres' },
+]
+const MOBILE_ROLES = [
+  { value: 'admin', label: 'Administrateur' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'cashier', label: 'Vendeur / Caisse' },
+  { value: 'stock_manager', label: 'Gestionnaire stock' },
+]
+function defaultMobilePermissions(role: string): Record<string, MobilePermission> {
+  const grants: Record<string, MobilePermission> = Object.fromEntries(
+    MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
+  )
+  grants.dashboard.can_view = true
+  if (role === 'cashier') {
+    grants.sales = { can_view: true, can_create: true, can_update: false, can_delete: false }
+    grants.deliveries = { can_view: true, can_create: true, can_update: false, can_delete: false }
+    grants.clients = { can_view: true, can_create: true, can_update: true, can_delete: false }
+  } else if (role === 'stock_manager') {
+    grants.stock = { can_view: true, can_create: true, can_update: true, can_delete: false }
+    grants.atelier = { can_view: true, can_create: true, can_update: true, can_delete: false }
+    grants.catalogue.can_view = true
+    grants.deliveries = { can_view: true, can_create: true, can_update: true, can_delete: false }
+  }
+  return grants
+}
+
 function dateLabel(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
@@ -216,10 +256,10 @@ export default function App() {
   const [modulePermissions, setModulePermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
   const [permissionsReady, setPermissionsReady] = useState(false)
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
-  const [newUserPermissions, setNewUserPermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
+  const [newUserPermissions, setNewUserPermissions] = useState<Record<string, MobilePermission>>(() => defaultMobilePermissions('cashier'))
   const [editingUserId, setEditingUserId] = useState('')
   const [editingUserName, setEditingUserName] = useState('')
-  const [editingPermissions, setEditingPermissions] = useState<Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}>>({})
+  const [editingPermissions, setEditingPermissions] = useState<Record<string, MobilePermission>>({})
   const [userSaving, setUserSaving] = useState(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
