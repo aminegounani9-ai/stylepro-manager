@@ -112,7 +112,9 @@ begin
       ('delivery_returns', 'deliveries'),
       ('delivery_return_items', 'deliveries'),
       ('promotions', 'promotions'),
-      ('promotion_products', 'promotions')
+      ('promotion_products', 'promotions'),
+      ('store_settings', 'settings'),
+      ('store_modules', 'settings')
     ) as t(table_name, module_key)
   loop
     if exists (
@@ -153,5 +155,31 @@ begin
       );
     end if;
   end loop;
+end;
+$$;
+
+-- Existing store settings/modules and promotions policies were admin-only.
+-- Add a manager path, still constrained by the restrictive per-action gate above.
+do $$
+begin
+  if to_regclass('public.store_settings') is not null then
+    execute 'drop policy if exists module_manager_store_settings on public.store_settings';
+    execute 'create policy module_manager_store_settings on public.store_settings as permissive for all to authenticated using (private.has_store_role(store_id, array[''admin'',''manager'']::text[])) with check (private.has_store_role(store_id, array[''admin'',''manager'']::text[]))';
+  end if;
+
+  if to_regclass('public.store_modules') is not null then
+    execute 'drop policy if exists module_manager_store_modules on public.store_modules';
+    execute 'create policy module_manager_store_modules on public.store_modules as permissive for all to authenticated using (private.has_store_role(store_id, array[''admin'',''manager'']::text[])) with check (private.has_store_role(store_id, array[''admin'',''manager'']::text[]))';
+  end if;
+
+  if to_regclass('public.promotions') is not null then
+    execute 'drop policy if exists module_manager_promotions on public.promotions';
+    execute 'create policy module_manager_promotions on public.promotions as permissive for all to authenticated using (private.has_store_role(store_id, array[''admin'',''manager'']::text[])) with check (private.has_store_role(store_id, array[''admin'',''manager'']::text[]))';
+  end if;
+
+  if to_regclass('public.promotion_products') is not null then
+    execute 'drop policy if exists module_manager_promotion_products on public.promotion_products';
+    execute 'create policy module_manager_promotion_products on public.promotion_products as permissive for all to authenticated using (private.has_store_role(store_id, array[''admin'',''manager'']::text[])) with check (private.has_store_role(store_id, array[''admin'',''manager'']::text[]))';
+  end if;
 end;
 $$;
