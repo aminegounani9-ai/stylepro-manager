@@ -104,19 +104,26 @@ $$;
 create or replace function private.can_manage_member_module(
   p_store_id uuid,
   p_user_id uuid,
-  p_module_key text
+  p_module_key text,
+  p_can_view boolean,
+  p_can_create boolean,
+  p_can_update boolean,
+  p_can_delete boolean
 )
 returns boolean
 language sql
 stable
 security definer
 set search_path = public, private
-as $$
+as $
   select
     private.is_global_admin()
     or (
       private.can_manage_store_users(p_store_id)
-      and private.has_module_permission(p_store_id, p_module_key, 'view')
+      and (not p_can_view or private.has_module_permission(p_store_id, p_module_key, 'view'))
+      and (not p_can_create or private.has_module_permission(p_store_id, p_module_key, 'create'))
+      and (not p_can_update or private.has_module_permission(p_store_id, p_module_key, 'update'))
+      and (not p_can_delete or private.has_module_permission(p_store_id, p_module_key, 'delete'))
       and exists (
         select 1
         from public.store_members target
@@ -126,7 +133,7 @@ as $$
           and coalesce(target.is_active, true)
       )
     );
-$$;
+$;
 
 drop policy if exists store_member_module_permissions_select
   on public.store_member_module_permissions;
@@ -145,7 +152,7 @@ create policy store_member_module_permissions_insert
   on public.store_member_module_permissions
   for insert to authenticated
   with check (
-    private.can_manage_member_module(store_id, user_id, module_key)
+    private.can_manage_member_module(store_id, user_id, module_key, can_view, can_create, can_update, can_delete)
   );
 
 drop policy if exists store_member_module_permissions_update
