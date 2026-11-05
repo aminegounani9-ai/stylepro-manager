@@ -100,6 +100,22 @@ type ModulePermissionState = {
   can_delete: boolean
 }
 
+const VIEW_MODULE_KEY: Record<string, string> = {
+  dashboard: 'dashboard',
+  statistics: 'dashboard',
+  catalogue: 'catalogue',
+  atelier: 'atelier',
+  livraisons: 'deliveries',
+  stock: 'stock',
+  sales: 'sales',
+  returns: 'returns',
+  customers: 'clients',
+  labels: 'labels',
+  promotions: 'promotions',
+  settings: 'settings',
+  users: 'users',
+}
+
 type ProductRow = {
   id: string
   name: string
@@ -1431,35 +1447,20 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
     setPermissionsReady(true)
   }, [user, storeId])
 
-  const canViewModule = (moduleKey: string) =>
-    isGlobalAdmin || modulePermissions[moduleKey]?.can_view === true
-
-  const viewModuleKey: Record<string, string> = {
-    dashboard: 'dashboard',
-    statistics: 'dashboard',
-    catalogue: 'catalogue',
-    atelier: 'atelier',
-    livraisons: 'deliveries',
-    stock: 'stock',
-    sales: 'sales',
-    returns: 'returns',
-    customers: 'clients',
-    labels: 'labels',
-    promotions: 'promotions',
-    settings: 'settings',
-    users: 'users',
-  }
+  const canViewModule = useCallback((moduleKey: string) =>
+    isGlobalAdmin || modulePermissions[moduleKey]?.can_view === true,
+  [isGlobalAdmin, modulePermissions])
 
   useEffect(() => {
     if (!permissionsReady || !user || !storeId) return
-    const moduleKey = viewModuleKey[currentView] || 'dashboard'
+    const moduleKey = VIEW_MODULE_KEY[currentView] || 'dashboard'
     if (canViewModule(moduleKey)) return
     const fallback = [
       'dashboard', 'catalogue', 'sales', 'stock', 'returns', 'customers',
       'atelier', 'livraisons', 'promotions', 'labels', 'users', 'settings',
-    ].find((view) => canViewModule(viewModuleKey[view] || view))
+    ].find((view) => canViewModule(VIEW_MODULE_KEY[view] || view))
     if (fallback && fallback !== currentView) setCurrentView(fallback as typeof currentView)
-  }, [permissionsReady, user, storeId, currentView, modulePermissions, isGlobalAdmin])
+  }, [permissionsReady, user, storeId, currentView, canViewModule])
 
   useEffect(() => {
     if (user && storeId) {
@@ -3804,7 +3805,7 @@ const loadPromotions = useCallback(async () => {
 
             {!permissionsReady ? (
               <section className="panel"><p className="muted">Chargement des permissions…</p></section>
-            ) : !(isGlobalAdmin || modulePermissions[viewModuleKey[currentView] || 'dashboard']?.can_view) ? (
+            ) : !(isGlobalAdmin || modulePermissions[VIEW_MODULE_KEY[currentView] || 'dashboard']?.can_view) ? (
               <section className="panel"><div className="empty-state"><ShieldCheck size={28}/><strong>Accès non autorisé</strong><p>Ce module ne fait pas partie des permissions de votre compte dans cette boutique.</p></div></section>
             ) : currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} />
