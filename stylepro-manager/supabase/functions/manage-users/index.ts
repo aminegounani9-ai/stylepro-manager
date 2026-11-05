@@ -176,15 +176,22 @@ Deno.serve(async (req) => {
     }
 
     if (!isGlobalAdmin) {
+      const requiredUsersAction =
+        action === "create" ? "create" :
+        ["update_role", "set_active", "set_permissions"].includes(action) ? "update" : "view";
       const { data: userGrant, error: grantError } = await adminClient
         .from("store_member_module_permissions")
-        .select("can_view")
+        .select("can_view,can_create,can_update")
         .eq("store_id", storeId)
         .eq("user_id", authData.user.id)
         .eq("module_key", "users")
         .maybeSingle();
       if (grantError) return json({ error: grantError.message }, 400);
-      if (!userGrant?.can_view) return json({ error: "Le module Utilisateurs ne vous est pas autorisé" }, 403);
+      const allowed =
+        requiredUsersAction === "create" ? userGrant?.can_create === true :
+        requiredUsersAction === "update" ? userGrant?.can_update === true :
+        userGrant?.can_view === true;
+      if (!allowed) return json({ error: `Permission Utilisateurs insuffisante : ${requiredUsersAction}` }, 403);
     }
 
     const canManageTarget = async (userId: string) => {
