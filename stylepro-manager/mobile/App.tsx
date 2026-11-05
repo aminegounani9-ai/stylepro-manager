@@ -1644,8 +1644,8 @@ export default function App() {
                 <View style={{ alignItems: 'flex-end', gap: 7 }}>
                   <Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text>
                   {String(member.user_id) !== user?.id && editable ? <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:5}}>
-                    <TouchableOpacity style={styles.smallButton} onPress={() => void openMobileUserPermissions(member)}><Text style={styles.smallButtonText}>Permissions</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity>
+                    {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void openMobileUserPermissions(member)}><Text style={styles.smallButtonText}>Permissions</Text></TouchableOpacity> : null}
+                    {member.is_active !== false ? <TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity> : null}
                     <TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity>
                   </View> : null}
                 </View>
