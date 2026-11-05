@@ -70,6 +70,8 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const [role, setRole] = useState<Role>('cashier')
   const [callerRole, setCallerRole] = useState<Role | null>(null)
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
+  const [canAddUsers, setCanAddUsers] = useState(false)
+  const [canEditUsers, setCanEditUsers] = useState(false)
   const [draftPermissions, setDraftPermissions] = useState<Permission[]>(emptyPermissions)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Permission[]>(emptyPermissions)
@@ -93,7 +95,11 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
       const memberRole = access.role as Role | undefined
       if (!memberRole) throw new Error('Accès à cette boutique non autorisé.')
       setCallerRole(memberRole)
-      setIsGlobalAdmin(access.is_global_admin === true)
+      const globalAdmin = access.is_global_admin === true
+      setIsGlobalAdmin(globalAdmin)
+      const ownUsersGrant = (access.permissions || []).find((item: Permission) => item.module_key === 'users')
+      setCanAddUsers(globalAdmin || memberRole === 'admin' || ownUsersGrant?.can_add === true)
+      setCanEditUsers(globalAdmin || memberRole === 'admin' || ownUsersGrant?.can_edit === true)
       if (memberRole === 'admin' || memberRole === 'manager') {
         const result = await call({ action: 'list' })
         setMembers((result.members || []) as Member[])
@@ -155,7 +161,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
         {error && <p role="alert" className="form-error">{error}</p>}
         {notice && <p role="status" className="appearance-note">{notice}</p>}
         {canManage && <>
-          <form className="user-create-form" onSubmit={create}>
+          {canAddUsers && <form className="user-create-form" onSubmit={create}>
             <label className="field">Nom complet<input value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100} /></label>
             <label className="field">Adresse e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="off"/></label>
             <label className="field">Mot de passe temporaire<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8} autoComplete="new-password"/></label>
@@ -165,7 +171,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
               <PermissionEditor value={draftPermissions} onChange={setDraftPermissions} disabled={saving}/>
             </div>
             <button type="submit" className="primary-button" disabled={saving}><UserPlus size={16}/> {saving ? 'Création…' : 'Ajouter utilisateur'}</button>
-          </form>
+          </form>}
           <div className="user-members-list">
             <h3>Utilisateurs de la boutique ({members.length})</h3>
             {loading ? <p>Chargement…</p> : members.length === 0 ? <p className="appearance-note">Aucun utilisateur trouvé.</p> :
@@ -177,16 +183,16 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
                     {(isAdmin ? roles : availableRoles).map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   <span className={member.is_active ? 'user-status active' : 'user-status'}>{member.is_active ? 'Actif' : 'Désactivé'}</span>
-                  {member.user_id!==user?.id && (isAdmin || (member.role !== 'admin' && member.role !== 'manager')) &&
+                  {canEditUsers && member.user_id!==user?.id && (isAdmin || (member.role !== 'admin' && member.role !== 'manager')) &&
                     <button type="button" className="secondary-button" disabled={saving} onClick={()=>void toggleActive(member)}>
                       {member.is_active ? <><UserX size={15}/> Désactiver</> : <><UserCheck size={15}/> Activer</>}
                     </button>}
-                  <button type="button" className="secondary-button" disabled={saving || (!isAdmin && (member.role === 'admin' || member.role === 'manager'))}
+                  <button type="button" className="secondary-button" disabled={!canEditUsers || saving || (!isAdmin && (member.role === 'admin' || member.role === 'manager'))}
                     onClick={() => { setEditingUserId(editingUserId === member.user_id ? null : member.user_id); setEditingPermissions(normalize(member.permissions)); }}>
                     {editingUserId === member.user_id ? <><ChevronUp size={15}/> Fermer droits</> : <><ChevronDown size={15}/> Permissions</>}
                   </button>
                 </div>
-                {editingUserId === member.user_id && <div className="user-permission-card">
+                {editingUserId === member.user_id && canEditUsers && <div className="user-permission-card">
                   <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving}/>
                   <button type="button" className="primary-button" disabled={saving} onClick={() => void savePermissions(member)}>
                     <Save size={15}/> {saving ? 'Enregistrement…' : 'Enregistrer les permissions'}
