@@ -5776,7 +5776,7 @@ const loadPromotions = useCallback(async () => {
                   <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
                 </section>
 
-                {hasModuleView('users') && <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />}
+                {hasModuleView('users') && <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} stores={stores} />}
 
                 <section className="panel settings-account">
                   <div className="panel-title">
