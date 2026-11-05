@@ -152,6 +152,77 @@ begin
 end;
 $module_guard$;
 
+-- These tables had straightforward store-member / role-only policies in the
+-- supplied audit. Add permission-based permissive policies so a Manager can
+-- delegate them across employee roles. Child tables with parent-row checks and
+-- delivery tables with draft-state checks are intentionally excluded here.
+do $module_grant_allow$
+declare
+  item record;
+  action_name text;
+  policy_name text;
+  table_exists boolean;
+begin
+  for item in
+    select * from (values
+      ('products', 'catalogue'),
+      ('product_variants', 'catalogue'),
+      ('categories', 'catalogue'),
+      ('brands', 'catalogue'),
+      ('customers', 'clients'),
+      ('sales', 'sales'),
+      ('stock_locations', 'stock'),
+      ('suppliers', 'stock'),
+      ('purchase_orders', 'stock'),
+      ('expenses', 'expenses'),
+      ('expense_categories', 'expenses'),
+      ('promotions', 'promotions')
+    ) as mapped(table_name, module_name)
+  loop
+    select exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and information_schema.columns.table_name = item.table_name
+        and information_schema.columns.column_name = 'store_id'
+    ) into table_exists;
+
+    if not table_exists then
+      raise notice 'Skipping module allow policies for %.public table or store_id column not found.', item.table_name;
+      continue;
+    end if;
+
+    foreach action_name in array array['select', 'insert', 'update', 'delete']
+    loop
+      policy_name := 'module_grant_allow_' || action_name;
+      execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
+
+      if action_name = 'select' then
+        execute format(
+          'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L))',
+          policy_name, item.table_name, item.module_name, 'view'
+        );
+      elsif action_name = 'insert' then
+        execute format(
+          'create policy %I on public.%I for insert to authenticated with check (private.has_module_permission(store_id, %L, %L))',
+          policy_name, item.table_name, item.module_name, 'create'
+        );
+      elsif action_name = 'update' then
+        execute format(
+          'create policy %I on public.%I for update to authenticated using (private.has_module_permission(store_id, %L, %L)) with check (private.has_module_permission(store_id, %L, %L))',
+          policy_name, item.table_name, item.module_name, 'update', item.module_name, 'update'
+        );
+      elsif action_name = 'delete' then
+        execute format(
+          'create policy %I on public.%I for delete to authenticated using (private.has_module_permission(store_id, %L, %L))',
+          policy_name, item.table_name, item.module_name, 'delete'
+        );
+      end if;
+    end loop;
+  end loop;
+end;
+$module_grant_allow$;
+
 -- Global Admin must be able to discover and open every store, not only stores
 -- where a separate store_members row exists.
 drop policy if exists global_admin_all_stores on public.stores;
