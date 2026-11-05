@@ -63,7 +63,6 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
   const [members, setMembers] = useState<Member[]>([])
   // Global Admin chooses the destination boutique independently from the app's current workspace.
   const [targetStoreId, setTargetStoreId] = useState(storeId)
-  useEffect(() => { setTargetStoreId(storeId) }, [storeId])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
