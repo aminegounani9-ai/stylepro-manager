@@ -960,11 +960,12 @@ export default function App() {
   useEffect(() => {
     if (!currentRole) return
     const moduleKey = moduleForView[currentView]
-    if (moduleKey && !hasModuleView(moduleKey)) {
+    const canOpenSettings = currentView === 'settings' && (hasModuleView('settings') || hasModuleView('users'))
+    if (moduleKey && !hasModuleView(moduleKey) && !canOpenSettings) {
       const firstAllowed = [
         ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['stock', 'stock'],
         ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'settings'], ['atelier', 'atelier'],
-        ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['settings', 'settings'],
+        ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['users', 'settings'], ['settings', 'settings'],
       ].find(([key]) => hasModuleView(key))
       if (firstAllowed) setCurrentView(firstAllowed[1] as typeof currentView)
     }
@@ -3753,7 +3754,7 @@ const loadPromotions = useCallback(async () => {
 
             <button
               type="button"
-              style={{ display: hasModuleView('settings') ? undefined : 'none' }} className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
+              style={{ display: (hasModuleView('settings') || hasModuleView('users')) ? undefined : 'none' }} className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
               onClick={() => setCurrentView('settings')}
             >
               <SlidersHorizontal size={18} />
