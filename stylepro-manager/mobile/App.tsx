@@ -15,6 +15,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import {
@@ -191,6 +192,8 @@ const MOBILE_MODULE_FOR_VIEW: Record<string, string> = {
 }
 
 export default function App() {
+  const { width: windowWidth } = useWindowDimensions()
+  const compactScreen = windowWidth < 380
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
   const [email, setEmail] = useState('')
@@ -926,7 +929,7 @@ export default function App() {
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" />
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={styles.loginContainer}>
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentContainerStyle={[styles.loginContainer, { paddingHorizontal: compactScreen ? 14 : 24 }]}>
           <View style={styles.logo}>
             <StoreIcon color={COLORS.surface} size={30} />
           </View>
@@ -946,6 +949,8 @@ export default function App() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="next"
+              blurOnSubmit
               style={styles.input}
             />
 
@@ -956,6 +961,8 @@ export default function App() {
               placeholder="Votre mot de passe"
               placeholderTextColor={COLORS.muted}
               secureTextEntry
+              returnKeyType="go"
+              onSubmitEditing={() => void signIn()}
               style={styles.input}
             />
 
@@ -993,7 +1000,8 @@ export default function App() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        contentContainerStyle={[styles.content, language === 'ar' ? {direction:'rtl'} : null]}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        contentContainerStyle={[styles.content, { paddingHorizontal: compactScreen ? 12 : 18 }, language === 'ar' ? {direction:'rtl'} : null]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1706,7 +1714,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  loginContainer: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  loginContainer: { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 },
   logo: {
     width: 64,
     height: 64,
@@ -1750,9 +1758,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFC3AE',
     borderRadius: 12,
+    minHeight: 48,
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    textAlignVertical: 'center',
     color: COLORS.text,
     marginBottom: 10,
   },
@@ -1769,7 +1779,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   error: { color: COLORS.danger, marginTop: 12, fontSize: 13 },
-  content: { padding: 18, paddingBottom: 120 },
+  content: { paddingTop: 18, paddingBottom: 120 },
   languageButton:{minWidth:42,height:42,paddingHorizontal:9,alignItems:'center',justifyContent:'center',borderRadius:12,backgroundColor:COLORS.paleGold,borderWidth:1,borderColor:COLORS.border},
   languageButtonText:{color:COLORS.navy,fontSize:12,fontWeight:'900'},
   periodPanel:{backgroundColor:COLORS.surface,borderRadius:18,padding:14,marginBottom:16,borderWidth:1,borderColor:COLORS.border},
