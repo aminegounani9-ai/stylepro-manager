@@ -136,6 +136,23 @@ Deno.serve(async (req) => {
       return data.can_edit === true;
     };
 
+    const ensureGrantWithinCallerScope = async (rows: ReturnType<typeof normalizePermissions>) => {
+      if (callerRole === "admin") return true;
+      const { data, error } = await adminClient.from("store_member_module_permissions")
+        .select("module_key, can_view, can_add, can_edit, can_delete")
+        .eq("store_id", storeId).eq("user_id", authData.user.id);
+      if (error) throw error;
+      const own = new Map((data || []).map((item) => [item.module_key, item]));
+      for (const row of rows) {
+        const grant = own.get(row.module_key);
+        if (row.can_view && grant?.can_view !== true) return false;
+        if (row.can_add && grant?.can_add !== true) return false;
+        if (row.can_edit && grant?.can_edit !== true) return false;
+        if (row.can_delete && grant?.can_delete !== true) return false;
+      }
+      return true;
+    };
+
     const getTarget = async (userId: string) => {
       const { data, error } = await adminClient.from("store_members")
         .select("user_id, role, is_active, created_at")
@@ -210,6 +227,7 @@ Deno.serve(async (req) => {
 
       try {
         const rows = normalizePermissions(body.permissions, created.user.id, storeId, authData.user.id);
+        if (!(await ensureGrantWithinCallerScope(rows))) throw new Error("Un manager ne peut attribuer que les droits qu'il possède lui-même.");
         const { error } = await adminClient.from("store_member_module_permissions").upsert(rows, { onConflict: "store_id,user_id,module_key" });
         if (error) throw error;
       } catch (error) {
@@ -275,8 +293,10 @@ Deno.serve(async (req) => {
       const target = await getTarget(userId);
       if (!canManageRole(target.role as Role)) return json({ error: "Vous ne pouvez pas modifier les permissions d'un administrateur ou manager" }, 403);
       let rows;
-      try { rows = normalizePermissions(body.permissions, userId, storeId, authData.user.id); }
-      catch (error) { return json({ error: error instanceof Error ? error.message : "Permissions invalides" }, 400); }
+      try {
+        rows = normalizePermissions(body.permissions, userId, storeId, authData.user.id);
+        if (!(await ensureGrantWithinCallerScope(rows))) return json({ error: "Un manager ne peut attribuer que les droits qu'il possède lui-même." }, 403);
+      } catch (error) { return json({ error: error instanceof Error ? error.message : "Permissions invalides" }, 400); }
       const { error } = await adminClient.from("store_member_module_permissions")
         .upsert(rows, { onConflict: "store_id,user_id,module_key" });
       if (error) return json({ error: error.message }, 400);
