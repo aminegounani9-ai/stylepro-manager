@@ -135,6 +135,61 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 400);
       return json({ role: callerRole, is_global_admin: false, permissions: data || [] });
     }
+    if (action === "global_list_users") {
+      if (!isGlobalAdmin) return json({ error: "Global Admin permission required" }, 403);
+      const [usersResult, profilesResult, membersResult] = await Promise.all([
+        adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+        adminClient.from("profiles").select("id, full_name"),
+        adminClient.from("store_members").select("user_id, role, is_active").eq("store_id", storeId),
+      ]);
+      if (usersResult.error) return json({ error: usersResult.error.message }, 400);
+      if (profilesResult.error) return json({ error: profilesResult.error.message }, 400);
+      if (membersResult.error) return json({ error: membersResult.error.message }, 400);
+      const globalAdminsResult = await adminClient.from("global_admins").select("user_id");
+      if (globalAdminsResult.error) return json({ error: globalAdminsResult.error.message }, 400);
+      const globalAdminIds = new Set((globalAdminsResult.data || []).map((item) => item.user_id));
+      const profileById = new Map((profilesResult.data || []).map((item) => [item.id, item.full_name || ""]));
+      const memberById = new Map((membersResult.data || []).map((item) => [item.user_id, item]));
+      return json({
+        users: (usersResult.data.users || [])
+          .filter((item) => !globalAdminIds.has(item.id))
+          .map((item) => ({
+            user_id: item.id,
+            email: item.email || "",
+            full_name: profileById.get(item.id) || "",
+            membership: memberById.get(item.id) || null,
+          })),
+      });
+    }
+
+    if (action === "assign_existing_user") {
+      if (!isGlobalAdmin) return json({ error: "Global Admin permission required" }, 403);
+      const userId = String(body.user_id || "");
+      const role = String(body.role || "") as Role;
+      if (!userId || !allowedRoles.includes(role) || role === "admin") {
+        return json({ error: "Utilisateur ou rôle invalide" }, 400);
+      }
+      const { data: globalTarget } = await adminClient.from("global_admins")
+        .select("user_id").eq("user_id", userId).maybeSingle();
+      if (globalTarget) return json({ error: "Un Global Admin ne peut pas être ajouté comme utilisateur boutique" }, 400);
+      const { data: existing, error: existingError } = await adminClient.from("store_members")
+        .select("user_id").eq("store_id", storeId).eq("user_id", userId).maybeSingle();
+      if (existingError) return json({ error: existingError.message }, 400);
+      if (existing) return json({ error: "Cet utilisateur est déjà affecté à cette boutique" }, 409);
+      const { error: memberError } = await adminClient.from("store_members").insert({
+        store_id: storeId, user_id: userId, role, is_active: true,
+      });
+      if (memberError) return json({ error: memberError.message }, 400);
+      const rows = normalizePermissions(defaultPermissionsForRole(role), userId, storeId, authData.user.id);
+      const { error: permissionsError } = await adminClient.from("store_member_module_permissions")
+        .upsert(rows, { onConflict: "store_id,user_id,module_key" });
+      if (permissionsError) {
+        await adminClient.from("store_members").delete().eq("store_id", storeId).eq("user_id", userId);
+        return json({ error: permissionsError.message }, 400);
+      }
+      return json({ success: true, user_id: userId, store_id: storeId, role });
+    }
+
     if (callerRole !== "admin" && callerRole !== "manager") {
       return json({ error: "Manager permission required for this store" }, 403);
     }
