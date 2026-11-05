@@ -1368,19 +1368,18 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
     setLoading(true)
     setError('')
-
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id,name,currency')
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      setError(`Chargement des boutiques : ${error.message}`)
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'list_stores' },
+    })
+    if (error || data?.error) {
+      setError(`Chargement des boutiques : ${error?.message || data?.error || 'Accès refusé'}`)
+      setStores([])
+      setStoreId('')
       setLoading(false)
       return
     }
 
-    const rows = (data ?? []) as StoreRow[]
+    const rows = (data?.stores ?? []) as StoreRow[]
     setStores(rows)
     setStoreId(previous =>
       rows.some(row => row.id === previous) ? previous : rows[0]?.id ?? ''
