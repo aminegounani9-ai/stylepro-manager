@@ -178,6 +178,15 @@ create policy store_member_module_permissions_delete
     private.can_manage_member_module(store_id, user_id, module_key)
   );
 
+grant execute on function private.is_global_admin()
+  to authenticated, service_role;
+grant execute on function private.has_module_permission(uuid, text, text)
+  to authenticated, service_role;
+grant execute on function private.can_manage_store_users(uuid)
+  to authenticated, service_role;
+grant execute on function private.can_manage_member_module(uuid, uuid, text, boolean, boolean, boolean, boolean)
+  to authenticated, service_role;
+
 grant select, insert, update, delete
   on public.store_member_module_permissions to authenticated;
 
