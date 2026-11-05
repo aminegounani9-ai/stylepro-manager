@@ -110,5 +110,8 @@ Before release, complete these steps:
 
 - A separate branch `feat/custom-store-module-permissions` was created from `main`.
 - The additive SQL foundation is drafted on that branch only. No SQL has been run against Supabase; no production data, policies, or Auth users were changed.
-- The existing `manage-users` Edge Function and Web/Android user interfaces have not yet been updated on this branch.
-- The new permission table and helper functions alone do not secure business data. Do not deploy this phase as complete until restrictive business-table RLS policies and all client integrations are ready.
+- `manage-users` has been updated in the branch to distinguish global Admin from store-scoped Manager, restrict Manager delegation to Cashier/Stock Manager, store per-user module/CRUD grants, and disable a membership per store instead of banning the whole Auth account.
+- The Web/Desktop user-management component now contains a per-module Voir / Ajouter / Modifier / Supprimer editor and uses the Edge Function as its authorization source.
+- The Web app has begun loading authorized store lists and server permission snapshots. Complete navigation gating and direct-route handling are still pending.
+- Android user-management and navigation have not yet been integrated with the new permission contract.
+- Most importantly, existing business-table RLS policies have not yet been narrowed by module/action. The new permission table and helper functions alone do not secure business data. Do not deploy or apply this phase as a completed authorization solution.
