@@ -2151,7 +2151,7 @@ async function findProductByScannedCode(rawCode: string) {
     let product = products.find(p => p.id === variant.product_id && p.active)
     if (!product) {
       const result = await supabase.from('products')
-        .select('id,name,target_audience,description,category_id,brand_id,active,image_url')
+        .select('id,name,target_audience,description,category_id,brand_id,active')
         .eq('store_id', storeId)
         .eq('id', variant.product_id)
         .eq('active', true)
