@@ -81,6 +81,7 @@ do $$
 declare
   item record;
   policy_name text;
+  select_expression text;
 begin
   for item in
     select * from (values
@@ -138,9 +139,31 @@ begin
 
       policy_name := left('module_gate_' || item.table_name || '_select', 63);
       execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
+      select_expression := format('private.has_store_module_permission(store_id, %L, %L)', item.module_key, 'view')
+        || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'dashboard', 'view');
+      if item.table_name in ('products', 'product_variants') then
+        select_expression := select_expression
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'sales', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'stock', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'returns', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'deliveries', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'labels', 'view');
+      elsif item.table_name = 'customers' then
+        select_expression := select_expression
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'sales', 'view');
+      elsif item.table_name in ('sales', 'sale_items') then
+        select_expression := select_expression
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'returns', 'view');
+      elsif item.table_name = 'stock_movements' then
+        select_expression := select_expression
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'sales', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'returns', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'deliveries', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'atelier', 'view');
+      end if;
       execute format(
-        'create policy %I on public.%I as restrictive for select to authenticated using (private.has_store_module_permission(store_id, %L, %L))',
-        policy_name, item.table_name, item.module_key, 'view'
+        'create policy %I on public.%I as restrictive for select to authenticated using (%s)',
+        policy_name, item.table_name, select_expression
       );
 
       policy_name := left('module_gate_' || item.table_name || '_insert', 63);
