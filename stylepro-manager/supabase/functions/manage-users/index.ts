@@ -87,6 +87,49 @@ Deno.serve(async (req) => {
     const action = String(body.action || "");
     if (!storeId) return json({ error: "store_id is required" }, 400);
 
+    // Read-only permission bootstrap for every signed-in store member.
+    // This action intentionally runs before user-administration checks.
+    if (action === "my_permissions") {
+      const [{ data: ownMembership, error: ownMembershipError }, { data: ownAdminMemberships, error: ownAdminError }] =
+        await Promise.all([
+          adminClient.from("store_members")
+            .select("role,is_active")
+            .eq("store_id", storeId)
+            .eq("user_id", authData.user.id)
+            .maybeSingle(),
+          adminClient.from("store_members")
+            .select("store_id")
+            .eq("user_id", authData.user.id)
+            .eq("role", "admin")
+            .eq("is_active", true),
+        ]);
+      if (ownMembershipError) return json({ error: ownMembershipError.message }, 400);
+      if (ownAdminError) return json({ error: ownAdminError.message }, 400);
+      if (!ownMembership || ownMembership.is_active === false) {
+        return json({ error: "Aucune adhésion active dans cette boutique" }, 403);
+      }
+      if ((ownAdminMemberships || []).length > 0) {
+        return json({
+          is_global_admin: true,
+          role: ownMembership.role,
+          permissions: moduleKeys.map((module_key) => ({
+            module_key, can_view: true, can_create: true, can_update: true, can_delete: true,
+          })),
+        });
+      }
+      const { data: ownGrants, error: ownGrantsError } = await adminClient
+        .from("store_member_module_permissions")
+        .select("module_key,can_view,can_create,can_update,can_delete")
+        .eq("store_id", storeId)
+        .eq("user_id", authData.user.id);
+      if (ownGrantsError) return json({ error: ownGrantsError.message }, 400);
+      return json({
+        is_global_admin: false,
+        role: ownMembership.role,
+        permissions: ownGrants || [],
+      });
+    }
+
     const [{ data: selectedMembership, error: selectedError }, { data: adminMemberships, error: adminError }] =
       await Promise.all([
         adminClient.from("store_members")
