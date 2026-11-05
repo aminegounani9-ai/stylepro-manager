@@ -69,13 +69,14 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('cashier')
   const [callerRole, setCallerRole] = useState<Role | null>(null)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
   const [draftPermissions, setDraftPermissions] = useState<Permission[]>(emptyPermissions)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Permission[]>(emptyPermissions)
 
   const canManage = callerRole === 'admin' || callerRole === 'manager'
-  const isAdmin = callerRole === 'admin'
-  const availableRoles = isAdmin ? roles : roles.filter(item => item.value === 'cashier' || item.value === 'stock_manager')
+  const isAdmin = isGlobalAdmin
+  const availableRoles = isGlobalAdmin ? roles : roles.filter(item => item.value === 'cashier' || item.value === 'stock_manager')
 
   const call = useCallback(async (payload: Record<string, unknown>) => {
     const { data, error: invokeError } = await supabase.functions.invoke('manage-users', { body: { ...payload, store_id: storeId } })
@@ -88,12 +89,11 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
     if (!storeId || !user) return
     setLoading(true); setError('')
     try {
-      const { data: membership, error: membershipError } = await supabase.from('store_members')
-        .select('role, is_active').eq('store_id', storeId).eq('user_id', user.id).maybeSingle()
-      if (membershipError) throw membershipError
-      if (!membership?.is_active) throw new Error('Votre accès à cette boutique est désactivé.')
-      const memberRole = membership.role as Role
+      const access = await call({ action: 'my_permissions' })
+      const memberRole = access.role as Role | undefined
+      if (!memberRole) throw new Error('Accès à cette boutique non autorisé.')
       setCallerRole(memberRole)
+      setIsGlobalAdmin(access.is_global_admin === true)
       if (memberRole === 'admin' || memberRole === 'manager') {
         const result = await call({ action: 'list' })
         setMembers((result.members || []) as Member[])
