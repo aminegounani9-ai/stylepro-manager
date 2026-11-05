@@ -89,7 +89,8 @@ begin
             or private.has_module_permission(store_id, ''atelier'', ''view'')
             or private.has_module_permission(store_id, ''labels'', ''view'')
             or private.has_module_permission(store_id, ''promotions'', ''view'')
-            or private.has_module_permission(store_id, ''deliveries'', ''view'')';
+            or private.has_module_permission(store_id, ''deliveries'', ''view'')
+            or private.has_module_permission(store_id, ''dashboard'', ''view'')';
         elsif table_name in ('categories', 'brands') then
           select_expression := 'private.has_module_permission(store_id, ''catalogue'', ''view'')
             or private.has_module_permission(store_id, ''sales'', ''view'')
