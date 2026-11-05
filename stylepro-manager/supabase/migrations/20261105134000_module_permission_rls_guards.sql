@@ -113,7 +113,8 @@ begin
             or private.has_module_permission(store_id, ''atelier'', ''view'')';
         elsif table_name in ('sales', 'sale_items') then
           select_expression := 'private.has_module_permission(store_id, ''sales'', ''view'')
-            or private.has_module_permission(store_id, ''dashboard'', ''view'')';
+            or private.has_module_permission(store_id, ''dashboard'', ''view'')
+            or private.has_module_permission(store_id, ''returns'', ''view'')';
         elsif table_name in ('returns', 'return_items') then
           select_expression := 'private.has_module_permission(store_id, ''returns'', ''view'')
             or private.has_module_permission(store_id, ''dashboard'', ''view'')';
