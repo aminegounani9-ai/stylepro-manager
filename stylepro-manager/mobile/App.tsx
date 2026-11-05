@@ -184,6 +184,12 @@ function MetricCard({
   )
 }
 
+const MOBILE_MODULE_FOR_VIEW: Record<string, string> = {
+  dashboard: 'dashboard', products: 'catalogue', sales: 'sales', stock: 'stock',
+  returns: 'returns', clients: 'clients', expenses: 'expenses', atelier: 'atelier',
+  deliveries: 'deliveries', promotions: 'promotions', labels: 'labels', users: 'users', settings: 'settings',
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
@@ -191,6 +197,9 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
+  const [mobileRole, setMobileRole] = useState<string | null>(null)
+  const [mobileModuleGrants, setMobileModuleGrants] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
+  const canViewMobileModule = useCallback((viewKey: string) => mobileRole === 'admin' || mobileModuleGrants[MOBILE_MODULE_FOR_VIEW[viewKey]]?.can_view === true, [mobileRole, mobileModuleGrants])
   const [products, setProducts] = useState<ProductRow[]>([])
   const [sales, setSales] = useState<SaleRow[]>([])
   const [returns, setReturns] = useState<ReturnRow[]>([])
@@ -483,6 +492,48 @@ export default function App() {
       active = false
     }
   }, [user, storeId, loadProducts, loadAnalytics])
+
+  useEffect(() => {
+    let active = true
+    async function loadMobileAccess() {
+      if (!user || !storeId) {
+        setMobileRole(null)
+        setMobileModuleGrants({})
+        return
+      }
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'my_permissions', store_id: storeId },
+      })
+      if (!active) return
+      if (error || data?.error || !data?.role) {
+        setMobileRole(null)
+        setMobileModuleGrants({})
+        return
+      }
+      setMobileRole(data.role)
+      if (data.is_global_admin === true || data.role === 'admin') {
+        setMobileModuleGrants({})
+        return
+      }
+      const next: Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }> = {}
+      for (const grant of data.permissions || []) next[grant.module_key] = {
+        can_view: grant.can_view === true, can_add: grant.can_add === true,
+        can_edit: grant.can_edit === true, can_delete: grant.can_delete === true,
+      }
+      setMobileModuleGrants(next)
+    }
+    void loadMobileAccess()
+    return () => { active = false }
+  }, [user?.id, storeId])
+
+  useEffect(() => {
+    if (!mobileRole) return
+    if (view !== 'dashboard' && !canViewMobileModule(view)) {
+      const firstAllowed = ['products', 'sales', 'stock', 'returns', 'clients', 'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'settings']
+        .find(key => canViewMobileModule(key))
+      setView((firstAllowed || 'dashboard') as typeof view)
+    }
+  }, [mobileRole, mobileModuleGrants, view, canViewMobileModule])
 
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
@@ -1042,7 +1093,7 @@ export default function App() {
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
-          ] as [typeof view, string][]).map(([key, label]) => (
+          ] as [typeof view, string][]).filter(([key]) => key !== 'users' && canViewMobileModule(key)).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
