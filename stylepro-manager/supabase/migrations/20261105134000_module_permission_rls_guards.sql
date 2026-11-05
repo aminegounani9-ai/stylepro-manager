@@ -55,8 +55,8 @@ begin
       select 1
       from information_schema.columns
       where table_schema = 'public'
-        and table_name = item.table_name
-        and column_name = 'store_id'
+        and information_schema.columns.table_name = item.table_name
+        and information_schema.columns.column_name = 'store_id'
     ) into table_exists;
 
     if not table_exists then
