@@ -844,6 +844,10 @@ export default function App() {
 
   // STYLEPRO_SCANNER_ADDED
   async function openScanner() {
+    if (!permissionsReady || (!canViewMobileModule('sales') && !canViewMobileModule('labels'))) {
+      Alert.alert('Accès non autorisé', 'Le scanner nécessite le module Ventes ou Étiquettes QR.')
+      return
+    }
     setScanResult(null)
     setScanMessage('')
     setScanLocked(false)
@@ -864,6 +868,7 @@ export default function App() {
   }
 
   async function handleBarcodeScanned(result: { data: string }, fromHardwareScanner = false) {
+    if (!permissionsReady || (!canViewMobileModule('sales') && !canViewMobileModule('labels'))) return
     if ((!fromHardwareScanner && scanLocked) || scannerLoading) return
 
     const code = result.data?.trim()
@@ -1200,7 +1205,7 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
+        {(canViewMobileModule('sales') || canViewMobileModule('labels')) && <TouchableOpacity
           onPress={() => void openScanner()}
           style={{
             marginTop: 14,
@@ -1218,7 +1223,7 @@ export default function App() {
           <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
             {t('Scanner QR / Code-barres')}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         {storePickerOpen && (
           <View style={styles.storePicker}>
