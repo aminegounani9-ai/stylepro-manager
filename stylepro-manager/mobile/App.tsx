@@ -531,6 +531,22 @@ export default function App() {
     }
   }, [user, storeId, loadProducts, loadAnalytics])
 
+  useEffect(() => {
+    if (!user || !storeId) return
+    void loadPermissions(storeId).catch(e => setError(e instanceof Error ? e.message : 'Permissions indisponibles.'))
+  }, [user, storeId, loadPermissions])
+
+  useEffect(() => {
+    if (!permissionsReady || !user || !storeId) return
+    const moduleKey = viewModuleKey[view] || 'dashboard'
+    if (canViewMobileModule(moduleKey)) return
+    const fallback = [
+      'dashboard', 'products', 'sales', 'stock', 'returns', 'clients',
+      'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'users', 'settings',
+    ].find(key => canViewMobileModule(viewModuleKey[key] || key))
+    if (fallback && fallback !== view) setView(fallback as typeof view)
+  }, [permissionsReady, user, storeId, view, modulePermissions, isGlobalAdmin])
+
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
     clients: 'Clients', expenses: 'Dépenses', atelier: 'Atelier', deliveries: 'Livraisons',
@@ -538,7 +554,13 @@ export default function App() {
   }
 
   async function loadModule(nextView: typeof view) {
-    if (!storeId || nextView === 'dashboard' || nextView === 'settings') {
+    if (!storeId) return
+    const requiredModule = viewModuleKey[nextView] || nextView
+    if (!permissionsReady || !canViewMobileModule(requiredModule)) {
+      setError('Accès non autorisé : ce module ne fait pas partie de vos permissions.')
+      return
+    }
+    if (nextView === 'dashboard' || nextView === 'settings') {
       setModuleRows([]); setView(nextView); return
     }
     setModuleLoading(true); setError(''); setModuleSearch('')
