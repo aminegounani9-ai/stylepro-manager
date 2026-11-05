@@ -939,16 +939,16 @@ export default function App() {
         setModulePermissions({})
         return
       }
-      const { data: grants, error: grantsError } = await supabase.from('store_member_module_permissions')
-        .select('module_key, can_view, can_add, can_edit, can_delete')
-        .eq('store_id', storeId).eq('user_id', user.id)
+      const { data: permissionResult, error: permissionError } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'my_permissions', store_id: storeId },
+      })
       if (cancelled) return
-      if (grantsError) {
+      if (permissionError || permissionResult?.error) {
         setModulePermissions({})
         return
       }
       const next: Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }> = {}
-      for (const grant of grants || []) next[grant.module_key] = {
+      for (const grant of permissionResult?.permissions || []) next[grant.module_key] = {
         can_view: grant.can_view === true, can_add: grant.can_add === true,
         can_edit: grant.can_edit === true, can_delete: grant.can_delete === true,
       }
