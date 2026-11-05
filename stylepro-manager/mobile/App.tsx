@@ -301,19 +301,58 @@ export default function App() {
   }, [])
 
   const loadStores = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id,name,currency')
-      .order('created_at', { ascending: true })
-
-    if (error) throw new Error(`Boutiques : ${error.message}`)
-
-    const rows = (data ?? []) as StoreRow[]
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'list_stores' },
+    })
+    if (error || data?.error) throw new Error(`Boutiques : ${error?.message || data?.error || 'Accès refusé'}`)
+    const rows = (data?.stores ?? []) as StoreRow[]
     setStores(rows)
     setStoreId(current =>
       rows.some(row => row.id === current) ? current : rows[0]?.id ?? '',
     )
   }, [])
+
+  const loadPermissions = useCallback(async (id: string) => {
+    if (!id) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(false)
+      return
+    }
+    setPermissionsReady(false)
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'my_permissions', store_id: id },
+    })
+    if (error || data?.error) {
+      setModulePermissions({})
+      setIsGlobalAdmin(false)
+      setPermissionsReady(true)
+      throw new Error(`Permissions : ${error?.message || data?.error || 'Chargement impossible'}`)
+    }
+    const next: Record<string, {can_view:boolean;can_create:boolean;can_update:boolean;can_delete:boolean}> = {}
+    for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
+      const key = String(grant.module_key || '')
+      next[key] = {
+        can_view: grant.can_view === true,
+        can_create: grant.can_create === true,
+        can_update: grant.can_update === true,
+        can_delete: grant.can_delete === true,
+      }
+    }
+    setModulePermissions(next)
+    setIsGlobalAdmin(data?.is_global_admin === true)
+    setPermissionsReady(true)
+  }, [])
+
+  const viewModuleKey: Record<string,string> = {
+    dashboard:'dashboard', products:'catalogue', sales:'sales', stock:'stock',
+    returns:'returns', clients:'clients', expenses:'expenses', atelier:'atelier',
+    deliveries:'deliveries', promotions:'promotions', labels:'labels',
+    users:'users', settings:'settings',
+  }
+  const canViewMobileModule = (key: string) =>
+    isGlobalAdmin || modulePermissions[key]?.can_view === true
+
 
   const loadProducts = useCallback(async (id: string) => {
     if (!id) {
