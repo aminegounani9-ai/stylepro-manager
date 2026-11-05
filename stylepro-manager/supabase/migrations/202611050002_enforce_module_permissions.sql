@@ -147,6 +147,8 @@ begin
           || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'stock', 'view')
           || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'returns', 'view')
           || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'deliveries', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'atelier', 'view')
+          || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'promotions', 'view')
           || ' or ' || format('private.has_store_module_permission(store_id, %L, %L)', 'labels', 'view');
       elsif item.table_name = 'customers' then
         select_expression := select_expression
