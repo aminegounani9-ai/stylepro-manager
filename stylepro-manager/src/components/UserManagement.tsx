@@ -121,10 +121,10 @@ function PermissionEditor({
     const allowed = grantablePermissions?.[grant.module_key]
     return {
       ...grant,
-      can_view: checked && (allowed?.can_view ?? true),
-      can_create: checked && (allowed?.can_create ?? true),
-      can_update: checked && (allowed?.can_update ?? true),
-      can_delete: checked && (allowed?.can_delete ?? true),
+      can_view: checked && (allowed?.can_view ?? (grantablePermissions === undefined)),
+      can_create: checked && (allowed?.can_create ?? (grantablePermissions === undefined)),
+      can_update: checked && (allowed?.can_update ?? (grantablePermissions === undefined)),
+      can_delete: checked && (allowed?.can_delete ?? (grantablePermissions === undefined)),
     }
   }))
 
@@ -150,7 +150,7 @@ function PermissionEditor({
               <input
                 type="checkbox"
                 checked={grant[action]}
-                disabled={disabled || (allowed ? allowed[action] !== true : false)}
+                disabled={disabled || (grantablePermissions !== undefined && allowed?.[action] !== true)}
                 onChange={(event) => update(module.key, action, event.target.checked)}
               />
               <span>{label}</span>
