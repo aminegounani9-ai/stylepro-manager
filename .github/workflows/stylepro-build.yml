@@ -32,3 +32,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+      - name: Upload production web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: stylepro-web-dist
+          path: stylepro-manager/dist/
+          if-no-files-found: error
+          retention-days: 14
