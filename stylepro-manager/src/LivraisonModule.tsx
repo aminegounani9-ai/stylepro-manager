@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { ReactNode } from 'react'
 import { Truck, Plus, RefreshCw, Search, Package, ClipboardList, MapPin, Phone, User, Eye, RotateCcw, Printer, CheckCircle2, Clock3, AlertCircle, X, Trash2, Filter } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getLocalRecords, saveLocalRecord, type EntityTable } from './lib/offlineDb'
+import { getLocalRecords, cacheServerRecord, type EntityTable } from './lib/offlineDb'
 import './livraison.css'
 
 type Delivery = { id: string; delivery_number: number | string; status: string; customer_id: string | null; recipient_name: string | null; recipient_phone: string | null; delivery_address: string | null; notes: string | null; created_at: string }
@@ -61,7 +61,7 @@ export default function LivraisonModule({ storeId, userId }: Props) {
     setLoading(true); setError('')
     const tables: EntityTable[] = ['deliveries','products','product_variants','customers','stock_movements','stock_storage_positions','delivery_returns']
     const cache = async (table: EntityTable, rows: Array<Record<string, unknown>>) => {
-      await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row)))
+      await Promise.all(rows.map(row => cacheServerRecord(table, storeId, row)))
     }
     const cached = async <T,>(table: EntityTable): Promise<T[]> =>
       (await getLocalRecords<T>(storeId, table)).map(row => row.data)
