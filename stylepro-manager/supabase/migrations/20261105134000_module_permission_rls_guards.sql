@@ -44,8 +44,7 @@ begin
       ('promotions', 'promotions'),
       ('promotion_products', 'promotions'),
       ('store_modules', 'settings'),
-      ('store_settings', 'settings'),
-      ('audit_logs', 'settings')
+      ('store_settings', 'settings')
     ) as mapped(table_name, module_name)
   loop
     table_name := item.table_name;
