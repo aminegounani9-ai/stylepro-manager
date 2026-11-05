@@ -122,6 +122,7 @@ as $can_manage_member_module$
     private.is_global_admin()
     or (
       private.can_manage_store_users(p_store_id)
+      and private.has_module_permission(p_store_id, 'users', 'update')
       and (not p_can_view or private.has_module_permission(p_store_id, p_module_key, 'view'))
       and (not p_can_create or private.has_module_permission(p_store_id, p_module_key, 'create'))
       and (not p_can_update or private.has_module_permission(p_store_id, p_module_key, 'update'))
