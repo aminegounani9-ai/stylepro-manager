@@ -7,6 +7,7 @@ type Role = 'admin' | 'manager' | 'cashier' | 'stock_manager'
 type ModuleKey = 'dashboard' | 'catalogue' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'promotions' | 'labels' | 'users' | 'settings'
 type Permission = { module_key: ModuleKey; can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }
 type Member = { user_id: string; role: Role; created_at: string; full_name: string; email: string; is_active: boolean; permissions: Permission[] }
+type StoreOption = { id: string; name: string; currency: string }
 
 const modules: { key: ModuleKey; label: string }[] = [
   { key: 'dashboard', label: 'Tableau de bord' },
@@ -58,8 +59,11 @@ function PermissionEditor({ value, onChange, disabled = false }: { value: Permis
   </div>
 }
 
-export default function UserManagement({ user, storeId, storeName }: { user: User | null; storeId: string; storeName: string }) {
+export default function UserManagement({ user, storeId, storeName, stores = [] }: { user: User | null; storeId: string; storeName: string; stores?: StoreOption[] }) {
   const [members, setMembers] = useState<Member[]>([])
+  // Global Admin chooses the destination boutique independently from the app's current workspace.
+  const [targetStoreId, setTargetStoreId] = useState(storeId)
+  useEffect(() => { setTargetStoreId(storeId) }, [storeId])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -81,14 +85,14 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const availableRoles = isGlobalAdmin ? roles : roles.filter(item => item.value === 'cashier' || item.value === 'stock_manager')
 
   const call = useCallback(async (payload: Record<string, unknown>) => {
-    const { data, error: invokeError } = await supabase.functions.invoke('manage-users', { body: { ...payload, store_id: storeId } })
+    const { data, error: invokeError } = await supabase.functions.invoke('manage-users', { body: { ...payload, store_id: targetStoreId } })
     if (invokeError) throw new Error(invokeError.message)
     if (data?.error) throw new Error(data.error)
     return data
-  }, [storeId])
+  }, [targetStoreId])
 
   const load = useCallback(async () => {
-    if (!storeId || !user) return
+    if (!targetStoreId || !user) return
     setLoading(true); setError('')
     try {
       const access = await call({ action: 'my_permissions' })
@@ -108,7 +112,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'Chargement impossible') }
     finally { setLoading(false) }
-  }, [storeId, user, call])
+  }, [targetStoreId, user, call])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
@@ -152,12 +156,13 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   }
 
   return <section className="panel settings-users">
-    <div className="panel-title"><ShieldCheck size={21}/><div><h2>Gestion des utilisateurs</h2><p>Gérez les accès et les permissions pour {storeName || 'la boutique sélectionnée'}.</p></div>
+    <div className="panel-title"><ShieldCheck size={21}/><div><h2>Gestion des utilisateurs</h2><p>Gérez les accès et les permissions pour {(stores.find(store => store.id === targetStoreId)?.name) || storeName || 'la boutique sélectionnée'}. </p></div>
       {canManage && <button type="button" className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> Actualiser</button>}
     </div>
-    {!storeId ? <p className="appearance-note">Sélectionnez une boutique pour gérer ses utilisateurs.</p> :
+    {!targetStoreId ? <p className="appearance-note">Sélectionnez une boutique pour gérer ses utilisateurs.</p> :
       !canManage && !loading ? <p className="appearance-note">Cette section est réservée aux administrateurs et managers autorisés.</p> :
       <>
+        {isGlobalAdmin && <label className="field user-store-assignment">Boutique à gérer / boutique du nouvel utilisateur<select value={targetStoreId} onChange={event => setTargetStoreId(event.target.value)} disabled={saving || stores.length === 0} required><option value="" disabled>Choisir une boutique</option>{stores.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select><small>Le Manager créé sera rattaché à la boutique sélectionnée. Ses employés seront ensuite créés dans cette même boutique.</small></label>}
         {error && <p role="alert" className="form-error">{error}</p>}
         {notice && <p role="status" className="appearance-note">{notice}</p>}
         {canManage && <>
@@ -170,7 +175,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
               <h3>Permissions du nouvel utilisateur</h3>
               <PermissionEditor value={draftPermissions} onChange={setDraftPermissions} disabled={saving}/>
             </div>
-            <button type="submit" className="primary-button" disabled={saving}><UserPlus size={16}/> {saving ? 'Création…' : 'Ajouter utilisateur'}</button>
+            <button type="submit" className="primary-button" disabled={saving || !targetStoreId}><UserPlus size={16}/> {saving ? 'Création…' : 'Ajouter utilisateur'}</button>
           </form>}
           <div className="user-members-list">
             <h3>Utilisateurs de la boutique ({members.length})</h3>
