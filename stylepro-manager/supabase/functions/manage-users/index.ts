@@ -32,6 +32,25 @@ type PermissionInput = {
   can_delete?: boolean;
 };
 
+function defaultPermissionsForRole(role: Role): PermissionInput[] {
+  return moduleKeys.map((module_key) => {
+    const manager = role === "manager" || role === "admin";
+    const stock = role === "stock_manager" && ["dashboard", "catalogue", "stock", "labels", "deliveries"].includes(module_key);
+    const cashier = role === "cashier" && ["dashboard", "sales", "returns", "clients"].includes(module_key);
+    const canWrite = manager ||
+      (role === "stock_manager" && ["stock", "deliveries"].includes(module_key)) ||
+      (role === "cashier" && ["sales", "returns", "clients"].includes(module_key));
+    return {
+      module_key,
+      can_view: manager || stock || cashier,
+      can_add: canWrite,
+      can_edit: manager || (role === "stock_manager" && ["stock", "deliveries"].includes(module_key)) ||
+        (role === "cashier" && ["returns", "clients"].includes(module_key)),
+      can_delete: manager,
+    };
+  });
+}
+
 function normalizePermissions(input: unknown, userId: string, storeId: string, grantedBy: string) {
   if (input !== undefined && !Array.isArray(input)) throw new Error("permissions must be an array");
   const supplied = (Array.isArray(input) ? input : []) as PermissionInput[];
@@ -226,7 +245,8 @@ Deno.serve(async (req) => {
       if (memberError) { await rollback(); return json({ error: memberError.message }, 400); }
 
       try {
-        const rows = normalizePermissions(body.permissions, created.user.id, storeId, authData.user.id);
+        const permissionInput = body.permissions === undefined ? defaultPermissionsForRole(role) : body.permissions;
+        const rows = normalizePermissions(permissionInput, created.user.id, storeId, authData.user.id);
         if (!(await ensureGrantWithinCallerScope(rows))) throw new Error("Un manager ne peut attribuer que les droits qu'il possède lui-même.");
         const { error } = await adminClient.from("store_member_module_permissions").upsert(rows, { onConflict: "store_id,user_id,module_key" });
         if (error) throw error;
