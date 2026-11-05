@@ -89,6 +89,11 @@ Deno.serve(async (req) => {
     const action = String(body.action || "");
     if (!storeId) return json({ error: "store_id is required" }, 400);
 
+    const { data: globalAdminRow, error: globalAdminError } = await adminClient
+      .from("global_admins").select("user_id").eq("user_id", authData.user.id).maybeSingle();
+    if (globalAdminError) return json({ error: globalAdminError.message }, 400);
+    const isGlobalAdmin = Boolean(globalAdminRow);
+
     const { data: callerMembership, error: membershipError } = await adminClient
       .from("store_members")
       .select("role, is_active")
@@ -97,24 +102,27 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (membershipError) return json({ error: membershipError.message }, 400);
-    if (!callerMembership || callerMembership.is_active !== true) {
+    if (!isGlobalAdmin && (!callerMembership || callerMembership.is_active !== true)) {
       return json({ error: "Active store membership required" }, 403);
     }
-    const callerRole = callerMembership.role as Role;
+    const callerRole = (isGlobalAdmin ? "admin" : callerMembership?.role) as Role;
     if (action === "my_permissions") {
-      if (callerRole === "admin") return json({ permissions: [] });
+      if (isGlobalAdmin || callerRole === "admin") {
+        return json({ role: callerRole, is_global_admin: isGlobalAdmin, permissions: [] });
+      }
       const { data, error } = await adminClient.from("store_member_module_permissions")
         .select("module_key, can_view, can_add, can_edit, can_delete")
         .eq("store_id", storeId).eq("user_id", authData.user.id);
       if (error) return json({ error: error.message }, 400);
-      return json({ permissions: data || [] });
+      return json({ role: callerRole, is_global_admin: false, permissions: data || [] });
     }
     if (callerRole !== "admin" && callerRole !== "manager") {
       return json({ error: "Manager permission required for this store" }, 403);
     }
 
+    // Only the registered Global Admin may create or manage Admin/Manager accounts.
     const canManageRole = (targetRole: Role) =>
-      callerRole === "admin" || (targetRole !== "admin" && targetRole !== "manager");
+      isGlobalAdmin || (targetRole !== "admin" && targetRole !== "manager");
 
     const getTarget = async (userId: string) => {
       const { data, error } = await adminClient.from("store_members")
