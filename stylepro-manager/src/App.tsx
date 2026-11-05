@@ -101,7 +101,6 @@ type ProductRow = {
   category_id?: string | null
   brand_id?: string | null
   active: boolean
-  image_url?: string | null
 }
 
 
@@ -1400,7 +1399,7 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,target_audience,description,category_id,brand_id,active,image_url')
+      .select('id,name,target_audience,description,category_id,brand_id,active')
       .eq('store_id', storeId)
       .order('name')
 
@@ -2152,7 +2151,7 @@ async function findProductByScannedCode(rawCode: string) {
     let product = products.find(p => p.id === variant.product_id && p.active)
     if (!product) {
       const result = await supabase.from('products')
-        .select('id,name,target_audience,description,category_id,brand_id,active,image_url')
+        .select('id,name,target_audience,description,category_id,brand_id,active')
         .eq('store_id', storeId)
         .eq('id', variant.product_id)
         .eq('active', true)
@@ -2684,7 +2683,7 @@ async function openProductEditor(productId: string, duplicate = false) {
   try {
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id,name,description,target_audience,category_id,brand_id,active,image_url')
+      .select('id,name,description,target_audience,category_id,brand_id,active')
       .eq('id', productId)
       .eq('store_id', storeId)
       .single()
@@ -6425,14 +6424,6 @@ const loadPromotions = useCallback(async () => {
                     </div>
 
                     <div className="scan-product-detail-body">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} />
-                      ) : (
-                        <div className="scan-product-placeholder">
-                          <Shirt size={42} />
-                        </div>
-                      )}
-
                       <div className="scan-product-information">
                         <h2>{product.name}</h2>
                         <p>{product.description || 'Aucune description disponible.'}</p>
