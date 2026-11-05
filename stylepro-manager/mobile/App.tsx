@@ -528,7 +528,7 @@ export default function App() {
 
   useEffect(() => {
     if (!mobileRole) return
-    if (view !== 'dashboard' && !canViewMobileModule(view)) {
+    if (!canViewMobileModule(view)) {
       const firstAllowed = ['products', 'sales', 'stock', 'returns', 'clients', 'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'settings']
         .find(key => canViewMobileModule(key))
       setView((firstAllowed || 'dashboard') as typeof view)
