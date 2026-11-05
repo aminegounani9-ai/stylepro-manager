@@ -84,7 +84,7 @@ svg {
 
 .user-permission-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 9px;
   min-width: 0;
   padding: 11px;
@@ -94,6 +94,7 @@ svg {
 }
 
 .user-permission-row > span {
+  grid-column: 1 / -1;
   min-width: 0;
   color: var(--text, #30291f);
   font-size: 12px;
@@ -156,7 +157,7 @@ svg {
   }
 
   .user-permission-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
     padding: 9px;
   }
