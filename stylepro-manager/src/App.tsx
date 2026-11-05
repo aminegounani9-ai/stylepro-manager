@@ -926,24 +926,17 @@ export default function App() {
         setModulePermissions({})
         return
       }
-      const { data: membership, error: memberError } = await supabase.from('store_members')
-        .select('role, is_active').eq('store_id', storeId).eq('user_id', user.id).maybeSingle()
-      if (cancelled) return
-      if (memberError || !membership || membership.is_active !== true) {
-        setCurrentRole(null)
-        setModulePermissions({})
-        return
-      }
-      setCurrentRole(membership.role)
-      if (membership.role === 'admin') {
-        setModulePermissions({})
-        return
-      }
       const { data: permissionResult, error: permissionError } = await supabase.functions.invoke('manage-users', {
         body: { action: 'my_permissions', store_id: storeId },
       })
       if (cancelled) return
-      if (permissionError || permissionResult?.error) {
+      if (permissionError || permissionResult?.error || !permissionResult?.role) {
+        setCurrentRole(null)
+        setModulePermissions({})
+        return
+      }
+      setCurrentRole(permissionResult.role)
+      if (permissionResult.is_global_admin === true || permissionResult.role === 'admin') {
         setModulePermissions({})
         return
       }
