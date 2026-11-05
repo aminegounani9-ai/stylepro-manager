@@ -351,6 +351,57 @@ begin
 end;
 $purchase_order_item_allow$;
 
+-- Promotion-product rows must point to both a promotion and product in
+-- the same store before module grants can authorize their mutation.
+do $promotion_product_allow$
+declare
+  action_name text;
+  has_columns boolean;
+begin
+  select
+    exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='promotion_products' and c.column_name='store_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='promotion_products' and c.column_name='promotion_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='promotion_products' and c.column_name='product_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='promotions' and c.column_name='id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='promotions' and c.column_name='store_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='products' and c.column_name='id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='products' and c.column_name='store_id')
+  into has_columns;
+
+  if has_columns then
+    foreach action_name in array array['insert', 'update', 'delete']
+    loop
+      execute format('drop policy if exists %I on public.promotion_products', 'module_grant_allow_' || action_name);
+      if action_name = 'insert' then
+        execute 'create policy module_grant_allow_insert on public.promotion_products for insert to authenticated with check (
+          private.has_module_permission(store_id, ''promotions'', ''create'')
+          and exists (select 1 from public.promotions p where p.id = promotion_products.promotion_id and p.store_id = promotion_products.store_id)
+          and exists (select 1 from public.products pr where pr.id = promotion_products.product_id and pr.store_id = promotion_products.store_id)
+        )';
+      elsif action_name = 'update' then
+        execute 'create policy module_grant_allow_update on public.promotion_products for update to authenticated using (
+          private.has_module_permission(store_id, ''promotions'', ''update'')
+          and exists (select 1 from public.promotions p where p.id = promotion_products.promotion_id and p.store_id = promotion_products.store_id)
+          and exists (select 1 from public.products pr where pr.id = promotion_products.product_id and pr.store_id = promotion_products.store_id)
+        ) with check (
+          private.has_module_permission(store_id, ''promotions'', ''update'')
+          and exists (select 1 from public.promotions p where p.id = promotion_products.promotion_id and p.store_id = promotion_products.store_id)
+          and exists (select 1 from public.products pr where pr.id = promotion_products.product_id and pr.store_id = promotion_products.store_id)
+        )';
+      else
+        execute 'create policy module_grant_allow_delete on public.promotion_products for delete to authenticated using (
+          private.has_module_permission(store_id, ''promotions'', ''delete'')
+          and exists (select 1 from public.promotions p where p.id = promotion_products.promotion_id and p.store_id = promotion_products.store_id)
+          and exists (select 1 from public.products pr where pr.id = promotion_products.product_id and pr.store_id = promotion_products.store_id)
+        )';
+      end if;
+    end loop;
+  else
+    raise notice 'Skipping promotion_products module policies; expected same-store relationship columns were not found.';
+  end if;
+end;
+$promotion_product_allow$;
+
 -- Global Admin must be able to discover and open every store, not only stores
 -- where a separate store_members row exists.
 drop policy if exists global_admin_all_stores on public.stores;
