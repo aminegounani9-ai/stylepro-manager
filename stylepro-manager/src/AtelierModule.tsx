@@ -14,7 +14,7 @@ import {
   Printer
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getLocalRecords, saveLocalRecord, type EntityTable } from './lib/offlineDb'
+import { getLocalRecords, cacheServerRecord, type EntityTable } from './lib/offlineDb'
 
 
 type SupplierType = 'tissu' | 'confection'
@@ -130,7 +130,7 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
     if (!storeId) return
     setLoading(true); setError('')
     const cache = async (table: EntityTable, rows: Array<Record<string, unknown>>) =>
-      Promise.all(rows.map(row => saveLocalRecord(table, storeId, row)))
+      Promise.all(rows.map(row => cacheServerRecord(table, storeId, row)))
     const cached = async <T,>(table: EntityTable): Promise<T[]> =>
       (await getLocalRecords<T>(storeId, table)).map(row => row.data)
     try {

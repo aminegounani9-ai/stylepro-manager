@@ -1,7 +1,15 @@
 name: StylePro Desktop Windows
 
 on:
-  # Build installers manually only after application modules and validation are complete.
+  push:
+    branches: [main]
+    paths:
+      - "stylepro-manager/**"
+      - ".github/workflows/stylepro-desktop.yml"
+  pull_request:
+    paths:
+      - "stylepro-manager/**"
+      - ".github/workflows/stylepro-desktop.yml"
   workflow_dispatch:
 
 jobs:
@@ -21,11 +29,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
       - name: Build Windows installers
-        working-directory: stylepro-manager/src-tauri
-        run: cargo tauri build
+        run: npx --yes "@tauri-apps/cli@^2" build
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:

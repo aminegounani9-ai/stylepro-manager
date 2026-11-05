@@ -2638,6 +2638,15 @@ body {
 }
 
 /* STYLEPRO THERMAL RECEIPT 80MM — uniquement si Ticket 80 mm est sélectionné */
+@page invoiceA4 {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+.invoice-preview-overlay.print-a4 {
+  page: invoiceA4;
+}
+
 @page thermalReceipt {
   size: 80mm auto;
   margin: 0;
@@ -2768,6 +2777,21 @@ body {
   .invoice-preview-overlay.print-thermal .receipt-footer {
     margin-top: 12px !important;
     text-align: center !important;
+  }
+
+  .invoice-preview-overlay.print-a4 .receipt-print-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .invoice-preview-overlay.print-a4 .receipt-items-table {
+    table-layout: auto !important;
+  }
+
+  .invoice-preview-overlay.print-thermal .receipt-print-area,
+  .invoice-preview-overlay.print-thermal .receipt-print-area * {
+    box-sizing: border-box !important;
   }
 
   .invoice-preview-overlay.print-thermal * {
@@ -5415,4 +5439,36 @@ tbody tr:last-child td { border-bottom: 0; }
     border-left: 1px solid var(--border) !important;
     box-shadow: -12px 0 35px rgba(0,0,0,.2) !important;
   }
+}
+
+
+/* Per-user module/action permissions */
+.user-permission-card {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid var(--border, #d9d2c5);
+  border-radius: 14px;
+  background: var(--surface-soft, #f3efe7);
+  overflow-x: auto;
+}
+.user-permission-card h3 { margin: 0 0 12px; }
+.user-permission-editor { min-width: 560px; display: grid; gap: 5px; }
+.user-permission-heading,
+.user-permission-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) repeat(4, 76px);
+  align-items: center;
+  gap: 8px;
+}
+.user-permission-heading { padding: 8px 10px; color: var(--muted, #777); font-size: 12px; }
+.user-permission-row { padding: 8px 10px; border-radius: 8px; background: var(--surface, #fff); }
+.user-permission-check { display: flex; justify-content: center; }
+.user-permission-check input { width: 16px; height: 16px; accent-color: var(--accent, #8b7355); }
+.user-member-card { padding: 12px 0; border-bottom: 1px solid var(--border, #ddd5c8); }
+.user-member-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.user-member-row .user-member-info { flex: 1 1 220px; }
+.user-member-card .user-permission-card { margin: 12px 0 0; }
+@media (max-width: 700px) {
+  .user-member-row { align-items: stretch; }
+  .user-member-row .user-member-info { flex-basis: 100%; }
 }

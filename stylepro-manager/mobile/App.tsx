@@ -15,6 +15,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import {
@@ -184,13 +185,24 @@ function MetricCard({
   )
 }
 
+const MOBILE_MODULE_FOR_VIEW: Record<string, string> = {
+  dashboard: 'dashboard', products: 'catalogue', sales: 'sales', stock: 'stock',
+  returns: 'returns', clients: 'clients', expenses: 'expenses', atelier: 'atelier',
+  deliveries: 'deliveries', promotions: 'promotions', labels: 'labels', users: 'users', settings: 'settings',
+}
+
 export default function App() {
+  const { width: windowWidth } = useWindowDimensions()
+  const compactScreen = windowWidth < 380
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [storeId, setStoreId] = useState('')
+  const [mobileRole, setMobileRole] = useState<string | null>(null)
+  const [mobileModuleGrants, setMobileModuleGrants] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
+  const canViewMobileModule = useCallback((viewKey: string) => mobileRole === 'admin' || mobileModuleGrants[MOBILE_MODULE_FOR_VIEW[viewKey]]?.can_view === true, [mobileRole, mobileModuleGrants])
   const [products, setProducts] = useState<ProductRow[]>([])
   const [sales, setSales] = useState<SaleRow[]>([])
   const [returns, setReturns] = useState<ReturnRow[]>([])
@@ -484,6 +496,49 @@ export default function App() {
     }
   }, [user, storeId, loadProducts, loadAnalytics])
 
+  useEffect(() => {
+    let active = true
+    async function loadMobileAccess() {
+      if (!user || !storeId) {
+        setMobileRole(null)
+        setMobileModuleGrants({})
+        return
+      }
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'my_permissions', store_id: storeId },
+      })
+      if (!active) return
+      if (error || data?.error || !data?.role) {
+        setMobileRole(null)
+        setMobileModuleGrants({})
+        return
+      }
+      setMobileRole(data.role)
+      if (data.is_global_admin === true || data.role === 'admin') {
+        setMobileModuleGrants({})
+        return
+      }
+      const next: Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }> = {}
+      for (const grant of data.permissions || []) next[grant.module_key] = {
+        can_view: grant.can_view === true, can_add: grant.can_add === true,
+        can_edit: grant.can_edit === true, can_delete: grant.can_delete === true,
+      }
+      setMobileModuleGrants(next)
+    }
+    void loadMobileAccess()
+    return () => { active = false }
+  }, [user, storeId])
+
+  useEffect(() => {
+    if (!mobileRole) return
+    if (!canViewMobileModule(view)) {
+      const firstAllowed = ['products', 'sales', 'stock', 'returns', 'clients', 'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'settings']
+        .find(key => canViewMobileModule(key))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep the mobile screen within the user's server-authorized modules.
+      setView((firstAllowed || 'dashboard') as typeof view)
+    }
+  }, [mobileRole, mobileModuleGrants, view, canViewMobileModule])
+
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
     clients: 'Clients', expenses: 'Dépenses', atelier: 'Atelier', deliveries: 'Livraisons',
@@ -558,7 +613,7 @@ export default function App() {
   }
 
   async function changeMobileUserRole(member: Record<string, unknown>) {
-    const roles = ['cashier', 'manager', 'stock_manager', 'accountant', 'admin']
+    const roles = ['cashier', 'manager', 'stock_manager', 'admin']
     const current = String(member.role || 'cashier')
     const next = roles[(roles.indexOf(current) + 1) % roles.length]
     Alert.alert('Modifier le rôle', `Attribuer le rôle ${next} à ${String(member.email || member.full_name || 'cet utilisateur')} ?`, [
@@ -874,7 +929,7 @@ export default function App() {
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" />
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={styles.loginContainer}>
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentContainerStyle={[styles.loginContainer, { paddingHorizontal: compactScreen ? 14 : 24 }]}>
           <View style={styles.logo}>
             <StoreIcon color={COLORS.surface} size={30} />
           </View>
@@ -894,6 +949,8 @@ export default function App() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="next"
+              blurOnSubmit
               style={styles.input}
             />
 
@@ -904,6 +961,8 @@ export default function App() {
               placeholder="Votre mot de passe"
               placeholderTextColor={COLORS.muted}
               secureTextEntry
+              returnKeyType="go"
+              onSubmitEditing={() => void signIn()}
               style={styles.input}
             />
 
@@ -941,7 +1000,8 @@ export default function App() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        contentContainerStyle={[styles.content, language === 'ar' ? {direction:'rtl'} : null]}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        contentContainerStyle={[styles.content, { paddingHorizontal: compactScreen ? 12 : 18 }, language === 'ar' ? {direction:'rtl'} : null]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1042,7 +1102,7 @@ export default function App() {
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
-          ] as [typeof view, string][]).map(([key, label]) => (
+          ] as [typeof view, string][]).filter(([key]) => key !== 'users' && canViewMobileModule(key)).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
@@ -1348,7 +1408,7 @@ export default function App() {
             <TextInput style={styles.input} value={newUserName} onChangeText={setNewUserName} placeholder="Nom complet" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserEmail} onChangeText={setNewUserEmail} placeholder="Adresse e-mail" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={COLORS.muted}/>
             <TextInput style={styles.input} value={newUserPassword} onChangeText={setNewUserPassword} placeholder="Mot de passe temporaire (8 caractères min.)" secureTextEntry placeholderTextColor={COLORS.muted}/>
-            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['accountant','Comptable'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+            <View style={styles.rolePicker}>{[['cashier','Caissier'],['manager','Manager'],['stock_manager','Gestionnaire stock'],['admin','Administrateur']].map(([value,label])=><TouchableOpacity key={value} onPress={() => setNewUserRole(value)} style={[styles.roleChip,newUserRole===value&&styles.roleChipActive]}><Text style={[styles.roleChipText,newUserRole===value&&styles.roleChipTextActive]}>{label}</Text></TouchableOpacity>)}</View>
             <TouchableOpacity style={[styles.primaryButton,userSaving&&styles.disabledButton]} onPress={() => void createMobileUser()} disabled={userSaving}><Text style={styles.primaryButtonText}>{userSaving ? 'Création…' : 'Créer un utilisateur'}</Text></TouchableOpacity>
             {moduleLoading ? <ActivityIndicator color={COLORS.accent} style={{ margin: 18 }}/> : userMembers.length === 0 ? <Text style={styles.emptyText}>Aucun membre affiché ou accès administrateur requis.</Text> : userMembers.map((member,index)=><View key={String(member.user_id||index)} style={styles.moduleDataRow}><View style={styles.flex}><Text style={styles.saleNumber}>{String(member.full_name||member.email||member.user_id||'Utilisateur')}</Text><Text style={styles.saleDate}>{String(member.email||'')} · {String(member.role||'')}</Text></View><View style={{ alignItems: 'flex-end', gap: 7 }}><Text style={member.is_active===false?styles.inactive:styles.active}>{member.is_active===false?'Inactif':'Actif'}</Text><View style={{ flexDirection: 'row', gap: 5 }}><TouchableOpacity style={styles.smallButton} onPress={() => void changeMobileUserRole(member)}><Text style={styles.smallButtonText}>Rôle</Text></TouchableOpacity><TouchableOpacity style={styles.smallButton} onPress={() => void toggleMobileUser(member)}><Text style={styles.smallButtonText}>{member.is_active===false?'Activer':'Désactiver'}</Text></TouchableOpacity></View></View></View>)}
           </View>
@@ -1654,7 +1714,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  loginContainer: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  loginContainer: { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 },
   logo: {
     width: 64,
     height: 64,
@@ -1698,9 +1758,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFC3AE',
     borderRadius: 12,
+    minHeight: 48,
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    textAlignVertical: 'center',
     color: COLORS.text,
     marginBottom: 10,
   },
@@ -1717,7 +1779,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   error: { color: COLORS.danger, marginTop: 12, fontSize: 13 },
-  content: { padding: 18, paddingBottom: 120 },
+  content: { paddingTop: 18, paddingBottom: 120 },
   languageButton:{minWidth:42,height:42,paddingHorizontal:9,alignItems:'center',justifyContent:'center',borderRadius:12,backgroundColor:COLORS.paleGold,borderWidth:1,borderColor:COLORS.border},
   languageButtonText:{color:COLORS.navy,fontSize:12,fontWeight:'900'},
   periodPanel:{backgroundColor:COLORS.surface,borderRadius:18,padding:14,marginBottom:16,borderWidth:1,borderColor:COLORS.border},

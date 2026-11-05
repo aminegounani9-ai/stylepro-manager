@@ -48,7 +48,7 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getLocalRecords, saveLocalRecord } from './lib/offlineDb'
+import { getLocalRecords, cacheServerRecord } from './lib/offlineDb'
 import type { EntityTable } from './lib/offlineDb'
 
 async function cacheRows<T extends { id: string }>(
@@ -56,7 +56,7 @@ async function cacheRows<T extends { id: string }>(
   storeId: string,
   rows: T[],
 ): Promise<void> {
-  await Promise.all(rows.map(row => saveLocalRecord(table, storeId, row as unknown as T & Record<string, unknown>)))
+  await Promise.all(rows.map(row => cacheServerRecord(table, storeId, row as unknown as T & Record<string, unknown>)))
 }
 
 async function cachedRows<T>(
@@ -284,6 +284,14 @@ const UI_TRANSLATIONS: Record<string, string> = {
   'Aucun résultat':'لا توجد نتائج','Chargement…':'جارٍ التحميل…','Total':'المجموع',
   'Prix':'السعر','Date':'التاريخ','Nom':'الاسم','Description':'الوصف',
   'Format d’impression':'تنسيق الطباعة','80 mm':'80 مم',
+  'Affecter un compte existant à cette boutique':'إسناد حساب موجود إلى هذا المتجر',
+  'Choisissez un compte déjà créé et son rôle dans la boutique sélectionnée. Son accès aux autres boutiques sera désactivé, sans supprimer ses données.':'اختر حساباً موجوداً ودوره في المتجر المحدد. سيتم تعطيل وصوله إلى المتاجر الأخرى دون حذف بياناته.',
+  'Compte existant':'حساب موجود','Choisir un utilisateur':'اختر مستخدماً',
+  'Rôle dans cette boutique':'الدور في هذا المتجر','Affecter à cette boutique':'إسناد إلى هذا المتجر',
+  'Utilisateur affecté à cette boutique. Son accès aux autres boutiques a été désactivé.':'تم إسناد المستخدم إلى هذا المتجر وتعطيل وصوله إلى المتاجر الأخرى.',
+  'Boutique à gérer / boutique du nouvel utilisateur':'المتجر المراد تسييره / متجر المستخدم الجديد',
+  'Le Manager créé sera rattaché à la boutique sélectionnée. Ses employés seront ensuite créés dans cette même boutique.':'سيتم ربط المدير بالمتجر المحدد، ثم تُنشأ حسابات موظفيه ضمن المتجر نفسه.',
+
 }
 
 const EXTRA_AR_TRANSLATIONS: Record<string, string> = {
@@ -801,6 +809,12 @@ const STOCK_LOCATIONS = {
   reserve: 'd67f391c-a873-4b56-a8db-0e709117eae6'
 } as const
 
+const APP_MODULE_FOR_VIEW: Record<string, string> = {
+  dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
+  stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
+  statistics: 'dashboard', labels: 'labels', promotions: 'promotions', settings: 'settings',
+}
+
 export default function App() {
   const [language, setLanguage] = useState<AppLanguage>(() => (localStorage.getItem('stylepro-language') as AppLanguage) || 'fr')
   const [printSize, setPrintSize] = useState<'a4' | '80mm'>(() => localStorage.getItem('stylepro-print-size') === '80mm' ? '80mm' : 'a4')
@@ -910,6 +924,59 @@ export default function App() {
   | 'promotions'
   | 'settings'
 >('dashboard')
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
+  const [modulePermissions, setModulePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
+  const hasModuleView = useCallback((moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true, [currentRole, modulePermissions])
+  useEffect(() => {
+    let cancelled = false
+    async function loadAccess() {
+      if (!user || !storeId) {
+        setCurrentRole(null)
+        setIsGlobalAdmin(false)
+        setModulePermissions({})
+        return
+      }
+      const { data: permissionResult, error: permissionError } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'my_permissions', store_id: storeId },
+      })
+      if (cancelled) return
+      if (permissionError || permissionResult?.error || !permissionResult?.role) {
+        setCurrentRole(null)
+        setIsGlobalAdmin(false)
+        setModulePermissions({})
+        return
+      }
+      setCurrentRole(permissionResult.role)
+      setIsGlobalAdmin(permissionResult.is_global_admin === true)
+      if (permissionResult.is_global_admin === true || permissionResult.role === 'admin') {
+        setModulePermissions({})
+        return
+      }
+      const next: Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }> = {}
+      for (const grant of permissionResult?.permissions || []) next[grant.module_key] = {
+        can_view: grant.can_view === true, can_add: grant.can_add === true,
+        can_edit: grant.can_edit === true, can_delete: grant.can_delete === true,
+      }
+      setModulePermissions(next)
+    }
+    void loadAccess()
+    return () => { cancelled = true }
+  }, [user, storeId])
+  useEffect(() => {
+    if (!currentRole) return
+    const moduleKey = APP_MODULE_FOR_VIEW[currentView]
+    const canOpenSettings = currentView === 'settings' && (hasModuleView('settings') || hasModuleView('users'))
+    if (moduleKey && !hasModuleView(moduleKey) && !canOpenSettings) {
+      const firstAllowed = [
+        ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['stock', 'stock'],
+        ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'settings'], ['atelier', 'atelier'],
+        ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['users', 'settings'], ['settings', 'settings'],
+      ].find(([key]) => hasModuleView(key))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep the selected screen within the user's server-authorized modules.
+      if (firstAllowed) setCurrentView(firstAllowed[1] as typeof currentView)
+    }
+  }, [currentRole, modulePermissions, currentView, hasModuleView])
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
   const [promotionProductIdsByPromotion, setPromotionProductIdsByPromotion] = useState<Record<string, string[]>>({})
   const [promotionLoading, setPromotionLoading] = useState(false)
@@ -3643,17 +3710,17 @@ const loadPromotions = useCallback(async () => {
             <p className="sidebar-caption">VOTRE ESPACE</p>
 
             <p className="sidebar-group-label">GÉNÉRAL</p>
-            <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
+            <button type="button" style={{ display: hasModuleView('dashboard') ? undefined : 'none' }} className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
               <Gauge size={19} /> <span>Tableau de bord</span>
             </button>
 
             <p className="sidebar-group-label">BOUTIQUE</p>
-            <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
+            <button type="button" style={{ display: hasModuleView('catalogue') ? undefined : 'none' }} className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
               <Grid2X2 size={19} /> <span>Catalogue articles</span>
             </button>
             <button
   type="button"
-  className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
+  style={{ display: hasModuleView('atelier') ? undefined : 'none' }} className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
   onClick={() => {
     setCurrentView('atelier')
     setError('')
@@ -3663,38 +3730,38 @@ const loadPromotions = useCallback(async () => {
   <Scissors size={19} />
   <span>Atelier / Production</span>
 </button>
-            <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('promotions') ? undefined : 'none' }} className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
               <BadgePercent size={19} /> <span>Promotions</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
+            <button type="button" style={{ display: hasModuleView('labels') ? undefined : 'none' }} className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
               <QrCode size={19} /> <span>Étiquettes QR</span>
             </button>
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
-            <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('deliveries') ? undefined : 'none' }} className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
               <Truck size={19} /> <span>Livraisons</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
+            <button type="button" style={{ display: hasModuleView('stock') ? undefined : 'none' }} className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
               <Warehouse size={19} /> <span>Gestion du stock</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
+            <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
               <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('returns') ? undefined : 'none' }} className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
               <Undo2 size={19} /> <span>Retours / Remboursements</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
+            <button type="button" style={{ display: hasModuleView('clients') ? undefined : 'none' }} className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
               <ContactRound size={19} /> <span>Clients</span>
             </button>
 
             <p className="sidebar-group-label">ANALYSE</p>
-            <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
+            <button type="button" style={{ display: hasModuleView('dashboard') ? undefined : 'none' }} className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
               <ChartNoAxesCombined size={19} /> <span>Statistiques</span>
             </button>
 
             <button
               type="button"
-              className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
+              style={{ display: (hasModuleView('settings') || hasModuleView('users')) ? undefined : 'none' }} className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
               onClick={() => setCurrentView('settings')}
             >
               <SlidersHorizontal size={18} />
@@ -5721,7 +5788,7 @@ const loadPromotions = useCallback(async () => {
                   <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
                 </section>
 
-                <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />
+                {hasModuleView('users') && <UserManagement key={storeId} user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} stores={stores} />}
 
                 <section className="panel settings-account">
                   <div className="panel-title">
@@ -6041,7 +6108,7 @@ const loadPromotions = useCallback(async () => {
                 </label>
               )}
 
-              <form onSubmit={createStore} className="inline-form">
+              {isGlobalAdmin && <form onSubmit={createStore} className="inline-form">
                 <input
                   aria-label="Nom de la boutique"
                   placeholder="Ex. Boutique Élégance"
@@ -6053,7 +6120,7 @@ const loadPromotions = useCallback(async () => {
                 <button className="primary-button" disabled={loading}>
                   <Plus size={17} /> Créer une boutique
                 </button>
-              </form>
+              </form>}
             </section>
 
               </>

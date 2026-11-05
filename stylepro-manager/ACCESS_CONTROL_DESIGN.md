@@ -1,14 +1,15 @@
 # StylePro Manager — Access Control Baseline
 
-Status: **design approved; implementation gated by live RLS verification**.
+Status: **implementation staged in PR #5; production rollout pending additive migrations, Edge Function deployment, and live acceptance tests**.
 
-This document records the agreed authorization model before changing production code or the Supabase schema. It is additive documentation only: it does not modify application behavior, database tables, policies, or existing data.
+This document records the agreed authorization model and the implementation staged in the repository. The staged migrations are additive and do not delete business records. They are not applied to the live Supabase project from this GitHub workflow.
 
 ## 1. Agreed role model
 
 | Role | Store scope | User administration |
 | --- | --- | --- |
-| Admin | Global: all stores, products, and business data | Can create Managers and all employee roles; can manage roles and module grants |
+| Global Admin | Global: all stores, products, and business data | Can create Managers, store Admins and all employee roles; can manage roles and module grants |
+| Store Admin (legacy `admin` membership not in `global_admins`) | Assigned store only | Full access in that store; can manage Cashiers and Stock Managers, but cannot create/promote Global Admins or Managers |
 | Manager | Only stores assigned to that Manager through `store_members` | Can create Cashiers and Stock Managers only inside assigned stores; can grant only modules the Manager is allowed to use |
 | Cashier | Assigned store(s) only | No user/role administration |
 | Stock Manager | Assigned store(s) only | No user/role administration |
@@ -69,17 +70,17 @@ These are defaults, not an authorization bypass. Admin can grant modules globall
 
 - `profiles` stores profile details; role is held in `store_members`, not `profiles`.
 - Known `stores` columns: `id, name, currency, timezone, created_by, created_at, updated_at`.
-- Known `store_members` columns: `store_id, user_id, role, created_at`.
+- Known `store_members` columns before rollout: `store_id, user_id, role, created_at`. The staged migration adds `is_active boolean not null default true`.
 - The current role check constraint was reported to allow `admin`, `manager`, `cashier`, `stock_manager`, and `accountant`. The approved UI roles are Admin, Manager, Cashier, and Stock Manager; do not silently rewrite existing role values.
 - Existing helper functions reported: `private.is_store_member(uuid)` and `private.has_store_role(uuid, text[])`, SECURITY DEFINER and STABLE.
 - Existing policy behavior previously inspected includes self-only profile/member reads, member store reads, and admin-only store updates. This is not a complete current policy inventory.
-- The repository's `supabase/00_read_only_security_audit.sql` is a SELECT-only inventory script. No migrations directory is currently present in the checked repository tree.
-- Current `manage-users` Edge Function permits only Admin membership and currently accepts the role list `admin, manager, cashier, stock_manager`. It does not yet implement Manager delegation or persisted module grants.
-- Current Web/Desktop `UserManagement` UI is Admin-only and has no store picker or module checklist.
-- Android has a separate user-management UI and currently contains an inconsistent role list (including `accountant`). It must be aligned with the approved server rules before release.
+- The repository's `supabase/00_read_only_security_audit.sql` is a SELECT-only inventory script. Additive migrations are now staged under `supabase/migrations/`.
+- The staged `manage-users` Edge Function supports Global Admin cross-store management, store-scoped Admin/Manager delegation, per-user module/action grants, and store-scoped activation. Managers cannot create or modify Admin/Manager accounts and cannot grant permissions they do not personally hold. The live function must be redeployed after applying the migrations.
+- The staged Web/Desktop `UserManagement` UI allows authorized Admins/Managers to create users and configure View/Add/Edit/Delete per module. Manager permissions are checked again server-side.
+- Android module navigation now loads server-authoritative grants and hides modules without `can_view`. User administration remains on Web/Desktop until the Android companion receives the same full permission matrix; Edge Function authorization still applies to any direct request.
 - Local IndexedDB is a cache/queue foundation; full safe offline mutation replay is not implemented. Do not claim complete offline synchronization.
 
-## 6. Required verification before implementation
+## 6. Required verification before production rollout
 
 Run `supabase/00_read_only_security_audit.sql` against the intended live Supabase project and retain all result sets. In particular verify:
 - exact primary/unique/foreign keys on `stores`, `store_members`, and all store-owned tables;
@@ -89,7 +90,7 @@ Run `supabase/00_read_only_security_audit.sql` against the intended live Supabas
 - all functions and triggers that create stores or memberships;
 - whether any module-permission table or equivalent already exists.
 
-Then prepare an additive migration and backend changes against those exact results. Existing permissive policies must be revised carefully where necessary: adding another permissive policy does not restrict access because PostgreSQL combines permissive policies with OR semantics.
+The staged migrations add a per-user permission table, active membership flag, a trusted `global_admins` mapping for the existing primary admin account, and restrictive RLS gates for the mapped business tables. A permissive membership base policy supplies access for all roles; restrictive per-action policies then enforce View/Add/Edit/Delete. This avoids relying on new permissive policies to restrict old ones. Re-run the read-only audit against the live project immediately before applying migrations and verify every mapped table has `store_id` and an existing appropriate RLS policy.
 
 ## 7. Acceptance tests
 
@@ -103,4 +104,4 @@ Then prepare an additive migration and backend changes against those exact resul
 - Cross-store reads and writes fail at Supabase RLS even if the client changes `store_id`.
 - Existing users, memberships, products, sales, stock, Atelier records, and other business data remain intact.
 
-**No application or database authorization changes are considered complete until these checks pass against the live Supabase project.**
+**The GitHub implementation is staged, not live. No production authorization change is complete until migrations 202611050001–003 are applied in order, `manage-users` is redeployed, and these acceptance checks pass against the live Supabase project.**
