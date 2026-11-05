@@ -163,12 +163,19 @@ Deno.serve(async (req) => {
         return json({ stores: data || [] });
       }
       const { data: memberships, error } = await adminClient.from("store_members")
-        .select("store_id,stores(id,name,currency)")
+        .select("store_id")
         .eq("user_id", authData.user.id)
         .eq("role", "manager")
         .eq("is_active", true);
       if (error) return json({ error: error.message }, 400);
-      return json({ stores: (memberships || []).map((row) => row.stores).filter(Boolean) });
+      const storeIds = (memberships || []).map((row) => row.store_id);
+      if (!storeIds.length) return json({ stores: [] });
+      const { data: managerStores, error: storesError } = await adminClient.from("stores")
+        .select("id,name,currency")
+        .in("id", storeIds)
+        .order("name");
+      if (storesError) return json({ error: storesError.message }, 400);
+      return json({ stores: managerStores || [] });
     }
 
     if (action === "list") {
