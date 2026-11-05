@@ -74,9 +74,7 @@ These are defaults, not an authorization bypass. Admin can grant modules globall
 - Existing helper functions reported: `private.is_store_member(uuid)` and `private.has_store_role(uuid, text[])`, SECURITY DEFINER and STABLE.
 - The live policy inventory supplied on 2026-11-05 shows that several business tables grant CRUD based on store membership or broad role checks, rather than per-user module grants. Atelier CRUD is membership-based; catalogue/stock tables have broad role-based manage policies; sales, payments, returns and delivery tables have role-based write policies; `store_modules` is admin-managed and member-readable. These existing permissive policies must be narrowed with reviewed restrictive policies or carefully replaced policies.
 - The repository's `supabase/00_read_only_security_audit.sql` is a SELECT-only inventory script. An additive migration has now been drafted under `supabase/migrations/20261105133000_store_member_module_permissions.sql`; it adds store-specific membership activation, a per-member module/CRUD grant table, and security-definer helper functions. It is not applied to Supabase.
-- Current `manage-users` Edge Function permits only Admin membership and currently accepts the role list `admin, manager, cashier, stock_manager`. It does not yet implement Manager delegation or persisted module grants.
-- Current Web/Desktop `UserManagement` UI is Admin-only and has no store picker or module checklist.
-- Android has a separate user-management UI and currently contains an inconsistent role list (including `accountant`). It must be aligned with the approved server rules before release.
+- Baseline before this branch: `manage-users` accepted only store Admin callers; Web/Desktop user management was Admin-only; Android included a legacy `accountant` role option. This branch is replacing those behaviors, while preserving existing database role values.
 - Local IndexedDB is a cache/queue foundation; full safe offline mutation replay is not implemented. Do not claim complete offline synchronization.
 
 ## 6. Implementation gates
