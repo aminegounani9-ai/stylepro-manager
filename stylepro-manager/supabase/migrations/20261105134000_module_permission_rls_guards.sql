@@ -212,8 +212,8 @@ begin
           );
         elsif item.table_name = 'stock_movements' then
           execute format(
-            'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L))',
-            policy_name, item.table_name, 'stock', 'view', 'sales', 'view', 'dashboard', 'view', 'deliveries', 'view'
+            'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L))',
+            policy_name, item.table_name, 'stock', 'view', 'sales', 'view', 'dashboard', 'view', 'deliveries', 'view', 'labels', 'view'
           );
         else
           execute format(
