@@ -198,10 +198,17 @@ begin
       execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
 
       if action_name = 'select' then
-        execute format(
-          'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L))',
-          policy_name, item.table_name, item.module_name, 'view'
-        );
+        if item.table_name = 'expenses' then
+          execute format(
+            'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L) or private.has_module_permission(store_id, %L, %L))',
+            policy_name, item.table_name, item.module_name, 'view', 'dashboard', 'view'
+          );
+        else
+          execute format(
+            'create policy %I on public.%I for select to authenticated using (private.has_module_permission(store_id, %L, %L))',
+            policy_name, item.table_name, item.module_name, 'view'
+          );
+        end if;
       elsif action_name = 'insert' then
         execute format(
           'create policy %I on public.%I for insert to authenticated with check (private.has_module_permission(store_id, %L, %L))',
