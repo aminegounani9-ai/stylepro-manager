@@ -208,15 +208,19 @@ Deno.serve(async (req) => {
     const validateManagerGrants = async (grants: Grant[]) => {
       if (isGlobalAdmin || grants.length === 0) return;
       const { data, error } = await adminClient.from("store_member_module_permissions")
-        .select("module_key")
+        .select("module_key,can_view,can_create,can_update,can_delete")
         .eq("store_id", storeId)
         .eq("user_id", authData.user.id)
-        .eq("can_view", true)
         .in("module_key", grants.map((g) => g.module_key));
       if (error) throw new Error(error.message);
-      const allowed = new Set((data || []).map((row) => row.module_key));
-      const forbidden = grants.find((grant) => !allowed.has(grant.module_key));
-      if (forbidden) throw new Error(`Vous ne pouvez pas attribuer le module ${forbidden.module_key}`);
+      const ownByModule = new Map((data || []).map((row) => [row.module_key, row]));
+      for (const grant of grants) {
+        const own = ownByModule.get(grant.module_key);
+        if (!own?.can_view) throw new Error(`Vous ne pouvez pas attribuer le module ${grant.module_key}`);
+        if (grant.can_create && !own.can_create) throw new Error(`Vous ne pouvez pas déléguer Ajouter pour ${grant.module_key}`);
+        if (grant.can_update && !own.can_update) throw new Error(`Vous ne pouvez pas déléguer Modifier pour ${grant.module_key}`);
+        if (grant.can_delete && !own.can_delete) throw new Error(`Vous ne pouvez pas déléguer Supprimer pour ${grant.module_key}`);
+      }
     };
 
     if (action === "list") {
