@@ -308,6 +308,49 @@ begin
 end;
 $module_child_allow$;
 
+-- Purchase-order line access is tied to a same-store parent order.
+do $purchase_order_item_allow$
+declare
+  action_name text;
+  has_columns boolean;
+begin
+  select
+    exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='purchase_order_items' and c.column_name='store_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='purchase_order_items' and c.column_name='purchase_order_id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='purchase_orders' and c.column_name='id')
+    and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='purchase_orders' and c.column_name='store_id')
+  into has_columns;
+
+  if has_columns then
+    foreach action_name in array array['insert', 'update', 'delete']
+    loop
+      execute format('drop policy if exists %I on public.purchase_order_items', 'module_grant_allow_' || action_name);
+      if action_name = 'insert' then
+        execute 'create policy module_grant_allow_insert on public.purchase_order_items for insert to authenticated with check (
+          private.has_module_permission(store_id, ''stock'', ''create'')
+          and exists (select 1 from public.purchase_orders po where po.id = purchase_order_items.purchase_order_id and po.store_id = purchase_order_items.store_id)
+        )';
+      elsif action_name = 'update' then
+        execute 'create policy module_grant_allow_update on public.purchase_order_items for update to authenticated using (
+          private.has_module_permission(store_id, ''stock'', ''update'')
+          and exists (select 1 from public.purchase_orders po where po.id = purchase_order_items.purchase_order_id and po.store_id = purchase_order_items.store_id)
+        ) with check (
+          private.has_module_permission(store_id, ''stock'', ''update'')
+          and exists (select 1 from public.purchase_orders po where po.id = purchase_order_items.purchase_order_id and po.store_id = purchase_order_items.store_id)
+        )';
+      else
+        execute 'create policy module_grant_allow_delete on public.purchase_order_items for delete to authenticated using (
+          private.has_module_permission(store_id, ''stock'', ''delete'')
+          and exists (select 1 from public.purchase_orders po where po.id = purchase_order_items.purchase_order_id and po.store_id = purchase_order_items.store_id)
+        )';
+      end if;
+    end loop;
+  else
+    raise notice 'Skipping purchase_order_items module policies; expected store_id and purchase_order_id columns were not found.';
+  end if;
+end;
+$purchase_order_item_allow$;
+
 -- Global Admin must be able to discover and open every store, not only stores
 -- where a separate store_members row exists.
 drop policy if exists global_admin_all_stores on public.stores;
