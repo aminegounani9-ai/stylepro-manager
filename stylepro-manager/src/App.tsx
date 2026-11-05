@@ -961,6 +961,7 @@ export default function App() {
         ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'settings'], ['atelier', 'atelier'],
         ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['users', 'settings'], ['settings', 'settings'],
       ].find(([key]) => hasModuleView(key))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep the selected screen within the user's server-authorized modules.
       if (firstAllowed) setCurrentView(firstAllowed[1] as typeof currentView)
     }
   }, [currentRole, modulePermissions, currentView, hasModuleView])
