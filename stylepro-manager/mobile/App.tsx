@@ -1589,7 +1589,6 @@ export default function App() {
               </View>
               {MOBILE_MODULES.map(module => {
                 const grant = editingPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
-                const allowed = isGlobalAdmin || canViewMobileModule(module.key)
                 const change = (action: keyof MobilePermission, value: boolean) => setEditingPermissions(current => ({
                   ...current,
                   [module.key]: action === 'can_view' && !value
