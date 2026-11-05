@@ -284,6 +284,14 @@ const UI_TRANSLATIONS: Record<string, string> = {
   'Aucun résultat':'لا توجد نتائج','Chargement…':'جارٍ التحميل…','Total':'المجموع',
   'Prix':'السعر','Date':'التاريخ','Nom':'الاسم','Description':'الوصف',
   'Format d’impression':'تنسيق الطباعة','80 mm':'80 مم',
+  'Affecter un compte existant à cette boutique':'إسناد حساب موجود إلى هذا المتجر',
+  'Choisissez un compte déjà créé et son rôle dans la boutique sélectionnée. Son accès aux autres boutiques sera désactivé, sans supprimer ses données.':'اختر حساباً موجوداً ودوره في المتجر المحدد. سيتم تعطيل وصوله إلى المتاجر الأخرى دون حذف بياناته.',
+  'Compte existant':'حساب موجود','Choisir un utilisateur':'اختر مستخدماً',
+  'Rôle dans cette boutique':'الدور في هذا المتجر','Affecter à cette boutique':'إسناد إلى هذا المتجر',
+  'Utilisateur affecté à cette boutique. Son accès aux autres boutiques a été désactivé.':'تم إسناد المستخدم إلى هذا المتجر وتعطيل وصوله إلى المتاجر الأخرى.',
+  'Boutique à gérer / boutique du nouvel utilisateur':'المتجر المراد تسييره / متجر المستخدم الجديد',
+  'Le Manager créé sera rattaché à la boutique sélectionnée. Ses employés seront ensuite créés dans cette même boutique.':'سيتم ربط المدير بالمتجر المحدد، ثم تُنشأ حسابات موظفيه ضمن المتجر نفسه.',
+
 }
 
 const EXTRA_AR_TRANSLATIONS: Record<string, string> = {
