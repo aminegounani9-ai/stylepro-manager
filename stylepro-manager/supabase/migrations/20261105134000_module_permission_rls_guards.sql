@@ -34,6 +34,7 @@ begin
       ('expenses', 'expenses'),
       ('expense_categories', 'expenses'),
       ('atelier_productions', 'atelier'),
+      ('atelier_production_counters', 'atelier'),
       ('atelier_production_models', 'atelier'),
       ('atelier_production_sizes', 'atelier'),
       ('atelier_suppliers', 'atelier'),
