@@ -1,17 +1,62 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { UserPlus, RefreshCw, ShieldCheck, UserRound, UserX, UserCheck } from 'lucide-react'
+import { UserPlus, RefreshCw, ShieldCheck, UserRound, UserX, UserCheck, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Role = 'admin' | 'manager' | 'cashier' | 'stock_manager'
-type Member = { user_id: string; role: Role; created_at: string; full_name: string; email: string; is_active: boolean }
+type ModuleKey = 'dashboard' | 'catalogue' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'promotions' | 'labels' | 'users' | 'settings'
+type Permission = { module_key: ModuleKey; can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }
+type Member = { user_id: string; role: Role; created_at: string; full_name: string; email: string; is_active: boolean; permissions: Permission[] }
 
+const modules: { key: ModuleKey; label: string }[] = [
+  { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'catalogue', label: 'Catalogue' },
+  { key: 'sales', label: 'Ventes / Caisse' },
+  { key: 'stock', label: 'Stock' },
+  { key: 'returns', label: 'Retours' },
+  { key: 'clients', label: 'Clients' },
+  { key: 'expenses', label: 'Dépenses' },
+  { key: 'atelier', label: 'Atelier / Production' },
+  { key: 'deliveries', label: 'Livraisons' },
+  { key: 'promotions', label: 'Promotions' },
+  { key: 'labels', label: 'Étiquettes QR' },
+  { key: 'users', label: 'Utilisateurs' },
+  { key: 'settings', label: 'Paramètres' },
+]
 const roles: { value: Role; label: string }[] = [
-  { value: 'admin', label: 'Administrateur' },
+  { value: 'admin', label: 'Administrateur boutique' },
   { value: 'manager', label: 'Manager' },
   { value: 'cashier', label: 'Vendeur / Caisse' },
   { value: 'stock_manager', label: 'Gestionnaire de stock' },
 ]
+const emptyPermissions = (): Permission[] => modules.map(({ key }) => ({
+  module_key: key, can_view: false, can_add: false, can_edit: false, can_delete: false,
+}))
+const normalize = (items: Permission[] = []): Permission[] => {
+  const byKey = new Map(items.map(item => [item.module_key, item]))
+  return modules.map(({ key }) => {
+    const item = byKey.get(key)
+    return { module_key: key, can_view: item?.can_view === true, can_add: item?.can_add === true, can_edit: item?.can_edit === true, can_delete: item?.can_delete === true }
+  })
+}
+
+function PermissionEditor({ value, onChange, disabled = false }: { value: Permission[]; onChange: (next: Permission[]) => void; disabled?: boolean }) {
+  const rows = useMemo(() => normalize(value), [value])
+  const update = (moduleKey: ModuleKey, action: keyof Omit<Permission, 'module_key'>, checked: boolean) => {
+    onChange(rows.map(row => row.module_key === moduleKey ? { ...row, [action]: checked } : row))
+  }
+  return <div className="user-permission-editor">
+    <div className="user-permission-heading"><strong>Module</strong><strong>Voir</strong><strong>Ajouter</strong><strong>Modifier</strong><strong>Supprimer</strong></div>
+    {rows.map(row => <div className="user-permission-row" key={row.module_key}>
+      <span>{modules.find(item => item.key === row.module_key)?.label}</span>
+      {(['can_view', 'can_add', 'can_edit', 'can_delete'] as const).map(action =>
+        <label key={action} className="user-permission-check">
+          <input type="checkbox" checked={row[action]} disabled={disabled} onChange={event => update(row.module_key, action, event.target.checked)} />
+        </label>
+      )}
+    </div>)}
+  </div>
+}
 
 export default function UserManagement({ user, storeId, storeName }: { user: User | null; storeId: string; storeName: string }) {
   const [members, setMembers] = useState<Member[]>([])
@@ -23,7 +68,14 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('cashier')
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [callerRole, setCallerRole] = useState<Role | null>(null)
+  const [draftPermissions, setDraftPermissions] = useState<Permission[]>(emptyPermissions)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [editingPermissions, setEditingPermissions] = useState<Permission[]>(emptyPermissions)
+
+  const canManage = callerRole === 'admin' || callerRole === 'manager'
+  const isAdmin = callerRole === 'admin'
+  const availableRoles = isAdmin ? roles : roles.filter(item => item.value === 'cashier' || item.value === 'stock_manager')
 
   const call = useCallback(async (payload: Record<string, unknown>) => {
     const { data, error: invokeError } = await supabase.functions.invoke('manage-users', { body: { ...payload, store_id: storeId } })
@@ -37,14 +89,17 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
     setLoading(true); setError('')
     try {
       const { data: membership, error: membershipError } = await supabase.from('store_members')
-        .select('role').eq('store_id', storeId).eq('user_id', user.id).maybeSingle()
+        .select('role, is_active').eq('store_id', storeId).eq('user_id', user.id).maybeSingle()
       if (membershipError) throw membershipError
-      const admin = membership?.role === 'admin'
-      setIsAdmin(admin)
-      if (admin) {
+      if (!membership?.is_active) throw new Error('Votre accès à cette boutique est désactivé.')
+      const memberRole = membership.role as Role
+      setCallerRole(memberRole)
+      if (memberRole === 'admin' || memberRole === 'manager') {
         const result = await call({ action: 'list' })
         setMembers((result.members || []) as Member[])
-      } else setMembers([])
+      } else {
+        setMembers([])
+      }
     } catch (e) { setError(e instanceof Error ? e.message : 'Chargement impossible') }
     finally { setLoading(false) }
   }, [storeId, user, call])
@@ -57,9 +112,9 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setError(''); setNotice('')
     try {
-      await call({ action: 'create', email, full_name: fullName, password, role })
-      setEmail(''); setFullName(''); setPassword(''); setRole('cashier')
-      setNotice('Compte créé et associé à cette boutique.')
+      await call({ action: 'create', email, full_name: fullName, password, role, permissions: draftPermissions })
+      setEmail(''); setFullName(''); setPassword(''); setRole('cashier'); setDraftPermissions(emptyPermissions())
+      setNotice('Compte créé, associé à cette boutique et doté des permissions sélectionnées.')
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible') }
     finally { setSaving(false) }
@@ -74,36 +129,69 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
 
   const toggleActive = async (member: Member) => {
     setSaving(true); setError(''); setNotice('')
-    try { await call({ action: 'set_active', user_id: member.user_id, active: !member.is_active }); setNotice('Statut du compte mis à jour.'); await load() }
+    try { await call({ action: 'set_active', user_id: member.user_id, active: !member.is_active }); setNotice('Accès à cette boutique mis à jour.'); await load() }
     catch (e) { setError(e instanceof Error ? e.message : 'Modification impossible') }
     finally { setSaving(false) }
   }
 
+  const savePermissions = async (member: Member) => {
+    setSaving(true); setError(''); setNotice('')
+    try {
+      await call({ action: 'set_permissions', user_id: member.user_id, permissions: editingPermissions })
+      setNotice('Permissions enregistrées.')
+      setEditingUserId(null)
+      await load()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement des permissions impossible') }
+    finally { setSaving(false) }
+  }
+
   return <section className="panel settings-users">
-    <div className="panel-title"><ShieldCheck size={21}/><div><h2>Gestion des utilisateurs</h2><p>Ajoutez des comptes et gérez leurs rôles pour {storeName || 'la boutique sélectionnée'}.</p></div>
-      {isAdmin && <button type="button" className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> Actualiser</button>}
+    <div className="panel-title"><ShieldCheck size={21}/><div><h2>Gestion des utilisateurs</h2><p>Gérez les accès et les permissions pour {storeName || 'la boutique sélectionnée'}.</p></div>
+      {canManage && <button type="button" className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> Actualiser</button>}
     </div>
     {!storeId ? <p className="appearance-note">Sélectionnez une boutique pour gérer ses utilisateurs.</p> :
-      !isAdmin && !loading ? <p className="appearance-note">Cette section est réservée aux administrateurs de la boutique.</p> :
+      !canManage && !loading ? <p className="appearance-note">Cette section est réservée aux administrateurs et managers autorisés.</p> :
       <>
         {error && <p role="alert" className="form-error">{error}</p>}
         {notice && <p role="status" className="appearance-note">{notice}</p>}
-        {isAdmin && <>
+        {canManage && <>
           <form className="user-create-form" onSubmit={create}>
             <label className="field">Nom complet<input value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100} /></label>
             <label className="field">Adresse e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="off"/></label>
             <label className="field">Mot de passe temporaire<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8} autoComplete="new-password"/></label>
-            <label className="field">Rôle<select value={role} onChange={e=>setRole(e.target.value as Role)}>{roles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
+            <label className="field">Rôle<select value={role} onChange={e=>setRole(e.target.value as Role)}>{availableRoles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
+            <div className="user-permission-card">
+              <h3>Permissions du nouvel utilisateur</h3>
+              <PermissionEditor value={draftPermissions} onChange={setDraftPermissions} disabled={saving}/>
+            </div>
             <button type="submit" className="primary-button" disabled={saving}><UserPlus size={16}/> {saving ? 'Création…' : 'Ajouter utilisateur'}</button>
           </form>
           <div className="user-members-list">
             <h3>Utilisateurs de la boutique ({members.length})</h3>
             {loading ? <p>Chargement…</p> : members.length === 0 ? <p className="appearance-note">Aucun utilisateur trouvé.</p> :
-              members.map(member=><div className="user-member-row" key={member.user_id}>
-                <div className="user-member-info"><UserRound size={18}/><div><strong>{member.full_name || member.email || member.user_id}</strong><small>{member.email}</small></div></div>
-                <select aria-label="Rôle utilisateur" value={member.role} disabled={saving || member.user_id===user?.id} onChange={e=>void updateRole(member,e.target.value as Role)}>{roles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select>
-                <span className={member.is_active ? 'user-status active' : 'user-status'}>{member.is_active ? 'Actif' : 'Désactivé'}</span>
-                {member.user_id!==user?.id && <button type="button" className="secondary-button" disabled={saving} onClick={()=>void toggleActive(member)}>{member.is_active ? <><UserX size={15}/> Désactiver</> : <><UserCheck size={15}/> Activer</>}</button>}
+              members.map(member=><div className="user-member-card" key={member.user_id}>
+                <div className="user-member-row">
+                  <div className="user-member-info"><UserRound size={18}/><div><strong>{member.full_name || member.email || member.user_id}</strong><small>{member.email}</small></div></div>
+                  <select aria-label="Rôle utilisateur" value={member.role} disabled={saving || member.user_id===user?.id || (!isAdmin && (member.role === 'admin' || member.role === 'manager'))}
+                    onChange={e=>void updateRole(member,e.target.value as Role)}>
+                    {(isAdmin ? roles : availableRoles).map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                  <span className={member.is_active ? 'user-status active' : 'user-status'}>{member.is_active ? 'Actif' : 'Désactivé'}</span>
+                  {member.user_id!==user?.id && (isAdmin || (member.role !== 'admin' && member.role !== 'manager')) &&
+                    <button type="button" className="secondary-button" disabled={saving} onClick={()=>void toggleActive(member)}>
+                      {member.is_active ? <><UserX size={15}/> Désactiver</> : <><UserCheck size={15}/> Activer</>}
+                    </button>}
+                  <button type="button" className="secondary-button" disabled={saving || (!isAdmin && (member.role === 'admin' || member.role === 'manager'))}
+                    onClick={() => { setEditingUserId(editingUserId === member.user_id ? null : member.user_id); setEditingPermissions(normalize(member.permissions)); }}>
+                    {editingUserId === member.user_id ? <><ChevronUp size={15}/> Fermer droits</> : <><ChevronDown size={15}/> Permissions</>}
+                  </button>
+                </div>
+                {editingUserId === member.user_id && <div className="user-permission-card">
+                  <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving}/>
+                  <button type="button" className="primary-button" disabled={saving} onClick={() => void savePermissions(member)}>
+                    <Save size={15}/> {saving ? 'Enregistrement…' : 'Enregistrer les permissions'}
+                  </button>
+                </div>}
               </div>)
             }
           </div>
