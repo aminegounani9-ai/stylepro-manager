@@ -1111,7 +1111,7 @@ export default function App() {
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
-          ] as [typeof view, string][]).map(([key, label]) => (
+          ] as [typeof view, string][]).filter(([key]) => canViewMobileModule(viewModuleKey[key] || key)).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
