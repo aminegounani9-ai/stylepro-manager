@@ -531,6 +531,7 @@ export default function App() {
     if (!canViewMobileModule(view)) {
       const firstAllowed = ['products', 'sales', 'stock', 'returns', 'clients', 'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'settings']
         .find(key => canViewMobileModule(key))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep the mobile screen within the user's server-authorized modules.
       setView((firstAllowed || 'dashboard') as typeof view)
     }
   }, [mobileRole, mobileModuleGrants, view, canViewMobileModule])
