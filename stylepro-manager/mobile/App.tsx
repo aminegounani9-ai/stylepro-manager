@@ -156,6 +156,11 @@ const MOBILE_ROLES = [
   { value: 'cashier', label: 'Vendeur / Caisse' },
   { value: 'stock_manager', label: 'Gestionnaire stock' },
 ]
+function blankMobilePermissions(): Record<string, MobilePermission> {
+  return Object.fromEntries(
+    MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
+  )
+}
 function defaultMobilePermissions(role: string): Record<string, MobilePermission> {
   const grants: Record<string, MobilePermission> = Object.fromEntries(
     MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
@@ -692,7 +697,7 @@ export default function App() {
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
-      const next = defaultMobilePermissions(String(member.role || 'cashier'))
+      const next = blankMobilePermissions()
       for (const grant of (data?.permissions || []) as Array<Record<string, unknown>>) {
         const key = String(grant.module_key || '')
         if (next[key]) next[key] = {
