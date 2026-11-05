@@ -97,11 +97,13 @@ function PermissionEditor({
   onChange,
   disabled = false,
   grantablePermissions,
+  hiddenModules = [],
 }: {
   value: Grant[]
   onChange: (next: Grant[]) => void
   disabled?: boolean
   grantablePermissions?: Record<string, Partial<Grant>>
+  hiddenModules?: ModuleKey[]
 }) {
   const update = (moduleKey: ModuleKey, action: keyof Omit<Grant, 'module_key'>, checked: boolean) => {
     onChange(value.map((grant) => {
@@ -135,7 +137,7 @@ function PermissionEditor({
       <button type="button" className="secondary-button" disabled={disabled} onClick={() => selectAll(false)}>Tout retirer</button>
     </div>
     <div className="module-permission-list">
-      {moduleCatalog.map((module) => {
+      {moduleCatalog.filter((module) => !hiddenModules.includes(module.key)).map((module) => {
         const grant = value.find((item) => item.module_key === module.key)!
         const allowed = grantablePermissions?.[module.key]
         return <div className="module-permission-row" key={module.key}>
@@ -376,7 +378,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
 
           <div className="user-permissions-create">
             <h3>Permissions du nouvel utilisateur</h3>
-            <PermissionEditor value={newPermissions} onChange={setNewPermissions} disabled={saving} grantablePermissions={grantablePermissions}/>
+            <PermissionEditor value={newPermissions} onChange={setNewPermissions} disabled={saving} grantablePermissions={grantablePermissions} hiddenModules={role === 'cashier' || role === 'stock_manager' ? ['users'] : []}/>
           </div>
 
           {editingMember && <div className="user-permissions-edit">
@@ -384,7 +386,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
               <div><h3>Permissions : {editingMember.full_name || editingMember.email}</h3><p>Les modifications s’appliquent à cette boutique uniquement.</p></div>
               <button type="button" className="secondary-button" onClick={() => setEditingMember(null)} disabled={saving}><X size={15}/> Fermer</button>
             </div>
-            <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving} grantablePermissions={grantablePermissions}/>
+            <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving} grantablePermissions={grantablePermissions} hiddenModules={editingMember.role === 'cashier' || editingMember.role === 'stock_manager' ? ['users'] : []}/>
             <button type="button" className="primary-button" onClick={() => void savePermissions()} disabled={saving}><Save size={16}/> Enregistrer les permissions</button>
           </div>}
 
