@@ -37,6 +37,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Cache Gradle distributions and dependencies
+        uses: gradle/actions/setup-gradle@v4
       - name: Install dependencies
         run: npm install
       - name: Check Expo packages
@@ -48,7 +50,18 @@ jobs:
         run: npx expo prebuild --platform android --no-install
       - name: Build standalone release APK
         working-directory: stylepro-manager/mobile/android
-        run: ./gradlew --no-daemon assembleRelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if ./gradlew --no-daemon assembleRelease; then
+              exit 0
+            fi
+            echo "Gradle build attempt ${attempt} failed; retrying after a short delay..."
+            sleep 15
+          done
+          echo "Gradle release build failed after 3 attempts."
+          exit 1
       - name: Sign test APK with ephemeral CI key
         working-directory: stylepro-manager/mobile/android
         shell: bash
