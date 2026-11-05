@@ -414,7 +414,7 @@ export default function App() {
 
 
   const loadProducts = useCallback(async (id: string) => {
-    if (!id) {
+    if (!id || !['catalogue','sales','stock','atelier','labels','promotions','deliveries','dashboard'].some(canViewMobileModule)) {
       setProducts([])
       return
     }
@@ -427,10 +427,10 @@ export default function App() {
 
     if (error) throw new Error(`Catalogue : ${error.message}`)
     setProducts((data ?? []) as ProductRow[])
-  }, [])
+  }, [canViewMobileModule])
 
   const loadAnalytics = useCallback(async (id: string) => {
-    if (!id) {
+    if (!id || !canViewMobileModule('dashboard')) {
       setSales([])
       setReturns([])
       setExpenses([])
@@ -517,7 +517,7 @@ export default function App() {
     if (warnings.length) {
       setError(`Tableau de bord partiel — ${warnings.join(' ; ')}`)
     }
-  }, [])
+  }, [canViewMobileModule])
 
   const refreshAll = useCallback(async (manual = false) => {
     if (!user) return
