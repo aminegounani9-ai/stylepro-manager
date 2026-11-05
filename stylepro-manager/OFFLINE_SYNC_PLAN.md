@@ -14,7 +14,7 @@
 - Atelier and delivery modules cache their downloaded records and can use local snapshots when a network request fails.
 - POS can read cached variants, customers, and stock movements when offline. This is a read-only fallback; final sale creation and stock-changing operations still require a server connection.
 - The Tauri desktop app uses the same React frontend and therefore the same IndexedDB cache inside its WebView.
-- Android currently persists its Supabase authentication session with AsyncStorage; the full business-data SQLite cache and offline write queue are not yet implemented there.
+- Android currently persists its Supabase authentication session with AsyncStorage, loads server-assigned module visibility, and remains an online companion; the full business-data SQLite cache and offline write queue are not yet implemented there. User administration remains in Web/Desktop until the full permission matrix is added to Android.
 
 ## Important safety rule
 The queue is infrastructure only at this stage. Do not replay arbitrary table writes yet. Each module needs a reviewed adapter and conflict policy. Sales, returns, stock movements, and delivery confirmation must use idempotency keys and server-side transactional RPCs before offline operations can be replayed. This prevents duplicate sales and stock changes.
@@ -34,7 +34,7 @@ All cache reads must filter by the active store. On logout or store switch, clea
 - No general-purpose replay of queued writes is enabled. The queue is infrastructure only; do not send arbitrary table upserts/deletes.
 - Offline creation of sales, returns, stock movements, expenses, production records, and delivery confirmations is not yet released. Each needs a reviewed local draft model, server-side idempotency key, transactional RPC, retry policy, and conflict handling.
 - The Android client does not yet have a persistent SQLite business-data cache or background sync worker.
-- User-management role delegation (Manager creating Cashier/Stock Manager) remains gated by a live read-only RLS/constraint audit. The current Edge Function is Admin-only; do not relax it until the live policies and store membership model are verified.
+- Manager delegation and per-user module/action permissions are implemented in the staged GitHub branch. Production access remains unchanged until migrations `202611050001`–`202611050003` are applied in order and the `manage-users` Edge Function is redeployed. Verify the live RLS policy inventory before applying them.
 - Web and Desktop share source code, but Windows installers must pass the dedicated desktop workflow before distribution. Android APK must pass the standalone APK workflow. A successful web build does not certify either native package.
 
 No production database or Storage changes are included in this phase. Apply additive SQL migrations only after the live project has been audited and the exact constraints/policies are known.
