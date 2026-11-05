@@ -121,4 +121,4 @@ Before release, complete these steps:
 
 - `20261105133000_store_member_module_permissions.sql`: adds `store_members.is_active`, the per-user module/CRUD grant table, helper functions, and RLS for the grant table.
 - `20261105134000_module_permission_rls_guards.sql`: adds restrictive guards for mapped business tables and a global Admin allow policy. It intentionally leaves the existing permissive policies in place.
-- These migrations are additive drafts only. Review SQL against the live database and test on staging before applying.
+- These migrations are additive drafts only. Review SQL against the live database and test on staging before applying. The delegated allow policies are limited to tables and child relationships explicitly handled in the migration; they are not a blanket replacement of every old role policy.
