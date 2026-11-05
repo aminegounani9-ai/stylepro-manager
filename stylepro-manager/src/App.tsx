@@ -950,7 +950,7 @@ export default function App() {
     }
     void loadAccess()
     return () => { cancelled = true }
-  }, [user?.id, storeId])
+  }, [user, storeId])
   useEffect(() => {
     if (!currentRole) return
     const moduleKey = APP_MODULE_FOR_VIEW[currentView]
