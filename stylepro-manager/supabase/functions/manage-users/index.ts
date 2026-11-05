@@ -175,18 +175,19 @@ Deno.serve(async (req) => {
       const { data: existing, error: existingError } = await adminClient.from("store_members")
         .select("user_id").eq("store_id", storeId).eq("user_id", userId).maybeSingle();
       if (existingError) return json({ error: existingError.message }, 400);
-      if (existing) return json({ error: "Cet utilisateur est déjà affecté à cette boutique" }, 409);
-      const { error: memberError } = await adminClient.from("store_members").insert({
-        store_id: storeId, user_id: userId, role, is_active: true,
-      });
-      if (memberError) return json({ error: memberError.message }, 400);
+      const memberWrite = existing
+        ? await adminClient.from("store_members").update({ role, is_active: true }).eq("store_id", storeId).eq("user_id", userId)
+        : await adminClient.from("store_members").insert({ store_id: storeId, user_id: userId, role, is_active: true });
+      if (memberWrite.error) return json({ error: memberWrite.error.message }, 400);
       const rows = normalizePermissions(defaultPermissionsForRole(role), userId, storeId, authData.user.id);
       const { error: permissionsError } = await adminClient.from("store_member_module_permissions")
         .upsert(rows, { onConflict: "store_id,user_id,module_key" });
-      if (permissionsError) {
-        await adminClient.from("store_members").delete().eq("store_id", storeId).eq("user_id", userId);
-        return json({ error: permissionsError.message }, 400);
-      }
+      if (permissionsError) return json({ error: permissionsError.message }, 400);
+      // A user belongs to one assigned boutique at a time. Preserve old memberships
+      // and their data, but deactivate access to other boutiques.
+      const { error: otherStoresError } = await adminClient.from("store_members")
+        .update({ is_active: false }).eq("user_id", userId).neq("store_id", storeId);
+      if (otherStoresError) return json({ error: otherStoresError.message }, 400);
       return json({ success: true, user_id: userId, store_id: storeId, role });
     }
 
