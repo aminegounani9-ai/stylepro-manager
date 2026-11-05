@@ -85,7 +85,27 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const storeId = String(body.store_id || "");
     const action = String(body.action || "");
-    if (!storeId) return json({ error: "store_id is required" }, 400);
+    if (!storeId && action !== "list_stores") return json({ error: "store_id is required" }, 400);
+
+    if (action === "list_stores") {
+      const { data: adminMemberships, error: adminError } = await adminClient.from("store_members")
+        .select("store_id").eq("user_id", authData.user.id).eq("role", "admin").eq("is_active", true);
+      if (adminError) return json({ error: adminError.message }, 400);
+      if ((adminMemberships || []).length > 0) {
+        const { data, error } = await adminClient.from("stores").select("id,name,currency").order("created_at");
+        if (error) return json({ error: error.message }, 400);
+        return json({ stores: data || [], is_global_admin: true });
+      }
+      const { data: memberships, error: membershipsError } = await adminClient.from("store_members")
+        .select("store_id").eq("user_id", authData.user.id).eq("is_active", true);
+      if (membershipsError) return json({ error: membershipsError.message }, 400);
+      const storeIds = (memberships || []).map((row) => row.store_id);
+      if (!storeIds.length) return json({ stores: [], is_global_admin: false });
+      const { data, error } = await adminClient.from("stores")
+        .select("id,name,currency").in("id", storeIds).order("created_at");
+      if (error) return json({ error: error.message }, 400);
+      return json({ stores: data || [], is_global_admin: false });
+    }
 
     // Read-only permission bootstrap for every signed-in store member.
     // This action intentionally runs before user-administration checks.
@@ -197,29 +217,6 @@ Deno.serve(async (req) => {
       const forbidden = grants.find((grant) => !allowed.has(grant.module_key));
       if (forbidden) throw new Error(`Vous ne pouvez pas attribuer le module ${forbidden.module_key}`);
     };
-
-    if (action === "list_stores") {
-      const query = adminClient.from("stores").select("id,name,currency").order("name");
-      if (isGlobalAdmin) {
-        const { data, error } = await query;
-        if (error) return json({ error: error.message }, 400);
-        return json({ stores: data || [] });
-      }
-      const { data: memberships, error } = await adminClient.from("store_members")
-        .select("store_id")
-        .eq("user_id", authData.user.id)
-        .eq("role", "manager")
-        .eq("is_active", true);
-      if (error) return json({ error: error.message }, 400);
-      const storeIds = (memberships || []).map((row) => row.store_id);
-      if (!storeIds.length) return json({ stores: [] });
-      const { data: managerStores, error: storesError } = await adminClient.from("stores")
-        .select("id,name,currency")
-        .in("id", storeIds)
-        .order("name");
-      if (storesError) return json({ error: storesError.message }, 400);
-      return json({ stores: managerStores || [] });
-    }
 
     if (action === "list") {
       const { data: members, error } = await adminClient.from("store_members")
