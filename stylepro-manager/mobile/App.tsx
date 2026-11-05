@@ -156,6 +156,12 @@ const MOBILE_ROLES = [
   { value: 'cashier', label: 'Vendeur / Caisse' },
   { value: 'stock_manager', label: 'Gestionnaire stock' },
 ]
+const MOBILE_VIEW_MODULE_KEY: Record<string,string> = {
+  dashboard:'dashboard', products:'catalogue', sales:'sales', stock:'stock',
+  returns:'returns', clients:'clients', expenses:'expenses', atelier:'atelier',
+  deliveries:'deliveries', promotions:'promotions', labels:'labels',
+  users:'users', settings:'settings',
+}
 function blankMobilePermissions(): Record<string, MobilePermission> {
   return Object.fromEntries(
     MOBILE_MODULES.map(({ key }) => [key, { can_view: false, can_create: false, can_update: false, can_delete: false }]),
@@ -389,14 +395,9 @@ export default function App() {
     setPermissionsReady(true)
   }, [])
 
-  const viewModuleKey: Record<string,string> = {
-    dashboard:'dashboard', products:'catalogue', sales:'sales', stock:'stock',
-    returns:'returns', clients:'clients', expenses:'expenses', atelier:'atelier',
-    deliveries:'deliveries', promotions:'promotions', labels:'labels',
-    users:'users', settings:'settings',
-  }
-  const canViewMobileModule = (key: string) =>
-    isGlobalAdmin || modulePermissions[key]?.can_view === true
+  const canViewMobileModule = useCallback((key: string) =>
+    isGlobalAdmin || modulePermissions[key]?.can_view === true,
+  [isGlobalAdmin, modulePermissions])
 
 
   const loadProducts = useCallback(async (id: string) => {
@@ -578,19 +579,25 @@ export default function App() {
 
   useEffect(() => {
     if (!user || !storeId) return
-    void loadPermissions(storeId).catch(e => setError(e instanceof Error ? e.message : 'Permissions indisponibles.'))
+    const timer = setTimeout(() => {
+      void loadPermissions(storeId).catch(e => setError(e instanceof Error ? e.message : 'Permissions indisponibles.'))
+    }, 0)
+    return () => clearTimeout(timer)
   }, [user, storeId, loadPermissions])
 
   useEffect(() => {
     if (!permissionsReady || !user || !storeId) return
-    const moduleKey = viewModuleKey[view] || 'dashboard'
+    const moduleKey = MOBILE_VIEW_MODULE_KEY[view] || 'dashboard'
     if (canViewMobileModule(moduleKey)) return
     const fallback = [
       'dashboard', 'products', 'sales', 'stock', 'returns', 'clients',
       'expenses', 'atelier', 'deliveries', 'promotions', 'labels', 'users', 'settings',
-    ].find(key => canViewMobileModule(viewModuleKey[key] || key))
-    if (fallback && fallback !== view) setView(fallback as typeof view)
-  }, [permissionsReady, user, storeId, view, modulePermissions, isGlobalAdmin])
+    ].find(key => canViewMobileModule(MOBILE_VIEW_MODULE_KEY[key] || key))
+    if (fallback && fallback !== view) {
+      const timer = setTimeout(() => setView(fallback as typeof view), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [permissionsReady, user, storeId, view, canViewMobileModule])
 
   const moduleLabels: Record<string, string> = {
     products: 'Catalogue', sales: 'Ventes', stock: 'Gestion du stock', returns: 'Retours',
@@ -600,7 +607,7 @@ export default function App() {
 
   async function loadModule(nextView: typeof view) {
     if (!storeId) return
-    const requiredModule = viewModuleKey[nextView] || nextView
+    const requiredModule = MOBILE_VIEW_MODULE_KEY[nextView] || nextView
     if (!permissionsReady || !canViewMobileModule(requiredModule)) {
       setError('Accès non autorisé : ce module ne fait pas partie de vos permissions.')
       return
@@ -1233,7 +1240,7 @@ export default function App() {
             ['dashboard', 'Accueil'], ['products', 'Catalogue'], ['sales', 'Ventes'], ['stock', 'Stock'],
             ['returns', 'Retours'], ['clients', 'Clients'], ['expenses', 'Dépenses'],
             ['atelier', 'Atelier'], ['deliveries', 'Livraisons'], ['promotions', 'Promos'], ['labels', 'Étiquettes'], ['users', 'Utilisateurs'], ['settings', 'Paramètres']
-          ] as [typeof view, string][]).filter(([key]) => canViewMobileModule(viewModuleKey[key] || key)).map(([key, label]) => (
+          ] as [typeof view, string][]).filter(([key]) => canViewMobileModule(MOBILE_VIEW_MODULE_KEY[key] || key)).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => void loadModule(key)} style={[styles.moduleNavItem, view === key && styles.moduleNavItemActive]}>
               <Text style={[styles.moduleNavText, view === key && styles.moduleNavTextActive]}>{t(label)}</Text>
             </TouchableOpacity>
@@ -1242,7 +1249,7 @@ export default function App() {
 
         {!permissionsReady ? (
           <View style={styles.panel}><ActivityIndicator color={COLORS.accent}/><Text style={styles.muted}>Chargement des permissions…</Text></View>
-        ) : !canViewMobileModule(viewModuleKey[view] || view) ? (
+        ) : !canViewMobileModule(MOBILE_VIEW_MODULE_KEY[view] || view) ? (
           <View style={styles.panel}><ShieldCheck size={28} color={COLORS.accent}/><Text style={styles.panelTitle}>Accès non autorisé</Text><Text style={styles.panelSubtitle}>Ce module ne fait pas partie des permissions de votre compte dans cette boutique.</Text></View>
         ) : view === 'dashboard' ? (
         <>
