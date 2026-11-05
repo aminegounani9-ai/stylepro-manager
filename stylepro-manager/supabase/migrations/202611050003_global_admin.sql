@@ -26,7 +26,7 @@ $$;
 revoke all on function private.is_global_admin() from public;
 grant execute on function private.is_global_admin() to authenticated, service_role;
 
-create or replace function private.is_store_member(uuid)
+create or replace function private.is_store_member(p_store uuid)
 returns boolean
 language sql
 stable
@@ -37,13 +37,13 @@ as $$
     or exists (
       select 1
       from public.store_members sm
-      where sm.store_id = $1
+      where sm.store_id = p_store
         and sm.user_id = auth.uid()
         and sm.is_active = true
     );
 $$;
 
-create or replace function private.has_store_role(uuid, text[])
+create or replace function private.has_store_role(p_store uuid, p_roles text[])
 returns boolean
 language sql
 stable
@@ -57,7 +57,7 @@ as $$
       where sm.store_id = $1
         and sm.user_id = auth.uid()
         and sm.is_active = true
-        and sm.role = any($2)
+        and sm.role = any(p_roles)
     );
 $$;
 
