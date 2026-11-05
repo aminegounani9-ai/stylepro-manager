@@ -910,6 +910,65 @@ export default function App() {
   | 'promotions'
   | 'settings'
 >('dashboard')
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [modulePermissions, setModulePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
+  const hasModuleView = (moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true
+  const moduleForView: Record<string, string> = {
+    dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
+    stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
+    statistics: 'dashboard', labels: 'labels', promotions: 'promotions', settings: 'settings',
+  }
+  useEffect(() => {
+    let cancelled = false
+    async function loadAccess() {
+      if (!user || !storeId) {
+        setCurrentRole(null)
+        setModulePermissions({})
+        return
+      }
+      const { data: membership, error: memberError } = await supabase.from('store_members')
+        .select('role, is_active').eq('store_id', storeId).eq('user_id', user.id).maybeSingle()
+      if (cancelled) return
+      if (memberError || !membership || membership.is_active !== true) {
+        setCurrentRole(null)
+        setModulePermissions({})
+        return
+      }
+      setCurrentRole(membership.role)
+      if (membership.role === 'admin') {
+        setModulePermissions({})
+        return
+      }
+      const { data: grants, error: grantsError } = await supabase.from('store_member_module_permissions')
+        .select('module_key, can_view, can_add, can_edit, can_delete')
+        .eq('store_id', storeId).eq('user_id', user.id)
+      if (cancelled) return
+      if (grantsError) {
+        setModulePermissions({})
+        return
+      }
+      const next: Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }> = {}
+      for (const grant of grants || []) next[grant.module_key] = {
+        can_view: grant.can_view === true, can_add: grant.can_add === true,
+        can_edit: grant.can_edit === true, can_delete: grant.can_delete === true,
+      }
+      setModulePermissions(next)
+    }
+    void loadAccess()
+    return () => { cancelled = true }
+  }, [user?.id, storeId])
+  useEffect(() => {
+    if (!currentRole) return
+    const moduleKey = moduleForView[currentView]
+    if (moduleKey && !hasModuleView(moduleKey)) {
+      const firstAllowed = [
+        ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['stock', 'stock'],
+        ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'settings'], ['atelier', 'atelier'],
+        ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['settings', 'settings'],
+      ].find(([key]) => hasModuleView(key))
+      if (firstAllowed) setCurrentView(firstAllowed[1] as typeof currentView)
+    }
+  }, [currentRole, modulePermissions, currentView])
   const [promotions, setPromotions] = useState<PromotionRow[]>([])
   const [promotionProductIdsByPromotion, setPromotionProductIdsByPromotion] = useState<Record<string, string[]>>({})
   const [promotionLoading, setPromotionLoading] = useState(false)
@@ -3643,17 +3702,17 @@ const loadPromotions = useCallback(async () => {
             <p className="sidebar-caption">VOTRE ESPACE</p>
 
             <p className="sidebar-group-label">GÉNÉRAL</p>
-            <button type="button" className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
+            <button type="button" style={{ display: hasModuleView('dashboard') ? undefined : 'none' }} className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
               <Gauge size={19} /> <span>Tableau de bord</span>
             </button>
 
             <p className="sidebar-group-label">BOUTIQUE</p>
-            <button type="button" className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
+            <button type="button" style={{ display: hasModuleView('catalogue') ? undefined : 'none' }} className={`nav-item ${currentView === 'catalogue' ? 'active' : ''}`} onClick={() => setCurrentView('catalogue')}>
               <Grid2X2 size={19} /> <span>Catalogue articles</span>
             </button>
             <button
   type="button"
-  className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
+  style={{ display: hasModuleView('atelier') ? undefined : 'none' }} className={`nav-item ${currentView === 'atelier' ? 'active' : ''}`}
   onClick={() => {
     setCurrentView('atelier')
     setError('')
@@ -3663,38 +3722,38 @@ const loadPromotions = useCallback(async () => {
   <Scissors size={19} />
   <span>Atelier / Production</span>
 </button>
-            <button type="button" className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('promotions') ? undefined : 'none' }} className={`nav-item ${currentView === 'promotions' ? 'active' : ''}`} onClick={() => { setCurrentView('promotions'); setError(''); setMessage('') }}>
               <BadgePercent size={19} /> <span>Promotions</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
+            <button type="button" style={{ display: hasModuleView('labels') ? undefined : 'none' }} className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
               <QrCode size={19} /> <span>Étiquettes QR</span>
             </button>
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
-            <button type="button" className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('deliveries') ? undefined : 'none' }} className={`nav-item ${currentView === 'livraisons' ? 'active' : ''}`} onClick={() => { setCurrentView('livraisons'); setError(''); setMessage('') }}>
               <Truck size={19} /> <span>Livraisons</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
+            <button type="button" style={{ display: hasModuleView('stock') ? undefined : 'none' }} className={`nav-item ${currentView === 'stock' ? 'active' : ''}`} onClick={() => setCurrentView('stock')}>
               <Warehouse size={19} /> <span>Gestion du stock</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
+            <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
               <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
+            <button type="button" style={{ display: hasModuleView('returns') ? undefined : 'none' }} className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
               <Undo2 size={19} /> <span>Retours / Remboursements</span>
             </button>
-            <button type="button" className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
+            <button type="button" style={{ display: hasModuleView('clients') ? undefined : 'none' }} className={`nav-item ${currentView === 'customers' ? 'active' : ''}`} onClick={() => setCurrentView('customers')}>
               <ContactRound size={19} /> <span>Clients</span>
             </button>
 
             <p className="sidebar-group-label">ANALYSE</p>
-            <button type="button" className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
+            <button type="button" style={{ display: hasModuleView('dashboard') ? undefined : 'none' }} className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
               <ChartNoAxesCombined size={19} /> <span>Statistiques</span>
             </button>
 
             <button
               type="button"
-              className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
+              style={{ display: hasModuleView('settings') ? undefined : 'none' }} className={`nav-bottom settings-nav ${currentView === 'settings' ? 'selected' : ''}`}
               onClick={() => setCurrentView('settings')}
             >
               <SlidersHorizontal size={18} />
@@ -5721,7 +5780,7 @@ const loadPromotions = useCallback(async () => {
                   <p className="appearance-note">Le sens de lecture RTL est activé automatiquement pour l'arabe.</p>
                 </section>
 
-                <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />
+                {hasModuleView('users') && <UserManagement user={user} storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || ''} />}
 
                 <section className="panel settings-account">
                   <div className="panel-title">
