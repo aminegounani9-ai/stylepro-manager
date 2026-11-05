@@ -8,6 +8,7 @@ type ModuleKey = 'dashboard' | 'catalogue' | 'sales' | 'stock' | 'returns' | 'cl
 type Permission = { module_key: ModuleKey; can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }
 type Member = { user_id: string; role: Role; created_at: string; full_name: string; email: string; is_active: boolean; permissions: Permission[] }
 type StoreOption = { id: string; name: string; currency: string }
+type ExistingUserOption = { user_id: string; email: string; full_name: string; membership: { role: Role; is_active: boolean } | null }
 
 const modules: { key: ModuleKey; label: string }[] = [
   { key: 'dashboard', label: 'Tableau de bord' },
@@ -71,6 +72,9 @@ function PermissionEditor({ value, onChange, disabled = false }: { value: Permis
 
 export default function UserManagement({ user, storeId, storeName, stores = [] }: { user: User | null; storeId: string; storeName: string; stores?: StoreOption[] }) {
   const [members, setMembers] = useState<Member[]>([])
+  const [existingUsers, setExistingUsers] = useState<ExistingUserOption[]>([])
+  const [existingUserId, setExistingUserId] = useState('')
+  const [existingUserRole, setExistingUserRole] = useState<Role>('manager')
   // Global Admin chooses the destination boutique independently from the app's current workspace.
   const [targetStoreId, setTargetStoreId] = useState(storeId)
   const [loading, setLoading] = useState(false)
@@ -110,6 +114,12 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
       setCallerRole(memberRole)
       const globalAdmin = access.is_global_admin === true
       setIsGlobalAdmin(globalAdmin)
+      if (globalAdmin) {
+        const allUsers = await call({ action: 'global_list_users' })
+        setExistingUsers((allUsers.users || []) as ExistingUserOption[])
+      } else {
+        setExistingUsers([])
+      }
       const ownUsersGrant = (access.permissions || []).find((item: Permission) => item.module_key === 'users')
       setCanAddUsers(globalAdmin || memberRole === 'admin' || ownUsersGrant?.can_add === true)
       setCanEditUsers(globalAdmin || memberRole === 'admin' || ownUsersGrant?.can_edit === true)
@@ -136,6 +146,19 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
       setNotice('Compte créé, associé à cette boutique et doté des permissions sélectionnées.')
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : 'Création impossible') }
+    finally { setSaving(false) }
+  }
+
+  const assignExistingUser = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!existingUserId) return
+    setSaving(true); setError(''); setNotice('')
+    try {
+      await call({ action: 'assign_existing_user', user_id: existingUserId, role: existingUserRole })
+      setNotice('Utilisateur affecté à cette boutique. Son accès aux autres boutiques a été désactivé.')
+      setExistingUserId('')
+      await load()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Affectation impossible') }
     finally { setSaving(false) }
   }
 
@@ -172,7 +195,19 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
       !canManage && !loading ? <p className="appearance-note">Cette section est réservée aux administrateurs et managers autorisés.</p> :
       <>
         {isGlobalAdmin && <label className="field user-store-assignment">Boutique à gérer / boutique du nouvel utilisateur<select value={targetStoreId} onChange={event => setTargetStoreId(event.target.value)} disabled={saving || stores.length === 0} required><option value="" disabled>Choisir une boutique</option>{stores.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select><small>Le Manager créé sera rattaché à la boutique sélectionnée. Ses employés seront ensuite créés dans cette même boutique.</small></label>}
-        {error && <p role="alert" className="form-error">{error}</p>}
+        {isGlobalAdmin && <form className="user-create-form" onSubmit={assignExistingUser}>
+          <h3>Affecter un compte existant à cette boutique</h3>
+          <p className="appearance-note">Choisissez un compte déjà créé et son rôle dans la boutique sélectionnée. Son accès aux autres boutiques sera désactivé, sans supprimer ses données.</p>
+          <label className="field">Compte existant<select value={existingUserId} onChange={e=>setExistingUserId(e.target.value)} required>
+            <option value="">Choisir un utilisateur</option>
+            {existingUsers.filter(item => !item.membership?.is_active).map(item=><option key={item.user_id} value={item.user_id}>{item.full_name || item.email} — {item.email}</option>)}
+          </select></label>
+          <label className="field">Rôle dans cette boutique<select value={existingUserRole} onChange={e=>setExistingUserRole(e.target.value as Role)}>
+            {roles.filter(item=>item.value!=='admin').map(item=><option key={item.value} value={item.value}>{item.label}</option>)}
+          </select></label>
+          <button type="submit" className="primary-button" disabled={saving || !existingUserId}><UserPlus size={16}/> Affecter à cette boutique</button>
+        </form>}
+                {error && <p role="alert" className="form-error">{error}</p>}
         {notice && <p role="status" className="appearance-note">{notice}</p>}
         {canManage && <>
           {canAddUsers && <form className="user-create-form" onSubmit={create}>
