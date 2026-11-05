@@ -723,8 +723,14 @@ export default function App() {
     setError('')
     try {
       const permissions = Object.entries(editingPermissions)
-        .filter(([key, grant]) => (isGlobalAdmin || canViewMobileModule(key)) && (grant.can_view || grant.can_create || grant.can_update || grant.can_delete))
-        .map(([module_key, grant]) => ({ module_key, ...grant }))
+        .map(([module_key, grant]) => ({
+          module_key,
+          can_view: isGlobalAdmin ? grant.can_view : grant.can_view && modulePermissions[module_key]?.can_view === true,
+          can_create: isGlobalAdmin ? grant.can_create : grant.can_create && modulePermissions[module_key]?.can_create === true,
+          can_update: isGlobalAdmin ? grant.can_update : grant.can_update && modulePermissions[module_key]?.can_update === true,
+          can_delete: isGlobalAdmin ? grant.can_delete : grant.can_delete && modulePermissions[module_key]?.can_delete === true,
+        }))
+        .filter(grant => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
       const { data, error } = await supabase.functions.invoke('manage-users', {
         body: { action: 'set_permissions', store_id: storeId, user_id: editingUserId, permissions },
       })
@@ -765,8 +771,14 @@ export default function App() {
     setUserSaving(true); setError('')
     try {
       const permissions = Object.entries(newUserPermissions)
-        .filter(([key, grant]) => (isGlobalAdmin || canViewMobileModule(key)) && (grant.can_view || grant.can_create || grant.can_update || grant.can_delete))
-        .map(([module_key, grant]) => ({ module_key, ...grant }))
+        .map(([module_key, grant]) => ({
+          module_key,
+          can_view: isGlobalAdmin ? grant.can_view : grant.can_view && modulePermissions[module_key]?.can_view === true,
+          can_create: isGlobalAdmin ? grant.can_create : grant.can_create && modulePermissions[module_key]?.can_create === true,
+          can_update: isGlobalAdmin ? grant.can_update : grant.can_update && modulePermissions[module_key]?.can_update === true,
+          can_delete: isGlobalAdmin ? grant.can_delete : grant.can_delete && modulePermissions[module_key]?.can_delete === true,
+        }))
+        .filter(grant => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
       const { data, error } = await supabase.functions.invoke('manage-users', {
         body: {
           action: 'create', store_id: storeId, full_name: newUserName.trim(),
@@ -1560,7 +1572,7 @@ export default function App() {
                   {([['can_view','Voir'],['can_create','Ajouter'],['can_update','Modifier'],['can_delete','Supprimer']] as [keyof MobilePermission,string][]).map(([key,label]) =>
                     <View key={key} style={{flexDirection:'row',alignItems:'center',gap:4}}>
                       <Text style={styles.saleDate}>{label}</Text>
-                      <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !allowed} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
+                      <Switch value={grant[key]} onValueChange={value => change(key,value)} disabled={userSaving || !(isGlobalAdmin || modulePermissions[module.key]?.[key] === true)} trackColor={{false:COLORS.border,true:COLORS.accent}}/>
                     </View>
                   )}
                 </View>
