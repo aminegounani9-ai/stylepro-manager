@@ -96,10 +96,12 @@ function PermissionEditor({
   value,
   onChange,
   disabled = false,
+  grantablePermissions,
 }: {
   value: Grant[]
   onChange: (next: Grant[]) => void
   disabled?: boolean
+  grantablePermissions?: Record<string, Partial<Grant>>
 }) {
   const update = (moduleKey: ModuleKey, action: keyof Omit<Grant, 'module_key'>, checked: boolean) => {
     onChange(value.map((grant) => {
@@ -115,9 +117,16 @@ function PermissionEditor({
     }))
   }
 
-  const selectAll = (checked: boolean) => onChange(value.map((grant) => ({
-    ...grant, can_view: checked, can_create: checked, can_update: checked, can_delete: checked,
-  })))
+  const selectAll = (checked: boolean) => onChange(value.map((grant) => {
+    const allowed = grantablePermissions?.[grant.module_key]
+    return {
+      ...grant,
+      can_view: checked && (allowed?.can_view ?? true),
+      can_create: checked && (allowed?.can_create ?? true),
+      can_update: checked && (allowed?.can_update ?? true),
+      can_delete: checked && (allowed?.can_delete ?? true),
+    }
+  }))
 
   return <div className="module-permission-editor">
     <div className="module-permission-heading">
@@ -128,6 +137,7 @@ function PermissionEditor({
     <div className="module-permission-list">
       {moduleCatalog.map((module) => {
         const grant = value.find((item) => item.module_key === module.key)!
+        const allowed = grantablePermissions?.[module.key]
         return <div className="module-permission-row" key={module.key}>
           <strong>{module.label}</strong>
           {([
@@ -140,7 +150,7 @@ function PermissionEditor({
               <input
                 type="checkbox"
                 checked={grant[action]}
-                disabled={disabled}
+                disabled={disabled || (allowed ? allowed[action] !== true : false)}
                 onChange={(event) => update(module.key, action, event.target.checked)}
               />
               <span>{label}</span>
@@ -164,6 +174,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   const [role, setRole] = useState<Role>('cashier')
   const [newPermissions, setNewPermissions] = useState<Grant[]>(() => defaultGrants('cashier'))
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
+  const [grantablePermissions, setGrantablePermissions] = useState<Record<string, Partial<Grant>>>({})
   const [canManage, setCanManage] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Grant[]>(blankGrants())
@@ -186,6 +197,11 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
       setMembers((result.members || []) as Member[])
       setIsGlobalAdmin(result.is_global_admin === true)
       setCanManage(result.is_global_admin === true || result.is_store_manager === true)
+      const allowed: Record<string, Partial<Grant>> = {}
+      for (const row of (result.grantable_permissions || []) as Partial<Grant>[]) {
+        if (row.module_key) allowed[row.module_key] = row
+      }
+      setGrantablePermissions(allowed)
     } catch (e) {
       setMembers([])
       setCanManage(false)
@@ -213,9 +229,16 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
     setError('')
     setNotice('')
     try {
-      const permissions = newPermissions.filter((grant) =>
-        grant.can_view || grant.can_create || grant.can_update || grant.can_delete,
-      )
+      const permissions = newPermissions.map((grant) => {
+        const allowed = grantablePermissions[grant.module_key]
+        return isGlobalAdmin ? grant : {
+          ...grant,
+          can_view: grant.can_view && allowed?.can_view === true,
+          can_create: grant.can_create && allowed?.can_create === true,
+          can_update: grant.can_update && allowed?.can_update === true,
+          can_delete: grant.can_delete && allowed?.can_delete === true,
+        }
+      }).filter((grant) => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
       await call({ action: 'create', email, full_name: fullName, password, role, permissions })
       setEmail('')
       setFullName('')
@@ -281,9 +304,16 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
     setError('')
     setNotice('')
     try {
-      const permissions = editingPermissions.filter((grant) =>
-        grant.can_view || grant.can_create || grant.can_update || grant.can_delete,
-      )
+      const permissions = editingPermissions.map((grant) => {
+        const allowed = grantablePermissions[grant.module_key]
+        return isGlobalAdmin ? grant : {
+          ...grant,
+          can_view: grant.can_view && allowed?.can_view === true,
+          can_create: grant.can_create && allowed?.can_create === true,
+          can_update: grant.can_update && allowed?.can_update === true,
+          can_delete: grant.can_delete && allowed?.can_delete === true,
+        }
+      }).filter((grant) => grant.can_view || grant.can_create || grant.can_update || grant.can_delete)
       await call({ action: 'set_permissions', user_id: editingMember.user_id, permissions })
       setNotice('Permissions enregistrées.')
       setEditingMember(null)
@@ -324,7 +354,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
 
           <div className="user-permissions-create">
             <h3>Permissions du nouvel utilisateur</h3>
-            <PermissionEditor value={newPermissions} onChange={setNewPermissions} disabled={saving}/>
+            <PermissionEditor value={newPermissions} onChange={setNewPermissions} disabled={saving} grantablePermissions={grantablePermissions}/>
           </div>
 
           {editingMember && <div className="user-permissions-edit">
@@ -332,7 +362,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
               <div><h3>Permissions : {editingMember.full_name || editingMember.email}</h3><p>Les modifications s’appliquent à cette boutique uniquement.</p></div>
               <button type="button" className="secondary-button" onClick={() => setEditingMember(null)} disabled={saving}><X size={15}/> Fermer</button>
             </div>
-            <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving}/>
+            <PermissionEditor value={editingPermissions} onChange={setEditingPermissions} disabled={saving} grantablePermissions={grantablePermissions}/>
             <button type="button" className="primary-button" onClick={() => void savePermissions()} disabled={saving}><Save size={16}/> Enregistrer les permissions</button>
           </div>}
 
