@@ -202,6 +202,18 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
         if (row.module_key) allowed[row.module_key] = row
       }
       setGrantablePermissions(allowed)
+      if (result.is_global_admin !== true) {
+        setNewPermissions(current => current.map((grant) => {
+          const own = allowed[grant.module_key]
+          return {
+            ...grant,
+            can_view: grant.can_view && own?.can_view === true,
+            can_create: grant.can_create && own?.can_create === true,
+            can_update: grant.can_update && own?.can_update === true,
+            can_delete: grant.can_delete && own?.can_delete === true,
+          }
+        }))
+      }
     } catch (e) {
       setMembers([])
       setCanManage(false)
@@ -220,7 +232,17 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
 
   const changeRole = (nextRole: Role) => {
     setRole(nextRole)
-    setNewPermissions(defaultGrants(nextRole))
+    const defaults = defaultGrants(nextRole)
+    setNewPermissions(isGlobalAdmin ? defaults : defaults.map((grant) => {
+      const own = grantablePermissions[grant.module_key]
+      return {
+        ...grant,
+        can_view: grant.can_view && own?.can_view === true,
+        can_create: grant.can_create && own?.can_create === true,
+        can_update: grant.can_update && own?.can_update === true,
+        can_delete: grant.can_delete && own?.can_delete === true,
+      }
+    }))
   }
 
   const create = async (event: React.FormEvent) => {
