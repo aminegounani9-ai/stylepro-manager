@@ -1118,7 +1118,11 @@ export default function App() {
           ))}
         </ScrollView>
 
-        {view === 'dashboard' ? (
+        {!permissionsReady ? (
+          <View style={styles.panel}><ActivityIndicator color={COLORS.accent}/><Text style={styles.muted}>Chargement des permissions…</Text></View>
+        ) : !canViewMobileModule(viewModuleKey[view] || view) ? (
+          <View style={styles.panel}><ShieldCheck size={28} color={COLORS.accent}/><Text style={styles.panelTitle}>Accès non autorisé</Text><Text style={styles.panelSubtitle}>Ce module ne fait pas partie des permissions de votre compte dans cette boutique.</Text></View>
+        ) : view === 'dashboard' ? (
         <>
         <View style={styles.sectionHeader}>
           <View>
