@@ -1459,17 +1459,23 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
       'dashboard', 'catalogue', 'sales', 'stock', 'returns', 'customers',
       'atelier', 'livraisons', 'promotions', 'labels', 'users', 'settings',
     ].find((view) => canViewModule(VIEW_MODULE_KEY[view] || view))
-    if (fallback && fallback !== currentView) setCurrentView(fallback as typeof currentView)
+    if (fallback && fallback !== currentView) {
+      const timer = window.setTimeout(() => setCurrentView(fallback as typeof currentView), 0)
+      return () => window.clearTimeout(timer)
+    }
   }, [permissionsReady, user, storeId, currentView, canViewModule])
 
   useEffect(() => {
-    if (user && storeId) {
-      void loadModulePermissions()
-    } else {
-      setModulePermissions({})
-      setIsGlobalAdmin(false)
-      setPermissionsReady(false)
-    }
+    const timer = window.setTimeout(() => {
+      if (user && storeId) {
+        void loadModulePermissions()
+      } else {
+        setModulePermissions({})
+        setIsGlobalAdmin(false)
+        setPermissionsReady(false)
+      }
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [user, storeId, loadModulePermissions])
 
   const loadProducts = useCallback(async () => {
