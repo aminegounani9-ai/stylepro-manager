@@ -1,8 +1,10 @@
 -- StylePro Manager — module permission RLS guard.
--- This migration only adds RESTRICTIVE guards and a global-Admin allow policy.
--- It preserves existing permissive policies and their parent-row / draft-state checks.
--- Existing role policies may still be more restrictive than a member's grants; that
--- is intentional until each original policy is safely refactored with its full checks.
+-- This migration adds RESTRICTIVE guards, a global-Admin allow policy, and
+-- permission-based allow policies for audited simple tables and child rows whose
+-- same-store parent relationship is checked explicitly.
+-- Existing role policies and delivery draft-state checks are preserved. Existing
+-- role policies may still be more restrictive than a member's grants on workflows
+-- intentionally not expanded here.
 
 do $module_guard$
 declare
