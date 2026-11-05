@@ -126,6 +126,16 @@ begin
     ) then
       execute format('alter table public.%I enable row level security', item.table_name);
 
+      -- This permissive membership policy supplies the base access path for all
+      -- member roles; the restrictive action policies below decide what each
+      -- user can actually do. Existing role-based policies remain in place.
+      policy_name := left('module_member_base_' || item.table_name, 63);
+      execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
+      execute format(
+        'create policy %I on public.%I as permissive for all to authenticated using (private.is_store_member(store_id)) with check (private.is_store_member(store_id))',
+        policy_name, item.table_name
+      );
+
       policy_name := left('module_gate_' || item.table_name || '_select', 63);
       execute format('drop policy if exists %I on public.%I', policy_name, item.table_name);
       execute format(
