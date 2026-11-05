@@ -1,6 +1,6 @@
 # StylePro Manager — Access Control Baseline
 
-Status: **design approved; implementation gated by live RLS verification**.
+Status: **live audit results received; additive permission foundation drafted; business-table enforcement and client integration remain incomplete**.
 
 This document records the agreed authorization model before changing production code or the Supabase schema. It is additive documentation only: it does not modify application behavior, database tables, policies, or existing data.
 
@@ -72,24 +72,24 @@ These are defaults, not an authorization bypass. Admin can grant modules globall
 - Known `store_members` columns: `store_id, user_id, role, created_at`.
 - The current role check constraint was reported to allow `admin`, `manager`, `cashier`, `stock_manager`, and `accountant`. The approved UI roles are Admin, Manager, Cashier, and Stock Manager; do not silently rewrite existing role values.
 - Existing helper functions reported: `private.is_store_member(uuid)` and `private.has_store_role(uuid, text[])`, SECURITY DEFINER and STABLE.
-- Existing policy behavior previously inspected includes self-only profile/member reads, member store reads, and admin-only store updates. This is not a complete current policy inventory.
-- The repository's `supabase/00_read_only_security_audit.sql` is a SELECT-only inventory script. No migrations directory is currently present in the checked repository tree.
+- The live policy inventory supplied on 2026-11-05 shows that several business tables grant CRUD based on store membership or broad role checks, rather than per-user module grants. Atelier CRUD is membership-based; catalogue/stock tables have broad role-based manage policies; sales, payments, returns and delivery tables have role-based write policies; `store_modules` is admin-managed and member-readable. These existing permissive policies must be narrowed with reviewed restrictive policies or carefully replaced policies.
+- The repository's `supabase/00_read_only_security_audit.sql` is a SELECT-only inventory script. An additive migration has now been drafted under `supabase/migrations/20261105133000_store_member_module_permissions.sql`; it adds store-specific membership activation, a per-member module/CRUD grant table, and security-definer helper functions. It is not applied to Supabase.
 - Current `manage-users` Edge Function permits only Admin membership and currently accepts the role list `admin, manager, cashier, stock_manager`. It does not yet implement Manager delegation or persisted module grants.
 - Current Web/Desktop `UserManagement` UI is Admin-only and has no store picker or module checklist.
 - Android has a separate user-management UI and currently contains an inconsistent role list (including `accountant`). It must be aligned with the approved server rules before release.
 - Local IndexedDB is a cache/queue foundation; full safe offline mutation replay is not implemented. Do not claim complete offline synchronization.
 
-## 6. Required verification before implementation
+## 6. Implementation gates
 
-Run `supabase/00_read_only_security_audit.sql` against the intended live Supabase project and retain all result sets. In particular verify:
-- exact primary/unique/foreign keys on `stores`, `store_members`, and all store-owned tables;
-- every existing RLS policy (including permissive/restrictive mode, USING and WITH CHECK);
-- whether Admin currently has a global membership representation or requires a trusted global-admin mapping;
-- whether a user can belong to multiple stores and how Manager assignments are represented;
-- all functions and triggers that create stores or memberships;
-- whether any module-permission table or equivalent already exists.
+The live read-only audit results have been supplied in the conversation. The first additive migration is a foundation only; it does not yet enforce permissions on products, sales, stock, Atelier, deliveries, expenses, or other business tables. Do not apply it as a completed authorization solution.
 
-Then prepare an additive migration and backend changes against those exact results. Existing permissive policies must be revised carefully where necessary: adding another permissive policy does not restrict access because PostgreSQL combines permissive policies with OR semantics.
+Before release, complete these steps:
+1. Verify the exact live constraints and the new migration against the target Supabase project.
+2. Extend `manage-users` so Admin is global, Manager is restricted to assigned stores and may create/manage only Cashier or Stock Manager, and module grants are validated server-side.
+3. Replace global Auth banning for store-specific disablement with `store_members.is_active` after the migration is applied.
+4. Add and test restrictive RLS policies per module/action on every store-owned business table. PostgreSQL permissive policies combine with OR; a new permissive policy cannot narrow an existing permissive policy. Restrictive policies combine with AND, but must be designed carefully so they do not break existing tenant isolation or legitimate server workflows.
+5. Update Web/Desktop and Android to load the same server-authoritative grants, hide ungranted navigation, and block direct route access.
+6. Run the acceptance tests below against live Supabase before deployment.
 
 ## 7. Acceptance tests
 
@@ -104,3 +104,11 @@ Then prepare an additive migration and backend changes against those exact resul
 - Existing users, memberships, products, sales, stock, Atelier records, and other business data remain intact.
 
 **No application or database authorization changes are considered complete until these checks pass against the live Supabase project.**
+
+
+## 8. Current implementation status (2026-11-05)
+
+- A separate branch `feat/custom-store-module-permissions` was created from `main`.
+- The additive SQL foundation is drafted on that branch only. No SQL has been run against Supabase; no production data, policies, or Auth users were changed.
+- The existing `manage-users` Edge Function and Web/Android user interfaces have not yet been updated on this branch.
+- The new permission table and helper functions alone do not secure business data. Do not deploy this phase as complete until restrictive business-table RLS policies and all client integrations are ready.
