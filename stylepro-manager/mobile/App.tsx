@@ -51,7 +51,6 @@ type ProductRow = {
   target_audience: string | null
   description: string | null
   active: boolean
-  image_url: string | null
 }
 
 type SaleRow = {
@@ -316,7 +315,7 @@ export default function App() {
 
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,target_audience,description,active,image_url')
+      .select('id,name,target_audience,description,active')
       .eq('store_id', id)
       .order('name')
 
