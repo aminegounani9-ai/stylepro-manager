@@ -270,6 +270,7 @@ export default function App() {
   const [newUserPermissions, setNewUserPermissions] = useState<Record<string, MobilePermission>>(() => defaultMobilePermissions('cashier'))
   const [editingUserId, setEditingUserId] = useState('')
   const [editingUserName, setEditingUserName] = useState('')
+  const [editingUserRole, setEditingUserRole] = useState('cashier')
   const [editingPermissions, setEditingPermissions] = useState<Record<string, MobilePermission>>({})
   const [userSaving, setUserSaving] = useState(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
@@ -728,6 +729,7 @@ export default function App() {
       }
       setEditingUserId(String(member.user_id))
       setEditingUserName(String(member.full_name || member.email || 'Utilisateur'))
+      setEditingUserRole(String(member.role || 'cashier'))
       setEditingPermissions(next)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement des permissions impossible.')
@@ -757,6 +759,7 @@ export default function App() {
       if (data?.error) throw new Error(data.error)
       setEditingUserId('')
       setEditingUserName('')
+      setEditingUserRole('cashier')
       setEditingPermissions({})
       await loadModule('users')
       Alert.alert('Permissions', 'Les permissions ont été enregistrées.')
@@ -1576,7 +1579,7 @@ export default function App() {
               )}
             </View>
             <Text style={styles.panelSubtitle}>Permissions du nouvel utilisateur</Text>
-            {MOBILE_MODULES.map(module => {
+            {MOBILE_MODULES.filter(module => !(['cashier','stock_manager'].includes(newUserRole) && module.key === 'users')).map(module => {
               const grant = newUserPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
               const allowed = isGlobalAdmin || canViewMobileModule(module.key)
               const change = (action: keyof MobilePermission, value: boolean) => setNewUserPermissions(current => ({
@@ -1604,9 +1607,9 @@ export default function App() {
             {editingUserId ? <View style={{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:COLORS.border}}>
               <View style={styles.panelHeader}>
                 <View style={styles.flex}><Text style={styles.panelTitle}>Permissions : {editingUserName}</Text><Text style={styles.panelSubtitle}>Accès accordés dans cette boutique uniquement.</Text></View>
-                <TouchableOpacity style={styles.smallButton} onPress={() => setEditingUserId('')}><Text style={styles.smallButtonText}>Fermer</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.smallButton} onPress={() => { setEditingUserId(''); setEditingUserRole('cashier') }}><Text style={styles.smallButtonText}>Fermer</Text></TouchableOpacity>
               </View>
-              {MOBILE_MODULES.map(module => {
+              {MOBILE_MODULES.filter(module => !(['cashier','stock_manager'].includes(editingUserRole) && module.key === 'users')).map(module => {
                 const grant = editingPermissions[module.key] || {can_view:false,can_create:false,can_update:false,can_delete:false}
                 const change = (action: keyof MobilePermission, value: boolean) => setEditingPermissions(current => ({
                   ...current,
