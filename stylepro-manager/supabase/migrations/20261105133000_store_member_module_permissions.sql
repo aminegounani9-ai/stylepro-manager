@@ -117,7 +117,7 @@ language sql
 stable
 security definer
 set search_path = public, private
-as $
+as $can_manage_member_module$
   select
     private.is_global_admin()
     or (
@@ -135,7 +135,7 @@ as $
           and coalesce(target.is_active, true)
       )
     );
-$;
+$can_manage_member_module$;
 
 drop policy if exists store_member_module_permissions_select
   on public.store_member_module_permissions;
@@ -163,7 +163,7 @@ create policy store_member_module_permissions_update
   on public.store_member_module_permissions
   for update to authenticated
   using (
-    private.can_manage_member_module(store_id, user_id, module_key)
+    private.can_manage_member_module(store_id, user_id, module_key, can_view, can_create, can_update, can_delete)
   )
   with check (
     private.can_manage_member_module(store_id, user_id, module_key)
