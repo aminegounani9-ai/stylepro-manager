@@ -299,7 +299,7 @@ begin
       execute format('drop policy if exists %I on public.%I', policy_name, child_table);
       execute format(
         'create policy %I on public.%I for insert to authenticated with check (private.has_module_permission(store_id, %L, %L) and exists (select 1 from public.%I parent_row where parent_row.id = %I.%I and parent_row.store_id = %I.store_id))',
-        policy_name, child_table, case when child_table = 'payments' or child_table = 'returns' then 'sales' else 'returns' end,
+        policy_name, child_table, case when child_table = 'payments' then 'sales' else 'returns' end,
         'create', parent_table, child_table, child_fk, child_table
       );
     end if;
