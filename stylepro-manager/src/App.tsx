@@ -1483,6 +1483,12 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
       setProducts([])
       return
     }
+    const canReadProducts = ['catalogue', 'sales', 'stock', 'atelier', 'labels', 'promotions', 'deliveries', 'dashboard']
+      .some(moduleKey => canViewModule(moduleKey))
+    if (!canReadProducts) {
+      setProducts([])
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -1510,11 +1516,11 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
     }
 
     setLoading(false)
-  }, [storeId])
+  }, [storeId, canViewModule])
 
 
   const loadAnalytics = useCallback(async () => {
-    if (!storeId) {
+    if (!storeId || !canViewModule('dashboard')) {
       setAnalytics({ sales: [], expenses: [], returns: [], lowStock: [] })
       return
     }
@@ -1600,7 +1606,7 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
     } finally {
       setAnalyticsLoading(false)
     }
-  }, [storeId])
+  }, [storeId, canViewModule])
 
   useEffect(() => {
     if (user && storeId && (currentView === 'statistics' || currentView === 'dashboard')) {
