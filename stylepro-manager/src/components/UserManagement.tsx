@@ -231,6 +231,8 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
   }, [load])
 
   const availableRoles = useMemo(() => isGlobalAdmin ? adminRoles : managerRoles, [isGlobalAdmin])
+  const canCreateUsers = isGlobalAdmin || grantablePermissions.users?.can_create === true
+  const canUpdateUsers = isGlobalAdmin || grantablePermissions.users?.can_update === true
 
   const changeRole = (nextRole: Role) => {
     setRole(nextRole)
@@ -366,6 +368,7 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
         {error && <p role="alert" className="form-error">{error}</p>}
         {notice && <p role="status" className="appearance-note">{notice}</p>}
         {canManage && <>
+          {canCreateUsers && <>
           <form className="user-create-form" onSubmit={create}>
             <label className="field">Nom complet<input value={fullName} onChange={e => setFullName(e.target.value)} required maxLength={100}/></label>
             <label className="field">Adresse e-mail<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="off"/></label>
@@ -380,8 +383,9 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
             <h3>Permissions du nouvel utilisateur</h3>
             <PermissionEditor value={newPermissions} onChange={setNewPermissions} disabled={saving} grantablePermissions={grantablePermissions} hiddenModules={role === 'cashier' || role === 'stock_manager' ? ['users'] : []}/>
           </div>
+          </>}
 
-          {editingMember && <div className="user-permissions-edit">
+          {canUpdateUsers && editingMember && <div className="user-permissions-edit">
             <div className="user-permissions-edit-title">
               <div><h3>Permissions : {editingMember.full_name || editingMember.email}</h3><p>Les modifications s’appliquent à cette boutique uniquement.</p></div>
               <button type="button" className="secondary-button" onClick={() => setEditingMember(null)} disabled={saving}><X size={15}/> Fermer</button>
@@ -403,14 +407,14 @@ export default function UserManagement({ user, storeId, storeName }: { user: Use
                   <select
                     aria-label="Rôle utilisateur"
                     value={member.role}
-                    disabled={saving || member.user_id === user?.id || !editableByManager || !member.is_active}
+                    disabled={saving || member.user_id === user?.id || !editableByManager || !canUpdateUsers || !member.is_active}
                     onChange={e => void updateRole(member, e.target.value as Role)}
                   >
                     {member.role === 'accountant' && <option value="accountant">Comptable (existant)</option>}
                     {availableRoles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   <span className={member.is_active ? 'user-status active' : 'user-status'}>{member.is_active ? 'Actif' : 'Désactivé'}</span>
-                  {member.user_id !== user?.id && editableByManager && <>
+                  {member.user_id !== user?.id && editableByManager && canUpdateUsers && <>
                     {member.is_active && <button type="button" className="secondary-button" disabled={saving} onClick={() => void openPermissions(member)}><KeyRound size={15}/> Permissions</button>}
                     <button type="button" className="secondary-button" disabled={saving} onClick={() => void toggleActive(member)}>
                       {member.is_active ? <><UserX size={15}/> Désactiver</> : <><UserCheck size={15}/> Activer</>}
