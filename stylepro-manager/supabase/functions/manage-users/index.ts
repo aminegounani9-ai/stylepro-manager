@@ -124,6 +124,18 @@ Deno.serve(async (req) => {
     const canManageRole = (targetRole: Role) =>
       isGlobalAdmin || (targetRole !== "admin" && targetRole !== "manager");
 
+    const hasUsersPermission = async (actionName: "view" | "add" | "edit") => {
+      if (callerRole === "admin") return true;
+      const { data, error } = await adminClient.from("store_member_module_permissions")
+        .select("can_view, can_add, can_edit")
+        .eq("store_id", storeId).eq("user_id", authData.user.id)
+        .eq("module_key", "users").maybeSingle();
+      if (error || !data) return false;
+      if (actionName === "view") return data.can_view === true;
+      if (actionName === "add") return data.can_add === true;
+      return data.can_edit === true;
+    };
+
     const getTarget = async (userId: string) => {
       const { data, error } = await adminClient.from("store_members")
         .select("user_id, role, is_active, created_at")
@@ -134,6 +146,7 @@ Deno.serve(async (req) => {
     };
 
     if (action === "list") {
+      if (!(await hasUsersPermission("view"))) return json({ error: "Permission de consultation des utilisateurs requise" }, 403);
       const { data: members, error } = await adminClient.from("store_members")
         .select("user_id, role, is_active, created_at")
         .eq("store_id", storeId).order("created_at", { ascending: true });
@@ -168,6 +181,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
+      if (!(await hasUsersPermission("add"))) return json({ error: "Permission d'ajout des utilisateurs requise" }, 403);
       const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
       const fullName = String(body.full_name || "").trim();
@@ -207,6 +221,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update_role") {
+      if (!(await hasUsersPermission("edit"))) return json({ error: "Permission de modification des utilisateurs requise" }, 403);
       const userId = String(body.user_id || "");
       const role = String(body.role || "") as Role;
       if (!userId || !allowedRoles.includes(role)) return json({ error: "Utilisateur ou rôle invalide" }, 400);
@@ -222,6 +237,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "set_active") {
+      if (!(await hasUsersPermission("edit"))) return json({ error: "Permission de modification des utilisateurs requise" }, 403);
       const userId = String(body.user_id || "");
       const active = body.active === true;
       if (!userId) return json({ error: "user_id is required" }, 400);
@@ -241,6 +257,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "get_permissions") {
+      if (!(await hasUsersPermission("view"))) return json({ error: "Permission de consultation des utilisateurs requise" }, 403);
       const userId = String(body.user_id || "");
       const target = await getTarget(userId);
       if (!canManageRole(target.role as Role)) return json({ error: "Accès refusé" }, 403);
@@ -252,6 +269,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "set_permissions") {
+      if (!(await hasUsersPermission("edit"))) return json({ error: "Permission de modification des utilisateurs requise" }, 403);
       const userId = String(body.user_id || "");
       if (!userId) return json({ error: "user_id is required" }, 400);
       const target = await getTarget(userId);
