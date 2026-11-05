@@ -106,7 +106,8 @@ begin
           select_expression := 'private.has_module_permission(store_id, ''stock'', ''view'')
             or private.has_module_permission(store_id, ''sales'', ''view'')
             or private.has_module_permission(store_id, ''dashboard'', ''view'')
-            or private.has_module_permission(store_id, ''deliveries'', ''view'')';
+            or private.has_module_permission(store_id, ''deliveries'', ''view'')
+            or private.has_module_permission(store_id, ''labels'', ''view'')';
         elsif table_name = 'stock_locations' then
           select_expression := 'private.has_module_permission(store_id, ''stock'', ''view'')
             or private.has_module_permission(store_id, ''deliveries'', ''view'')';
