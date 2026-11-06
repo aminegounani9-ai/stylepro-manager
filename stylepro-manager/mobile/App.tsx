@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { cacheMobileRows, getMobileCachedRows } from './src/lib/offlineDb'
+import { cacheMobileRows, getMobileCachedRows, hasMobileCachedSnapshot } from './src/lib/offlineDb'
 import {
   ActivityIndicator,
   Alert,
@@ -341,8 +341,9 @@ export default function App() {
       // Never use cached business data to bypass an authorization or RLS error.
       if (isNetworkFailure) {
         try {
-          const cached = await getMobileCachedRows<ProductRow>(id, 'products')
-          if (cached.length) {
+          const hasSnapshot = await hasMobileCachedSnapshot(id, 'products')
+          if (hasSnapshot) {
+            const cached = await getMobileCachedRows<ProductRow>(id, 'products')
             setProducts(cached)
             setError('Catalogue affiché depuis le stockage local. Reconnexion Internet nécessaire pour actualiser.')
             return
