@@ -33,6 +33,12 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         );
         CREATE INDEX IF NOT EXISTS idx_cached_records_store_table
           ON cached_records (store_id, table_name);
+        CREATE TABLE IF NOT EXISTS cached_table_snapshots (
+          store_id TEXT NOT NULL,
+          table_name TEXT NOT NULL,
+          cached_at TEXT NOT NULL,
+          PRIMARY KEY (store_id, table_name)
+        );
       `)
       return db
     })().catch((error) => {
@@ -76,7 +82,31 @@ export async function cacheMobileRows<T extends { id: string }>(
         cachedAt,
       )
     }
+    // Record the successful snapshot even when the server returned zero rows.
+    await tx.runAsync(
+      `INSERT INTO cached_table_snapshots (store_id, table_name, cached_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(store_id, table_name)
+       DO UPDATE SET cached_at = excluded.cached_at`,
+      storeId,
+      table,
+      cachedAt,
+    )
   })
+}
+
+export async function hasMobileCachedSnapshot(
+  storeId: string,
+  table: CacheTable,
+): Promise<boolean> {
+  if (!storeId) return false
+  const db = await getDatabase()
+  const snapshot = await db.getFirstAsync<{ cached_at: string }>(
+    'SELECT cached_at FROM cached_table_snapshots WHERE store_id = ? AND table_name = ? LIMIT 1',
+    storeId,
+    table,
+  )
+  return Boolean(snapshot)
 }
 
 export async function getMobileCachedRows<T>(
@@ -103,5 +133,8 @@ export async function getMobileCachedRows<T>(
 export async function clearMobileStoreCache(storeId: string): Promise<void> {
   if (!storeId) return
   const db = await getDatabase()
-  await db.runAsync('DELETE FROM cached_records WHERE store_id = ?', storeId)
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.runAsync('DELETE FROM cached_records WHERE store_id = ?', storeId)
+    await tx.runAsync('DELETE FROM cached_table_snapshots WHERE store_id = ?', storeId)
+  })
 }
