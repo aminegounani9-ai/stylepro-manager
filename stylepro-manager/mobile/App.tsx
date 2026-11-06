@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { cacheMobileRows, getMobileCachedRows, hasMobileCachedSnapshot } from './src/lib/offlineDb'
 import {
   ActivityIndicator,
   Alert,
@@ -331,8 +332,36 @@ export default function App() {
       .eq('store_id', id)
       .order('name')
 
-    if (error) throw new Error(`Catalogue : ${error.message}`)
-    setProducts((data ?? []) as ProductRow[])
+    if (error) {
+      const message = error.message || ''
+      const isNetworkFailure =
+        error instanceof TypeError ||
+        /failed to fetch|network request failed|networkerror|load failed|offline|timed? ?out/i.test(message)
+
+      // Never use cached business data to bypass an authorization or RLS error.
+      if (isNetworkFailure) {
+        try {
+          const hasSnapshot = await hasMobileCachedSnapshot(id, 'products')
+          if (hasSnapshot) {
+            const cached = await getMobileCachedRows<ProductRow>(id, 'products')
+            setProducts(cached)
+            setError('Catalogue affiché depuis le stockage local. Reconnexion Internet nécessaire pour actualiser.')
+            return
+          }
+        } catch {
+          // Keep the original network error if the local database is unavailable.
+        }
+      }
+      throw new Error(`Catalogue : ${error.message}`)
+    }
+
+    const rows = (data ?? []) as ProductRow[]
+    setProducts(rows)
+    try {
+      await cacheMobileRows(id, 'products', rows)
+    } catch {
+      // A local cache failure must not block normal online use.
+    }
   }, [])
 
   const loadAnalytics = useCallback(async (id: string) => {
