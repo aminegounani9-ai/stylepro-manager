@@ -333,18 +333,34 @@ export default function App() {
       .order('name')
 
     if (error) {
-      const cached = await getMobileCachedRows<ProductRow>(id, 'products')
-      if (cached.length) {
-        setProducts(cached)
-        setError('Catalogue affiché depuis le stockage local. Reconnexion Internet nécessaire pour actualiser.')
-        return
+      const message = error.message || ''
+      const isNetworkFailure =
+        error instanceof TypeError ||
+        /failed to fetch|network request failed|networkerror|load failed|offline|timed? ?out/i.test(message)
+
+      // Never use cached business data to bypass an authorization or RLS error.
+      if (isNetworkFailure) {
+        try {
+          const cached = await getMobileCachedRows<ProductRow>(id, 'products')
+          if (cached.length) {
+            setProducts(cached)
+            setError('Catalogue affiché depuis le stockage local. Reconnexion Internet nécessaire pour actualiser.')
+            return
+          }
+        } catch {
+          // Keep the original network error if the local database is unavailable.
+        }
       }
       throw new Error(`Catalogue : ${error.message}`)
     }
 
     const rows = (data ?? []) as ProductRow[]
     setProducts(rows)
-    await cacheMobileRows(id, 'products', rows)
+    try {
+      await cacheMobileRows(id, 'products', rows)
+    } catch {
+      // A local cache failure must not block normal online use.
+    }
   }, [])
 
   const loadAnalytics = useCallback(async (id: string) => {
