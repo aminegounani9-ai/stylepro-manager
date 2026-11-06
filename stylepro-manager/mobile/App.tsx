@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { cacheMobileRows, getMobileCachedRows } from './src/lib/offlineDb'
 import {
   ActivityIndicator,
   Alert,
@@ -331,8 +332,19 @@ export default function App() {
       .eq('store_id', id)
       .order('name')
 
-    if (error) throw new Error(`Catalogue : ${error.message}`)
-    setProducts((data ?? []) as ProductRow[])
+    if (error) {
+      const cached = await getMobileCachedRows<ProductRow>(id, 'products')
+      if (cached.length) {
+        setProducts(cached)
+        setError('Catalogue affiché depuis le stockage local. Reconnexion Internet nécessaire pour actualiser.')
+        return
+      }
+      throw new Error(`Catalogue : ${error.message}`)
+    }
+
+    const rows = (data ?? []) as ProductRow[]
+    setProducts(rows)
+    await cacheMobileRows(id, 'products', rows)
   }, [])
 
   const loadAnalytics = useCallback(async (id: string) => {
