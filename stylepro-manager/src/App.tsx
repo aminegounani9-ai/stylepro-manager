@@ -47,6 +47,7 @@ import {
   Menu,
   X,
 } from 'lucide-react'
+import { readUiSoundSettings, playUiSound, UI_SOUND_SETTINGS_KEY, type UiSoundSettings } from './lib/uiSounds'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, cacheServerRecord } from './lib/offlineDb'
 import type { EntityTable } from './lib/offlineDb'
@@ -378,6 +379,12 @@ const EXTRA_AR_TRANSLATIONS: Record<string, string> = {
   "Dépenses des sept derniers jours": "مصاريف آخر سبعة أيام",
   "Format refusé. Choisissez une image JPG, PNG ou WebP.": "صيغة غير مقبولة. اختر صورة JPG أو PNG أو WebP.",
   "La photo ne doit pas dépasser 5 Mo.": "يجب ألا يتجاوز حجم الصورة 5 ميغابايت.",
+  "Effets sonores": "المؤثرات الصوتية",
+  "Activez les sons discrets des interactions et des notifications.": "فعّل الأصوات الخفيفة للتفاعلات والإشعارات.",
+  "Activer les effets sonores": "تفعيل المؤثرات الصوتية",
+  "Volume": "مستوى الصوت",
+  "Tester le son": "تجربة الصوت",
+  "Les sons sont générés directement par le navigateur, sans fichier audio ni envoi de données.": "يتم إنشاء الأصوات مباشرة في المتصفح دون ملفات صوتية أو إرسال بيانات.",
   "Aperçu du produit": "معاينة المنتج",
   "Rechercher par article, marque ou catégorie…": "ابحث عن منتج أو علامة تجارية أو فئة…",
   "Non défini": "غير محدد",
@@ -817,6 +824,27 @@ const APP_MODULE_FOR_VIEW: Record<string, string> = {
 
 export default function App() {
   const [language, setLanguage] = useState<AppLanguage>(() => (localStorage.getItem('stylepro-language') as AppLanguage) || 'fr')
+  const [uiSoundSettings, setUiSoundSettings] = useState<UiSoundSettings>(() => readUiSoundSettings())
+  useEffect(() => {
+    localStorage.setItem(UI_SOUND_SETTINGS_KEY, JSON.stringify(uiSoundSettings))
+  }, [uiSoundSettings])
+  useEffect(() => {
+    const handleButtonSound = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const button = target.closest('button, [role="button"]')
+      if (!button || (button as HTMLButtonElement).hasAttribute('disabled') || button.getAttribute('data-sound') === 'off') return
+      playUiSound('click', uiSoundSettings)
+    }
+    document.addEventListener('click', handleButtonSound, true)
+    return () => document.removeEventListener('click', handleButtonSound, true)
+  }, [uiSoundSettings])
+  useEffect(() => {
+    if (message) playUiSound('success', uiSoundSettings)
+  }, [message, uiSoundSettings])
+  useEffect(() => {
+    if (error) playUiSound('error', uiSoundSettings)
+  }, [error, uiSoundSettings])
   const [printSize, setPrintSize] = useState<'a4' | '80mm'>(() => localStorage.getItem('stylepro-print-size') === '80mm' ? '80mm' : 'a4')
   useEffect(() => {
     localStorage.setItem('stylepro-print-size', printSize)
@@ -5768,6 +5796,46 @@ const loadPromotions = useCallback(async () => {
                     ))}
                   </div>
                   <p className="appearance-note">Vos préférences sont enregistrées automatiquement dans ce navigateur.</p>
+                </section>
+
+                <section className="panel settings-preferences">
+                  <div className="panel-title">
+                    <Activity size={21} />
+                    <div>
+                      <h2>Effets sonores</h2>
+                      <p>Activez les sons discrets des interactions et des notifications.</p>
+                    </div>
+                  </div>
+                  <label className="field appearance-field" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={uiSoundSettings.enabled}
+                      onChange={event => setUiSoundSettings(current => ({ ...current, enabled: event.target.checked }))}
+                      style={{ width: 18, height: 18 }}
+                    />
+                    Activer les effets sonores
+                  </label>
+                  <label className="field appearance-field">
+                    Volume — {Math.round(uiSoundSettings.volume * 100)} %
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={Math.round(uiSoundSettings.volume * 100)}
+                      disabled={!uiSoundSettings.enabled}
+                      onChange={event => setUiSoundSettings(current => ({ ...current, volume: Number(event.target.value) / 100 }))}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={!uiSoundSettings.enabled}
+                    onClick={() => playUiSound('notification', uiSoundSettings)}
+                  >
+                    <Activity size={16} /> Tester le son
+                  </button>
+                  <p className="appearance-note">Les sons sont générés directement par le navigateur, sans fichier audio ni envoi de données.</p>
                 </section>
 
                 <section className="panel settings-preferences">
