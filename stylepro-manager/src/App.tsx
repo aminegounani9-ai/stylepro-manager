@@ -70,6 +70,7 @@ import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
+import NotificationCenter from './components/NotificationCenter'
 import './atelier.css'
 import './stylepro.css'
 
@@ -3551,6 +3552,13 @@ const loadPromotions = useCallback(async () => {
           <span className="system-status">
             <span className="status-dot" /> Système opérationnel
           </span>
+          <NotificationCenter
+            error={error}
+            message={message}
+            lowStock={analytics.lowStock}
+            storeId={storeId}
+            language={language}
+          />
           <button
             className="icon-button"
             onClick={() => setThemeMode(dark ? 'light' : 'dark')}
