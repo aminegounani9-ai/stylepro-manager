@@ -5472,3 +5472,365 @@ tbody tr:last-child td { border-bottom: 0; }
   .user-member-row { align-items: stretch; }
   .user-member-row .user-member-info { flex-basis: 100%; }
 }
+
+
+/* =========================================================
+   STYLEPRO 2026 — unified module polish
+   Presentation-only styles: no data, schema or workflow changes.
+   ========================================================= */
+.app {
+  --surface-soft: var(--soft);
+  --text-primary: var(--text);
+  --text-muted: var(--muted);
+}
+.app :is(.panel, .stat-card, .chart-card, .settings-panel, .pos-panel,
+  .stock-summary-grid > div, .atelier-card, .atelier-hero,
+  .livraison-card, .livraison-kpi) {
+  border-color: var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.app :is(.panel-heading, .panel-header, .section-heading, .panel-title) {
+  gap: 13px;
+}
+.app :is(.panel-title h2, .panel-heading h2, .section-heading h2) {
+  color: var(--text);
+  letter-spacing: -.25px;
+}
+.app :is(.panel-title p, .panel-heading p, .section-heading p) {
+  color: var(--muted);
+}
+.app :is(input, select, textarea) {
+  border-color: var(--border);
+  border-radius: 10px;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.app :is(input, select, textarea):focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent) !important;
+}
+.app :is(.primary-button, .secondary-button, .icon-button,
+  .atelier-primary-button, .atelier-secondary-button, .livraison-btn) {
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+}
+.app :is(.primary-button, .secondary-button, .atelier-primary-button,
+  .atelier-secondary-button, .livraison-btn):not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(39, 47, 60, .10);
+}
+.app :is(.data-table, .table-wrap, .table-container, .livraison-table-wrap) {
+  border-radius: 13px;
+}
+.app table {
+  border-color: var(--border);
+}
+.app :is(th, td) {
+  border-color: var(--border);
+}
+.app :is(tbody tr) {
+  transition: background .15s ease;
+}
+.app :is(tbody tr:hover) {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+.app .atelier-module {
+  --text-primary: var(--text);
+  --text-muted: var(--muted);
+  --surface-soft: var(--soft);
+  gap: 18px;
+}
+.app :is(.atelier-card, .atelier-hero) {
+  background: var(--surface);
+}
+.app .atelier-module :is(.atelier-section-icon, .atelier-hero-icon) {
+  background: var(--soft);
+  color: var(--primary);
+}
+.app .livraison-page {
+  --lv-bg: var(--bg);
+  --lv-card: var(--surface);
+  --lv-ink: var(--text);
+  --lv-muted: var(--muted);
+  --lv-line: var(--border);
+  --lv-gold: var(--primary);
+}
+.app .livraison-page :is(.livraison-card, .livraison-kpi) {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+.app .livraison-page :is(.livraison-line, .livraison-count, .livraison-icon-btn) {
+  background: var(--soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+.app .livraison-page label {
+  color: var(--muted);
+}
+.app .livraison-page :is(input, select, textarea) {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .livraison-page :is(.livraison-card, .livraison-kpi) {
+  background: var(--surface);
+}
+.app.dark .livraison-page :is(.livraison-line, .livraison-count, .livraison-icon-btn,
+  .livraison-kpi-icon, .livraison-line .line-number) {
+  background: var(--soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .livraison-page :is(h1, h2, h3, h4, p, label, strong, td, th, span) {
+  color: inherit;
+}
+.app.dark .livraison-page :is(small, .livraison-hint, .allocation-note) {
+  color: var(--muted);
+}
+.app.dark .atelier-module :is(.atelier-card, .atelier-hero, .atelier-inline-form,
+  .atelier-supplier-details > div, .atelier-size-table-wrap, .atelier-production-row) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app.dark .atelier-module :is(h1, h2, h3, h4, p, label, span, strong, td, th) {
+  color: inherit;
+}
+.app.dark .atelier-module :is(input, select, textarea) {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Notification bell, history panel and transient toast alerts. */
+.notification-center {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  z-index: 30;
+}
+.notification-trigger {
+  position: relative;
+}
+.notification-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: #bd5148;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+.notification-popover {
+  position: absolute;
+  top: calc(100% + 13px);
+  right: 0;
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(590px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 55px rgba(20, 27, 38, .22);
+  animation: notification-enter .16s ease-out;
+}
+[dir="rtl"] .notification-popover {
+  right: auto;
+  left: 0;
+}
+.notification-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.notification-popover-head > div {
+  display: grid;
+  gap: 3px;
+}
+.notification-popover-head strong {
+  font-size: 15px;
+  color: var(--text);
+}
+.notification-popover-head small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.notification-close,
+.notification-toast > button {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--soft);
+  color: var(--text);
+}
+.notification-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+}
+.notification-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.notification-toolbar button:hover {
+  color: var(--primary);
+}
+.notification-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.notification-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+.notification-item:hover {
+  background: var(--soft);
+}
+.notification-item.is-unread {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+.notification-item-icon,
+.notification-toast-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--soft);
+  color: var(--primary);
+}
+.notification-item.kind-error .notification-item-icon,
+.notification-toast.kind-error .notification-toast-icon { color: #c3544b; background: #c3544b18; }
+.notification-item.kind-warning .notification-item-icon,
+.notification-toast.kind-warning .notification-toast-icon { color: #b47b2c; background: #d59a351c; }
+.notification-item.kind-success .notification-item-icon,
+.notification-toast.kind-success .notification-toast-icon { color: #39865f; background: #39865f18; }
+.notification-item-copy,
+.notification-toast-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+.notification-item-copy strong,
+.notification-toast-copy strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+.notification-item-copy > span,
+.notification-toast-copy small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.notification-item-copy small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.notification-unread-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.notification-empty {
+  min-height: 145px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.notification-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1000;
+  width: min(420px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 15px 45px rgba(20, 27, 38, .2);
+  animation: notification-enter .2s ease-out;
+}
+[dir="rtl"] .notification-toast {
+  right: auto;
+  left: 22px;
+}
+.notification-toast > button {
+  flex: 0 0 31px;
+}
+@keyframes notification-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 760px) {
+  .notification-popover {
+    position: fixed;
+    top: 105px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100dvh - 125px);
+  }
+  [dir="rtl"] .notification-popover { left: 12px; right: 12px; }
+  .notification-toast {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 24px);
+  }
+  [dir="rtl"] .notification-toast { left: 12px; right: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-popover, .notification-toast { animation: none; }
+  .app :is(.primary-button, .secondary-button, .icon-button,
+    .atelier-primary-button, .atelier-secondary-button, .livraison-btn) { transition: none; }
+}
