@@ -27,15 +27,16 @@ function readHistory(key: string): NotificationRecord[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(key) || '[]')
     if (!Array.isArray(value)) return []
-    return value.filter((item): item is NotificationRecord =>
-      Boolean(item && typeof item === 'object' &&
-        typeof item.id === 'string' &&
-        ['success', 'error', 'warning', 'info'].includes(item.kind) &&
+    return value.filter((entry): entry is NotificationRecord => {
+      if (!entry || typeof entry !== 'object') return false
+      const item = entry as Record<string, unknown>
+      return typeof item.id === 'string' &&
+        ['success', 'error', 'warning', 'info'].includes(String(item.kind)) &&
         typeof item.title === 'string' &&
         typeof item.body === 'string' &&
         typeof item.createdAt === 'string' &&
-        typeof item.read === 'boolean')
-    ).slice(0, HISTORY_LIMIT)
+        typeof item.read === 'boolean'
+    }).slice(0, HISTORY_LIMIT)
   } catch {
     return []
   }
