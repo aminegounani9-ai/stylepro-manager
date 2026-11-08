@@ -1315,6 +1315,26 @@ const filteredStockVariants = posVariants.filter(variant => {
       try { new Notification('StylePro Manager', { body: message, tag: 'stylepro-success' }) } catch { /* notifications are optional */ }
     }
   }, [message, soundEnabled, notificationsEnabled])
+  useEffect(() => {
+    if (!notificationsEnabled || !storeId || !analytics.lowStock.length ||
+        typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    const signature = analytics.lowStock
+      .map(item => `${item.id}:${item.current}:${item.minimum}`)
+      .sort()
+      .join('|')
+    const storageKey = `stylepro_low_stock_notification:${storeId}`
+    try {
+      if (localStorage.getItem(storageKey) === signature) return
+      const examples = analytics.lowStock.slice(0, 3).map(item => item.sku).join(', ')
+      const remaining = analytics.lowStock.length > 3 ? ` et ${analytics.lowStock.length - 3} autre(s)` : ''
+      new Notification('StylePro · Alerte de stock', {
+        body: `${analytics.lowStock.length} référence(s) au seuil minimum ou en rupture : ${examples}${remaining}.`,
+        tag: `stylepro-low-stock-${storeId}`,
+      })
+      localStorage.setItem(storageKey, signature)
+    } catch { /* Notifications are optional and must never block business actions. */ }
+  }, [analytics.lowStock, notificationsEnabled, storeId])
+
   const [scannerCode, setScannerCode] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [scannerMessage, setScannerMessage] = useState('')
