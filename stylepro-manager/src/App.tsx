@@ -96,6 +96,18 @@ function getStableIdempotencyKey(scope: string, payload: unknown): string {
   return key
 }
 
+registerSyncAdapter('returns', {
+  supportsServerIdempotency: true,
+  apply: async operation => {
+    const payload = operation.payload as { sale_id: string; items: Array<{ sale_item_id: string; quantity: number; restock: boolean }>; reason: string }
+    const { error } = await supabase.rpc('create_pos_return_idempotent', {
+      p_store_id: operation.store_id, p_sale_id: payload.sale_id, p_items: payload.items,
+      p_reason: payload.reason, p_idempotency_key: operation.idempotency_key,
+    })
+    if (error) throw error
+  },
+})
+
 registerSyncAdapter('sales', {
   supportsServerIdempotency: true,
   apply: async operation => {
@@ -2628,34 +2640,46 @@ async function stopPOSCamera() {
     setMessage('')
 
     try {
-      const { data, error: rpcError } = await supabase.rpc('create_pos_return', {
-        p_store_id: storeId,
-        p_sale_id: returnSale.id,
-        p_reason: returnReason.trim() || 'Retour produit',
-        p_items: selected.map(line => ({
-          sale_item_id: line.sale_item_id,
-          quantity: line.quantity,
-          restock: line.restock
-        }))
-      })
+      const items = selected.map(line => ({
+        sale_item_id: line.sale_item_id,
+        quantity: line.quantity,
+        restock: line.restock
+      }))
+      const reason = returnReason.trim() || 'Retour produit'
+      const requestPayload = { sale_id: returnSale.id, items, reason }
+      const fingerprint = operationFingerprint(requestPayload)
 
-      if (rpcError) throw rpcError
-      const result = Array.isArray(data) ? data[0] : data
-      if (!result?.return_id) {
-        throw new Error('Le retour n’a pas retourné de référence.')
+      if (!navigator.onLine) {
+        const key = crypto.randomUUID()
+        await enqueueSyncOperation({
+          idempotency_key: key,
+          dedupe_key: `pos-return:${fingerprint}`,
+          store_id: storeId,
+          table_name: 'returns',
+          record_id: key,
+          operation: 'upsert',
+          payload: requestPayload,
+        })
+        setMessage('Retour enregistré localement. Il sera traité automatiquement au retour de la connexion.')
+      } else {
+        const key = getStableIdempotencyKey(`pos-return:${storeId}`, requestPayload)
+        const { data, error: rpcError } = await supabase.rpc('create_pos_return_idempotent', {
+          p_store_id: storeId, p_sale_id: returnSale.id, p_reason: reason,
+          p_items: items, p_idempotency_key: key,
+        })
+        if (rpcError) throw rpcError
+        const result = Array.isArray(data) ? data[0] : data
+        if (!result?.return_id) throw new Error('Le retour n’a pas retourné de référence.')
+        localStorage.removeItem(`stylepro:idempotency:pos-return:${storeId}:${fingerprint}`)
+        setMessage(`Retour enregistré — ${Number(result.refund_total).toLocaleString('fr-DZ', {
+          minimumFractionDigits: 2, maximumFractionDigits: 2
+        })} DZD`)
+        await loadPOSData()
       }
-
-      setMessage(
-        `Retour enregistré — ${Number(result.refund_total).toLocaleString('fr-DZ', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        })} DZD`
-      )
       setReturnSale(null)
       setReturnLines([])
       setReturnSearch('')
       setReturnReason('Retour produit')
-      await loadPOSData()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de l’enregistrement du retour.')
     } finally {
@@ -2744,7 +2768,7 @@ async function stopPOSCamera() {
         if (error) throw error
         const row = Array.isArray(data) ? data[0] : data
         if (!row || row.sale_number == null) throw new Error('La vente n’a pas retourné de numéro de reçu.')
-        localStorage.removeItem(`stylepro:idempotency:pos-sale:${operationFingerprint(requestPayload)}`)
+        localStorage.removeItem(`stylepro:idempotency:pos-sale:${storeId}:${operationFingerprint(requestPayload)}`)
         setLastReceipt({sale_number: Number(row.sale_number), total: Number(row.total)})
         setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
         await Promise.all([loadPOSData(), loadProducts()])
