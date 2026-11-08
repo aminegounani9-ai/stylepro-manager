@@ -32,3 +32,5 @@
   .livraison-print-thermal h2{font-size:11pt!important}
   .livraison-print-thermal p{font-size:8pt!important}
 }
+.livraison-print-store{font-size:12pt;font-weight:800;margin-bottom:5pt;color:#111}
+@media print{.livraison-print-thermal .livraison-print-store{font-size:10pt;margin-bottom:4pt}}
