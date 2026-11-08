@@ -96,6 +96,35 @@ function getStableIdempotencyKey(scope: string, payload: unknown): string {
   return key
 }
 
+
+registerSyncAdapter('deliveries', {
+  supportsServerIdempotency: true,
+  apply: async operation => {
+    const payload = operation.payload as { delivery_id: string }
+    const { error } = await supabase.rpc('confirm_delivery_idempotent', {
+      p_delivery_id: payload.delivery_id, p_idempotency_key: operation.idempotency_key,
+    })
+    if (error) throw error
+  },
+})
+
+registerSyncAdapter('stock_movements', {
+  supportsServerIdempotency: true,
+  apply: async operation => {
+    const payload = operation.payload as {
+      variant_id: string; from_location_id: string; to_location_id: string;
+      quantity: number; reason: string
+    }
+    const { error } = await supabase.rpc('transfer_stock_idempotent', {
+      p_store_id: operation.store_id, p_variant_id: payload.variant_id,
+      p_from_location_id: payload.from_location_id, p_to_location_id: payload.to_location_id,
+      p_quantity: payload.quantity, p_reason: payload.reason,
+      p_idempotency_key: operation.idempotency_key,
+    })
+    if (error) throw error
+  },
+})
+
 registerSyncAdapter('returns', {
   supportsServerIdempotency: true,
   apply: async operation => {
@@ -2103,18 +2132,24 @@ async function saveStockTransfer(e: FormEvent<HTMLFormElement>) {
       quantity: qty,
       reason: transferReason.trim() || 'Transfert interne'
     }
-    const transferKey = getStableIdempotencyKey(`stock-transfer:${storeId}`, transferPayload)
-    const { error: transferError } = await supabase.rpc('transfer_stock_idempotent', {
-      p_store_id: storeId,
-      p_variant_id: transferVariant,
-      p_from_location_id: sourceLocationId,
-      p_to_location_id: destinationLocationId,
-      p_quantity: qty,
-      p_reason: transferPayload.reason,
-      p_idempotency_key: transferKey
-    })
-    if (transferError) throw transferError
-    localStorage.removeItem(`stylepro:idempotency:stock-transfer:${storeId}:${operationFingerprint(transferPayload)}`)
+    if (!navigator.onLine) {
+      const key = crypto.randomUUID()
+      await enqueueSyncOperation({
+        idempotency_key: key, dedupe_key: `stock-transfer:${operationFingerprint(transferPayload)}`,
+        store_id: storeId, table_name: 'stock_movements', record_id: key,
+        operation: 'upsert', payload: transferPayload,
+      })
+      setMessage('Transfert sauvegardé localement. Il sera exécuté à la reconnexion.')
+    } else {
+      const transferKey = getStableIdempotencyKey(`stock-transfer:${storeId}`, transferPayload)
+      const { error: transferError } = await supabase.rpc('transfer_stock_idempotent', {
+        p_store_id: storeId, p_variant_id: transferVariant,
+        p_from_location_id: sourceLocationId, p_to_location_id: destinationLocationId,
+        p_quantity: qty, p_reason: transferPayload.reason, p_idempotency_key: transferKey
+      })
+      if (transferError) throw transferError
+      localStorage.removeItem(`stylepro:idempotency:stock-transfer:${storeId}:${operationFingerprint(transferPayload)}`)
+    }
 
     setTransferQty('1')
     setTransferReason('')
