@@ -3834,10 +3834,10 @@ const loadPromotions = useCallback(async () => {
             </button>
 
             <div className="sidebar-user">
-              <div className="avatar">{(user.email?.[0] ?? 'A').toUpperCase()}</div>
+              <div className="avatar">{(currentRole === 'manager' ? 'M' : (user.email?.[0] ?? 'A')).toUpperCase()}</div>
               <div className="sidebar-user-info">
-                <strong>Compte connecté</strong>
-                <small>{user.email}</small>
+                <strong>{currentRole === 'manager' ? 'Compte Manager' : 'Compte connecté'}</strong>
+                {currentRole !== 'manager' && <small>{user.email}</small>}
               </div>
             </div>
 
@@ -5886,7 +5886,7 @@ const loadPromotions = useCallback(async () => {
                     </div>
                   </div>
                   <div className="settings-account-grid">
-                    <div><small>Compte connecté</small><strong>{user.email || '—'}</strong></div>
+                    <div><small>Compte connecté</small><strong>{currentRole === 'manager' ? 'Compte Manager' : (user.email || '—')}</strong></div>
                     <div><small>Boutique sélectionnée</small><strong>{stores.find(store => store.id === storeId)?.name || 'Aucune boutique'}</strong></div>
                     <div><small>Devise</small><strong>{stores.find(store => store.id === storeId)?.currency || 'DZD'}</strong></div>
                   </div>
