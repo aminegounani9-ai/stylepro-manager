@@ -221,3 +221,24 @@ export async function getMobileSyncQueueSummary(storeId: string): Promise<{
     errors: Number(rows.find(row => row.status === 'error')?.count ?? 0),
   }
 }
+
+export async function getCachedProducts(storeId: string): Promise<Array<{
+  id: string
+  name: string
+  target_audience: string | null
+  description: string | null
+  active: boolean
+}>> {
+  if (!storeId) return []
+  const database = await getDatabase()
+  const rows = await database.getAllAsync<{ id: string; name: string }>(
+    `SELECT product_id AS id,MAX(product_name) AS name
+     FROM mobile_scan_catalog WHERE store_id = ? AND active = 1
+     GROUP BY product_id ORDER BY name`,
+    storeId,
+  )
+  return rows.map(row => ({
+    id: row.id, name: row.name, target_audience: null,
+    description: null, active: true,
+  }))
+}
