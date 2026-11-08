@@ -56,14 +56,17 @@ async function getScannerSession(storeId: string): Promise<{ session: ScannerSes
 }
 
 registerAdapter('scanner_event', async operation => {
-  const payload = operation.payload as { scanned_code: string; scanned_at: string }
+  const payload = operation.payload as { scanned_code: string; scanned_at: string; scanned_by: string }
   const { session, userId } = await getScannerSession(operation.store_id)
+  if (payload.scanned_by !== userId) {
+    throw new Error('Cet événement appartient à un autre utilisateur. Reconnectez-vous avec le compte qui l’a créé.')
+  }
   const { error } = await supabase.from('mobile_scanner_events').insert({
     id: operation.idempotency_key,
     session_id: session.id,
     store_id: operation.store_id,
     scanned_code: payload.scanned_code,
-    scanned_by: userId,
+    scanned_by: payload.scanned_by,
     session_token: session.session_token,
     created_at: payload.scanned_at,
   })
