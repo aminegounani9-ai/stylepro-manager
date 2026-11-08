@@ -19,8 +19,8 @@
         "CAMERA"
       ],
       "softwareKeyboardLayoutMode": "resize",
-      "navigationBarColor": "#F4EFE5",
-      "backgroundColor": "#F4EFE5",
+      "navigationBarColor": "#F1EBDD",
+      "backgroundColor": "#F1EBDD",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#243b35"
@@ -50,6 +50,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#F1EBDD",
+      "barStyle": "dark-content",
+      "translucent": false
     }
   }
 }
