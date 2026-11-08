@@ -5972,3 +5972,43 @@ body {
   .app .dashboard-content { padding-top: 14px; padding-bottom: 14px; }
   .app .auth-card { padding-top: 18px; padding-bottom: 18px; }
 }
+
+
+/* Final mobile viewport clearance: keep the last controls above Android/iOS system navigation */
+@media (max-width: 760px) {
+  html, body, #root {
+    min-height: 100%;
+    min-height: 100dvh;
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+  body {
+    padding-bottom: 0;
+    overscroll-behavior-y: contain;
+  }
+  .app {
+    min-height: 100dvh;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .workspace {
+    min-height: calc(100dvh - 62px);
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .workspace > .sidebar {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - 62px - 72px - env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .dashboard-content,
+  .login-layout {
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (max-width: 760px) and (orientation: landscape) {
+  .app {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .workspace > .sidebar {
+    bottom: calc(48px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - 62px - 48px - env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
