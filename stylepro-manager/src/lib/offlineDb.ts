@@ -121,8 +121,9 @@ export async function saveLocalRecord<T extends Record<string, unknown>>(
     data, updated_at: new Date().toISOString(), sync_state: 'pending',
   }
   const tx = db.transaction(RECORDS, 'readwrite')
+  const done = transactionDone(tx)
   tx.objectStore(RECORDS).put(record)
-  await transactionDone(tx)
+  await done
   return record
 }
 
@@ -136,20 +137,25 @@ export async function cacheServerRecord<T extends Record<string, unknown>>(
   const db = await openLocalDatabase()
   const key = `${storeId}:${table}:${data.id}`
   const tx = db.transaction(RECORDS, 'readwrite')
+  const done = transactionDone(tx)
   const store = tx.objectStore(RECORDS)
-  const existing = await requestResult(store.get(key)) as LocalRecord<T> | undefined
-  // Never overwrite an unsynced local edit with an older server snapshot.
-  if (existing?.sync_state === 'pending' || existing?.sync_state === 'error') {
-    await transactionDone(tx)
-    return existing
-  }
   const record: LocalRecord<T> = {
     id: key, store_id: storeId, table_name: table, data,
     updated_at: now, sync_state: 'synced', last_sync_at: now,
   }
-  store.put(record)
-  await transactionDone(tx)
-  return record
+  let result: LocalRecord<T> = record
+  const request = store.get(key)
+  request.onsuccess = () => {
+    const existing = request.result as LocalRecord<T> | undefined
+    // Never overwrite an unsynced local edit with an older server snapshot.
+    if (existing?.sync_state === 'pending' || existing?.sync_state === 'error') {
+      result = existing
+      return
+    }
+    store.put(record)
+  }
+  await done
+  return result
 }
 
 export async function getLocalRecords<T = Record<string, unknown>>(
@@ -157,8 +163,11 @@ export async function getLocalRecords<T = Record<string, unknown>>(
 ): Promise<LocalRecord<T>[]> {
   const db = await openLocalDatabase()
   const tx = db.transaction(RECORDS, 'readonly')
-  const rows = await requestResult(tx.objectStore(RECORDS).index('by_store_table').getAll([storeId, table])) as LocalRecord<T>[]
-  await transactionDone(tx)
+  const done = transactionDone(tx)
+  const rows = await requestResult(
+    tx.objectStore(RECORDS).index('by_store_table').getAll([storeId, table]),
+  ) as LocalRecord<T>[]
+  await done
   return rows
 }
 
@@ -170,31 +179,40 @@ export async function enqueueSyncOperation(
   if (!operation.store_id || !operation.record_id) throw new Error('store_id et record_id sont obligatoires.')
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
+  const done = transactionDone(tx)
   const store = tx.objectStore(QUEUE)
-  const dedupeKey = operation.dedupe_key
-  if (dedupeKey) {
-    const existing = await requestResult(store.index('by_store_dedupe').get([operation.store_id, dedupeKey])) as SyncOperation | undefined
-    if (existing) { await transactionDone(tx); return existing }
-  }
+  const now = new Date().toISOString()
   const item: SyncOperation = {
     ...operation,
     id: crypto.randomUUID(),
     idempotency_key: operation.idempotency_key || crypto.randomUUID(),
-    created_at: new Date().toISOString(),
+    created_at: now,
     attempts: 0,
     status: 'pending',
-    next_retry_at: new Date().toISOString(),
+    next_retry_at: now,
   }
-  store.add(item)
-  await transactionDone(tx)
-  return item
+  let result: SyncOperation = item
+  const addItem = () => { store.add(item) }
+  if (operation.dedupe_key) {
+    const request = store.index('by_store_dedupe').get([operation.store_id, operation.dedupe_key])
+    request.onsuccess = () => {
+      const existing = request.result as SyncOperation | undefined
+      if (existing) result = existing
+      else addItem()
+    }
+  } else {
+    addItem()
+  }
+  await done
+  return result
 }
 
 export async function getPendingSyncOperations(storeId: string): Promise<SyncOperation[]> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readonly')
+  const done = transactionDone(tx)
   const rows = await requestResult(tx.objectStore(QUEUE).index('by_store').getAll(storeId)) as SyncOperation[]
-  await transactionDone(tx)
+  await done
   const now = Date.now()
   return rows.filter(item =>
     item.status === 'pending' ||
@@ -206,8 +224,9 @@ export async function getPendingSyncOperations(storeId: string): Promise<SyncOpe
 export async function getSyncQueueSummary(storeId: string): Promise<{ pending: number; processing: number; errors: number }> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readonly')
+  const done = transactionDone(tx)
   const rows = await requestResult(tx.objectStore(QUEUE).index('by_store').getAll(storeId)) as SyncOperation[]
-  await transactionDone(tx)
+  await done
   return {
     pending: rows.filter(x => x.status === 'pending').length,
     processing: rows.filter(x => x.status === 'processing' && !!x.lease_until && Date.parse(x.lease_until) > Date.now()).length,
@@ -219,26 +238,31 @@ export async function getSyncQueueSummary(storeId: string): Promise<{ pending: n
 export async function claimNextSyncOperation(storeId: string, leaseMs = DEFAULT_LEASE_MS, allowedTables?: EntityTable[]): Promise<SyncOperation | null> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
+  const done = transactionDone(tx)
   const store = tx.objectStore(QUEUE)
-  const rows = await requestResult(store.index('by_store').getAll(storeId)) as SyncOperation[]
   const now = Date.now()
-  const candidate = rows
-    .filter(item =>
-      (!allowedTables || allowedTables.includes(item.table_name)) && (
-        ((item.status === 'pending' || item.status === 'error') &&
-          (!item.next_retry_at || Date.parse(item.next_retry_at) <= now)) ||
-        (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+  let result: SyncOperation | null = null
+  const request = store.index('by_store').getAll(storeId)
+  request.onsuccess = () => {
+    const rows = request.result as SyncOperation[]
+    const candidate = rows
+      .filter(item =>
+        (!allowedTables || allowedTables.includes(item.table_name)) && (
+          ((item.status === 'pending' || item.status === 'error') &&
+            (!item.next_retry_at || Date.parse(item.next_retry_at) <= now)) ||
+          (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+        )
       )
-    )
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]
-  if (!candidate) { await transactionDone(tx); return null }
-  const claimed: SyncOperation = {
-    ...candidate, status: 'processing', attempts: candidate.attempts + 1,
-    lease_until: new Date(now + leaseMs).toISOString(), last_error: undefined,
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]
+    if (!candidate) return
+    result = {
+      ...candidate, status: 'processing', attempts: candidate.attempts + 1,
+      lease_until: new Date(now + leaseMs).toISOString(), last_error: undefined,
+    }
+    store.put(result)
   }
-  store.put(claimed)
-  await transactionDone(tx)
-  return claimed
+  await done
+  return result
 }
 
 export async function setSyncOperationState(
@@ -246,9 +270,12 @@ export async function setSyncOperationState(
 ): Promise<void> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
+  const done = transactionDone(tx)
   const store = tx.objectStore(QUEUE)
-  const item = await requestResult(store.get(id)) as SyncOperation | undefined
-  if (item) {
+  const request = store.get(id)
+  request.onsuccess = () => {
+    const item = request.result as SyncOperation | undefined
+    if (!item) return
     const attempts = item.attempts
     const delay = Math.min(5 * 60_000, 2_000 * (2 ** Math.max(0, attempts - 1)))
     store.put({
@@ -256,28 +283,31 @@ export async function setSyncOperationState(
       next_retry_at: status === 'error' ? new Date(Date.now() + delay).toISOString() : item.next_retry_at,
     })
   }
-  await transactionDone(tx)
+  await done
 }
 
 export async function removeSyncOperation(id: string): Promise<void> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
+  const done = transactionDone(tx)
   tx.objectStore(QUEUE).delete(id)
-  await transactionDone(tx)
+  await done
 }
 
 export async function setLocalMetadata(key: string, value: unknown): Promise<void> {
   const db = await openLocalDatabase()
   const tx = db.transaction(META, 'readwrite')
+  const done = transactionDone(tx)
   tx.objectStore(META).put({ key, value, updated_at: new Date().toISOString() })
-  await transactionDone(tx)
+  await done
 }
 
 export async function getLocalMetadata<T>(key: string): Promise<T | undefined> {
   const db = await openLocalDatabase()
   const tx = db.transaction(META, 'readonly')
+  const done = transactionDone(tx)
   const result = await requestResult(tx.objectStore(META).get(key)) as { key: string; value: T } | undefined
-  await transactionDone(tx)
+  await done
   return result?.value
 }
 
