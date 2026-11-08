@@ -2071,6 +2071,36 @@ async function saveStockTransfer(e: FormEvent<HTMLFormElement>) {
   }
 }
 
+function exportMovementHistoryCSV() {
+  const rows = movementHistory.map(m => {
+    const variant = posVariants.find(v => v.id === m.variant_id)
+    const product = products.find(p => p.id === variant?.product_id)
+    return [
+      new Date(m.created_at).toLocaleString('fr-DZ'),
+      product?.name || variant?.sku || 'Article inconnu',
+      variant?.sku || '',
+      m.movement_type,
+      Number(m.quantity_delta),
+      m.reason || ''
+    ]
+  })
+  const cell = (value: unknown) => {
+    const text = String(value ?? '')
+    const safe = /^[=+@-]/.test(text) ? "'" + text : text
+    return '"' + safe.replace(/"/g, '""') + '"'
+  }
+  const csv = '\uFEFF' + [
+    ['Date', 'Article', 'SKU', 'Type', 'Variation', 'Motif'],
+    ...rows
+  ].map(row => row.map(cell).join(';')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `stylepro-mouvements-stock-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function exportMovementHistoryPDF() {
   const rows = movementHistory.map(m => {
     const variant = posVariants.find(v => v.id === m.variant_id)
@@ -4032,14 +4062,24 @@ const loadPromotions = useCallback(async () => {
       </p>
     </div>
 
-    <button
-      type="button"
-      className="secondary-button"
-      onClick={exportMovementHistoryPDF}
-      disabled={movementHistory.length === 0}
-    >
-      Exporter PDF
-    </button>
+    <div className="movement-history-actions">
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={exportMovementHistoryCSV}
+        disabled={movementHistory.length === 0}
+      >
+        Exporter CSV
+      </button>
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={exportMovementHistoryPDF}
+        disabled={movementHistory.length === 0}
+      >
+        Exporter PDF
+      </button>
+    </div>
   </div>
 
   <div className="table-wrap">
