@@ -1270,6 +1270,18 @@ const filteredStockVariants = posVariants.filter(variant => {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
   const [loading, setLoading] = useState(false)
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine)
+
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true)
+    const markOffline = () => setIsOnline(false)
+    window.addEventListener('online', markOnline)
+    window.addEventListener('offline', markOffline)
+    return () => {
+      window.removeEventListener('online', markOnline)
+      window.removeEventListener('offline', markOffline)
+    }
+  }, [])
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -3642,8 +3654,8 @@ const loadPromotions = useCallback(async () => {
               <option value="80mm">80 mm</option>
             </select>
           </label>
-          <span className="system-status">
-            <span className="status-dot" /> Système opérationnel
+          <span className={`system-status ${isOnline ? 'is-online' : 'is-offline'}`} role="status" aria-live="polite" title={isOnline ? 'Connexion Internet détectée' : 'Aucune connexion Internet détectée'}>
+            <span className="status-dot" /> {isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
           <button
             className="icon-button"
