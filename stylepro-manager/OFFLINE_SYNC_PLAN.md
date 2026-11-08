@@ -17,38 +17,43 @@
 - The sync engine only replays tables with an explicitly registered adapter that declares server-side idempotency support. It does not perform arbitrary Supabase table upserts/deletes.
 - The app header displays connectivity and local outbox status.
 
-## Production safety gate — still required
-- No business-table adapter is registered yet. This is intentional: Supabase project schema access was unavailable during this implementation, so the existing sale/return/stock/delivery RPC signatures and constraints could not be audited.
-- Offline sales, returns, stock movements, delivery confirmation, and other financial/inventory writes remain online-only until each server RPC accepts a client idempotency key and enforces uniqueness transactionally. A client-only UUID cannot prevent duplicate effects if the server commits but the response is lost.
+## Enabled offline write adapters (Web + Tauri Desktop)
+- POS sales use `create_pos_sale_cart_idempotent`; offline checkouts are queued locally with a durable key and replayed after reconnect.
+- POS returns use `create_pos_return_idempotent`; return items and restock choice are preserved in the queue.
+- Stock transfers use `transfer_stock_idempotent`; the two movement rows are created by the existing transactional stock-transfer RPC only once.
+- Delivery dispatch confirmation uses `confirm_delivery_idempotent`; stock deductions are replay-safe.
+- Five authenticated RPCs use a private `private.idempotency_requests` table with a primary key over store, actor, operation and client key. The request payload hash is checked; reusing a key with a different payload is rejected; successful RPC results are stored and returned on retries.
+- The idempotency table has no SELECT grants for `anon` or `authenticated`. RPC execution is granted only to `authenticated`, with membership/role checks performed in each wrapper.
 - Android remains an online companion; this IndexedDB queue applies to Web and Tauri Desktop only.
-- Before enabling adapters, inspect the live schema and RLS, add additive idempotency support to each relevant transactional RPC, verify duplicate-key replay returns the original result, then add an adapter and run multi-tab / timeout / reconnect acceptance tests.
+- Business operations are committed server-side after reconnect, not speculatively applied to cloud stock. The UI reports queued operations until the server confirms them.
 
 ## Implemented read-only offline coverage (Web + Tauri Desktop)
 - Catalogue products, categories, brands, product variants, customers, and stock-movement snapshots are cached by active `store_id`.
 - Atelier and delivery modules cache their downloaded records and can use local snapshots when a network request fails.
-- POS can read cached variants, customers, and stock movements when offline. This is a read-only fallback; final sale creation and stock-changing operations still require a server connection.
+- POS can read cached variants, customers, and stock movements when offline. Sales and returns can now be queued for server-side processing after reconnect; queued actions are not represented as completed cloud transactions until synchronization succeeds.
 - The Tauri desktop app uses the same React frontend and therefore the same IndexedDB cache inside its WebView.
 - Android currently persists its Supabase authentication session with AsyncStorage, loads server-assigned module visibility, and remains an online companion; the full business-data SQLite cache and offline write queue are not yet implemented there. User administration remains in Web/Desktop until the full permission matrix is added to Android.
 
 ## Important safety rule
-The queue is infrastructure only at this stage. Do not replay arbitrary table writes yet. Each module needs a reviewed adapter and conflict policy. Sales, returns, stock movements, and delivery confirmation must use idempotency keys and server-side transactional RPCs before offline operations can be replayed. This prevents duplicate sales and stock changes.
+Never register arbitrary table upserts/deletes for financial or inventory operations. Only the reviewed adapters above may replay operations, and they must continue to use the idempotent server RPCs. Do not treat a queued operation as a completed sale, refund, transfer, or dispatch before the server acknowledges it.
 
 ## Migration order
 1. Authentication and store context (never cache passwords or access tokens in business tables).
 2. Read-through cache for catalogue, variants, categories, brands, customers, stock locations.
-3. Offline drafts for Atelier and deliveries.
-4. Idempotent offline sales/returns and inventory operations through dedicated Supabase RPCs.
-5. Reconnect scheduler, conflict resolution, retry/backoff, and sync status UI.
+3. Additive private idempotency ledger and authenticated RPC wrappers.
+4. Offline sales/returns, stock transfers, and delivery dispatch queue adapters.
+5. Reconnect scheduler, conflict-aware retries, backoff, and sync status UI.
 6. Offline/PWA and multi-device acceptance tests.
 
 ## Data isolation
 All cache reads must filter by the active store. On logout or store switch, clear in-memory state and never display records from another store. Local browser storage is not a security boundary; Supabase RLS remains mandatory.
 
 ## Not yet enabled / release gates
-- No general-purpose replay of queued writes is enabled. The queue is infrastructure only; do not send arbitrary table upserts/deletes.
-- Offline creation of sales, returns, stock movements, expenses, production records, and delivery confirmations is not yet released. Each needs a reviewed local draft model, server-side idempotency key, transactional RPC, retry policy, and conflict handling.
+- General-purpose replay of queued writes remains disabled. Only sales, returns, stock transfers and delivery dispatch have registered idempotent adapters.
+- Offline expenses, purchase orders, production records, delivery creation/returns, arbitrary stock adjustments, and payment recording are not yet queued. Each requires a reviewed transactional RPC and idempotency contract.
+- Queue acceptance tests for real multi-device network interruption, duplicate retries and server timeout-after-commit are still required; metadata and grants were verified, but no live sale/refund/stock operation was generated as a test.
 - The Android client does not yet have a persistent SQLite business-data cache or background sync worker.
-- Manager delegation and per-user module/action permissions are implemented in the staged GitHub branch. Production access remains unchanged until migrations `202611050001`–`202611050003` are applied in order and the `manage-users` Edge Function is redeployed. Verify the live RLS policy inventory before applying them.
+- Manager delegation and per-user module/action permissions are present in the project; verify the current deployed `manage-users` Edge Function separately before relying on backend redaction.
 - Web and Desktop share source code, but Windows installers must pass the dedicated desktop workflow before distribution. Android APK must pass the standalone APK workflow. A successful web build does not certify either native package.
 
-No production database or Storage changes are included in this phase. Apply additive SQL migrations only after the live project has been audited and the exact constraints/policies are known.
+The additive idempotency migrations are applied to Supabase project `khofawpfhzaxhwttibid` and recorded under `supabase/migrations/`. No existing business table rows were modified or deleted.
