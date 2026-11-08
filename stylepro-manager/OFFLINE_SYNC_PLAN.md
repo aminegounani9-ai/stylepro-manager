@@ -37,6 +37,16 @@
 ## Important safety rule
 Never register arbitrary table upserts/deletes for financial or inventory operations. Only the reviewed adapters above may replay operations, and they must continue to use the idempotent server RPCs. Do not treat a queued operation as a completed sale, refund, transfer, or dispatch before the server acknowledges it.
 
+
+## Android SQLite companion
+- Expo SDK 58 mobile app now uses a persistent SQLite database (stylepro-mobile.db) with WAL and a store-scoped scanner catalogue.
+- The mobile app refreshes active product variants, product names and calculated stock from Supabase in pages of 1,000 rows, then atomically replaces that store's local scanner snapshot.
+- QR, barcode and SKU lookups fall back to SQLite while offline or when the remote lookup fails. The result is clearly labelled as local cached data and shows the last successful catalogue sync.
+- Catalogue rows are scoped by store ID; a store change cannot search another store's cache.
+- A durable SQLite outbox table and unique (store_id,idempotency_key) / (store_id,dedupe_key) constraints are present for future mobile writes. The current Android app is a scanner/dashboard companion and does not expose sale, return, stock-transfer or delivery-write forms, so no mobile business-write adapter is enabled yet.
+- Mobile online/offline state and cached article count are visible in the app header. Reconnection triggers a catalogue refresh.
+- No Supabase business schema changes are required for this mobile read-through cache.
+
 ## Migration order
 1. Authentication and store context (never cache passwords or access tokens in business tables).
 2. Read-through cache for catalogue, variants, categories, brands, customers, stock locations.
