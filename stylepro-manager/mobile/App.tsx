@@ -1078,7 +1078,7 @@ function AppContent() {
   if (!user) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-        <StatusBar style="dark" backgroundColor={COLORS.background} translucent={false} />
+        <StatusBar style="dark" />
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentContainerStyle={[styles.loginContainer, { paddingHorizontal: compactScreen ? 14 : 24 }]}>
           <View style={styles.logo}>
@@ -1146,7 +1146,7 @@ function AppContent() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <StatusBar style="dark" backgroundColor={COLORS.background} translucent={false} />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
