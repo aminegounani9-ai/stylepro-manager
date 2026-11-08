@@ -15,6 +15,61 @@ function registerAdapter(operation: string, adapter: MobileSyncAdapter) {
   adapters.set(operation, adapter)
 }
 
+type ScannerSession = { id: string; session_token: string; expires_at: string }
+const scannerSessions = new Map<string, ScannerSession>()
+
+async function getScannerSession(storeId: string): Promise<{ session: ScannerSession; userId: string }> {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData.user) throw new Error('Session utilisateur absente pour synchroniser les scans.')
+  const userId = authData.user.id
+  const cached = scannerSessions.get(storeId)
+  if (cached && Date.parse(cached.expires_at) > Date.now() + 60_000) {
+    return { session: cached, userId }
+  }
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('mobile_scanner_sessions')
+    .select('id,session_token,expires_at')
+    .eq('store_id', storeId)
+    .eq('created_by', userId)
+    .eq('status', 'active')
+    .gt('expires_at', new Date(Date.now() + 60_000).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (lookupError) throw lookupError
+
+  if (existing) {
+    scannerSessions.set(storeId, existing)
+    return { session: existing, userId }
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from('mobile_scanner_sessions')
+    .insert({ store_id: storeId, created_by: userId })
+    .select('id,session_token,expires_at')
+    .single()
+  if (createError || !created) throw createError ?? new Error('Impossible de créer la session scanner.')
+  scannerSessions.set(storeId, created)
+  return { session: created, userId }
+}
+
+registerAdapter('scanner_event', async operation => {
+  const payload = operation.payload as { scanned_code: string; scanned_at: string }
+  const { session, userId } = await getScannerSession(operation.store_id)
+  const { error } = await supabase.from('mobile_scanner_events').insert({
+    id: operation.idempotency_key,
+    session_id: session.id,
+    store_id: operation.store_id,
+    scanned_code: payload.scanned_code,
+    scanned_by: userId,
+    session_token: session.session_token,
+    created_at: payload.scanned_at,
+  })
+  // A duplicate primary key means the earlier attempt committed before its reply was lost.
+  if (error && error.code !== '23505') throw error
+})
+
 registerAdapter('pos_sale', async operation => {
   const payload = operation.payload as {
     items: Array<{ variant_id: string; quantity: number; discount: number }>
