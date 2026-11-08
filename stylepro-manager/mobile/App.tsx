@@ -19,7 +19,7 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNetworkState } from 'expo-network'
-import { findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, getMobileSyncQueueSummary, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
+import { enqueueMobileSyncOperation, findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, getMobileSyncQueueSummary, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
 import { startMobileSyncScheduler } from './src/lib/mobileSyncEngine'
 import {
   AlertTriangle,
@@ -135,6 +135,14 @@ const AR: Record<string,string> = {
   'Rapport PDF prêt à partager.':'تقرير PDF جاهز للمشاركة.',
   'Impossible de générer le PDF':'تعذر إنشاء تقرير PDF',
   'Aucune vente sur cette période':'لا توجد مبيعات خلال هذه الفترة'
+}
+
+function createLocalUuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+    const random = Math.floor(Math.random() * 16)
+    const value = character === 'x' ? random : (random & 0x3) | 0x8
+    return value.toString(16)
+  })
 }
 
 function dateLabel(value: string) {
@@ -848,6 +856,21 @@ export default function App() {
     setScanResult(null)
     setScanMessage(isOnline ? 'Recherche du produit…' : 'Recherche dans le catalogue local…')
 
+    let scanEventQueued = false
+    const scanEventId = createLocalUuid()
+    try {
+      await enqueueMobileSyncOperation({
+        storeId,
+        operation: 'scanner_event',
+        idempotencyKey: scanEventId,
+        dedupeKey: `scanner-event:${scanEventId}`,
+        payload: { scanned_code: code, scanned_at: new Date().toISOString() },
+      })
+      scanEventQueued = true
+    } catch {
+      // Product lookup must remain available even if local event storage fails.
+    }
+
     const showCachedResult = async () => {
       const cached = await findCachedScannerVariant(storeId, code)
       if (!cached) return false
@@ -924,7 +947,7 @@ export default function App() {
         size: variant.size || 'Non renseigné', color: variant.color || 'Non renseignée',
         price: Number(variant.sale_price ?? 0), stock,
       })
-      setScanMessage('')
+      setScanMessage(scanEventQueued ? '' : (language === 'ar' ? 'تم العثور على المنتج، لكن تعذر حفظ سجل المسح محلياً.' : 'Produit trouvé, mais le journal de scan n’a pas pu être enregistré localement.'))
     } catch (e) {
       const usedCache = await showCachedResult().catch(() => false)
       if (!usedCache) {
