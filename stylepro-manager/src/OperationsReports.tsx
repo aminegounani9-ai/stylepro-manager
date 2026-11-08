@@ -65,7 +65,8 @@ export default function OperationsReports({ sales, expenses, returns, lowStock, 
   function printReport() {
     const popup = window.open('', '_blank', 'width=1000,height=760')
     if (!popup) return
-    const safeStore = storeName.replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char))
+    const htmlEntities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }
+    const safeStore = storeName.replace(/[&<>"]/g, char => htmlEntities[char] || char)
     const rows = [
       ...report.daySales.map(sale => `<tr><td>Vente</td><td>#${sale.sale_number}</td><td>${formatMoney(Number(sale.total), currency)}</td></tr>`),
       ...report.dayReturns.map((item, index) => `<tr><td>Retour</td><td>${index + 1}</td><td>-${formatMoney(Number(item.total), currency)}</td></tr>`),
