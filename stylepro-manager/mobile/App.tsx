@@ -19,7 +19,8 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNetworkState } from 'expo-network'
-import { findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
+import { findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, getMobileSyncQueueSummary, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
+import { startMobileSyncScheduler } from './src/lib/mobileSyncEngine'
 import {
   AlertTriangle,
   Bell,
@@ -252,6 +253,8 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState(false)
   const [mobileCacheCount, setMobileCacheCount] = useState(0)
   const [mobileCacheSyncedAt, setMobileCacheSyncedAt] = useState<string | null>(null)
+  const [mobileQueuePending, setMobileQueuePending] = useState(0)
+  const [mobileQueueErrors, setMobileQueueErrors] = useState(0)
   const t = (value: string) => language === 'ar' ? (AR[value] || value) : value
 
   const currentStore = stores.find(store => store.id === storeId)
@@ -563,6 +566,34 @@ export default function App() {
     void prepareOfflineCache()
     return () => { active = false }
   }, [user, storeId, isOnline, syncMobileScannerCatalog])
+
+  useEffect(() => {
+    if (!user || !storeId) {
+      setMobileQueuePending(0)
+      setMobileQueueErrors(0)
+      return
+    }
+    let active = true
+    const refreshQueue = async () => {
+      try {
+        const summary = await getMobileSyncQueueSummary(storeId)
+        if (active) {
+          setMobileQueuePending(summary.pending + summary.processing)
+          setMobileQueueErrors(summary.errors)
+        }
+      } catch {
+        // Keep the last displayed queue counters if SQLite is temporarily unavailable.
+      }
+    }
+    void refreshQueue()
+    const timer = setInterval(() => void refreshQueue(), 5_000)
+    const stopScheduler = startMobileSyncScheduler(storeId, isOnline)
+    return () => {
+      active = false
+      clearInterval(timer)
+      stopScheduler()
+    }
+  }, [user, storeId, isOnline])
 
   useEffect(() => {
     if (!user || !storeId) return
@@ -1115,6 +1146,8 @@ export default function App() {
                 ? (language === 'ar' ? 'متصل · مزامنة نشطة' : 'En ligne · Synchronisation active')
                 : (language === 'ar' ? 'غير متصل · وضع محلي' : 'Hors ligne · Mode local')}
               {'  ·  '}{mobileCacheCount} {language === 'ar' ? 'منتج محفوظ' : 'articles en cache'}
+              {'  ·  '}{mobileQueuePending} {language === 'ar' ? 'قيد المزامنة' : 'en attente'}
+              {mobileQueueErrors > 0 ? ' · ' + mobileQueueErrors + (language === 'ar' ? ' أخطاء' : ' erreurs') : ''}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
