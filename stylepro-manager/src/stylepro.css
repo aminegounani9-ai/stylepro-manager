@@ -5862,3 +5862,10 @@ tbody tr:last-child td { border-bottom: 0; }
   .movement-history-actions { width: 100%; }
   .movement-history-actions button { flex: 1 1 120px; }
 }
+
+.system-status.is-online { color: #2f7959; }
+.system-status.is-online .status-dot { background: #3b9a6b; box-shadow: 0 0 0 3px rgba(59,154,107,.13); }
+.system-status.is-offline { color: #b45d45; }
+.system-status.is-offline .status-dot { background: #c76b4d; box-shadow: 0 0 0 3px rgba(199,107,77,.13); }
+.app.dark .system-status.is-online { color: #9ed8b2; }
+.app.dark .system-status.is-offline { color: #f0a48d; }
