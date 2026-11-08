@@ -70,8 +70,25 @@ registerAdapter('scanner_event', async operation => {
     session_token: session.session_token,
     created_at: payload.scanned_at,
   })
-  // A duplicate primary key means the earlier attempt committed before its reply was lost.
-  if (error && error.code !== '23505') throw error
+  // A duplicate primary key may be a retry after commit; verify it is the same event.
+  if (error) {
+    if (error.code !== '23505') throw error
+    const { data: existing, error: readError } = await supabase
+      .from('mobile_scanner_events')
+      .select('store_id,scanned_code,scanned_by,created_at')
+      .eq('id', operation.idempotency_key)
+      .maybeSingle()
+    if (readError) throw readError
+    if (
+      !existing ||
+      existing.store_id !== operation.store_id ||
+      existing.scanned_code !== payload.scanned_code ||
+      existing.scanned_by !== payload.scanned_by ||
+      new Date(existing.created_at).getTime() !== new Date(payload.scanned_at).getTime()
+    ) {
+      throw new Error('Clé idempotente déjà utilisée par un événement différent.')
+    }
+  }
 })
 
 registerAdapter('pos_sale', async operation => {
