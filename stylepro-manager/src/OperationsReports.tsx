@@ -94,7 +94,7 @@ export default function OperationsReports({ sales, expenses, returns, lowStock, 
   return <section className="panel operations-reports">
     <div className="panel-title">
       <WalletCards size={21} />
-      <div><h2>Rapports & clôture journalière</h2><p>Situation des ventes, retours et dépenses de la journée sélectionnée.</p></div>
+      <div><h2>Rapport journalier & réapprovisionnement</h2><p>Synthèse des ventes, retours, dépenses et besoins de stock.</p></div>
     </div>
     <div className="operations-report-toolbar">
       <label className="field">Date du rapport<input type="date" value={reportDate} onChange={event => setReportDate(event.target.value)} /></label>
@@ -107,7 +107,7 @@ export default function OperationsReports({ sales, expenses, returns, lowStock, 
       <div><span>Ventes brutes</span><strong>{formatMoney(report.grossSales, currency)}</strong><small>{report.daySales.length} facture(s)</small></div>
       <div><span>Retours</span><strong>{formatMoney(report.returned, currency)}</strong><small>{report.dayReturns.length} opération(s)</small></div>
       <div><span>Dépenses</span><strong>{formatMoney(report.costs, currency)}</strong><small>{report.dayExpenses.length} dépense(s)</small></div>
-      <div className="operations-report-total"><span>Solde indicatif après dépenses</span><strong>{formatMoney(report.netAfterExpenses, currency)}</strong><small>Hors comptage physique de caisse</small></div>
+      <div className="operations-report-total"><span>Solde indicatif</span><strong>{formatMoney(report.netAfterExpenses, currency)}</strong><small>Hors comptage physique de caisse</small></div>
     </div>
     <div className="operations-reorder">
       <div className="operations-reorder-heading"><PackageCheck size={18}/><strong>Proposition de réapprovisionnement</strong><span>{lowStock.length} référence(s) à contrôler</span></div>
@@ -116,6 +116,6 @@ export default function OperationsReports({ sales, expenses, returns, lowStock, 
           <tbody>{lowStock.map(item => <tr key={item.id}><td><strong>{item.sku}</strong></td><td>{item.current}</td><td>{item.minimum}</td><td><strong>{Math.max(0, item.minimum - item.current)}</strong></td></tr>)}</tbody>
         </table></div>}
     </div>
-    <p className="operations-report-disclaimer"><FileText size={15}/> Rapport calculé à partir des enregistrements accessibles. Le solde indicatif n'est pas un bénéfice net comptable ni un comptage réel de caisse.</p>
+    <p className="operations-report-disclaimer"><FileText size={15}/> Rapport indicatif calculé à partir des enregistrements accessibles. Le solde n'est ni un bénéfice net comptable ni un comptage physique de caisse. Les ventes affichées dépendent de la période chargée par le tableau de bord.</p>
   </section>
 }
