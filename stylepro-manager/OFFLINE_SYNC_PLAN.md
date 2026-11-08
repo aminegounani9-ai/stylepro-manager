@@ -43,7 +43,8 @@ Never register arbitrary table upserts/deletes for financial or inventory operat
 - The mobile app refreshes active product variants, product names and calculated stock from Supabase in pages of 1,000 rows, then atomically replaces that store's local scanner snapshot.
 - QR, barcode and SKU lookups fall back to SQLite while offline or when the remote lookup fails. The result is clearly labelled as local cached data and shows the last successful catalogue sync.
 - Catalogue rows are scoped by store ID; a store change cannot search another store's cache.
-- A durable SQLite outbox table and unique (store_id,idempotency_key) / (store_id,dedupe_key) constraints are present for future mobile writes. The current Android app is a scanner/dashboard companion and does not expose sale, return, stock-transfer or delivery-write forms, so no mobile business-write adapter is enabled yet.
+- Every successful scan is recorded in the SQLite outbox with its own UUID. The mobile adapter creates/reuses an authenticated, store-scoped scanner session and inserts into the existing `mobile_scanner_events` table; the event UUID is also the database primary key, so retry after a lost response is treated as an already-committed event instead of creating a duplicate.
+- The durable SQLite outbox has unique (store_id,idempotency_key) / (store_id,dedupe_key) constraints, atomic leases, retry backoff and adapters for scanner events plus the existing idempotent sales/returns/transfers/delivery RPCs. The current Android app exposes scanner/dashboard flows only; it does not yet expose sale, return, stock-transfer or delivery-write forms, so those adapters have no mobile UI producer yet.
 - Mobile online/offline state and cached article count are visible in the app header. Reconnection triggers a catalogue refresh.
 - No Supabase business schema changes are required for this mobile read-through cache.
 
