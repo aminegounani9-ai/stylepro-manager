@@ -70,6 +70,7 @@ import MobileScanner from './MobileScanner'
 import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
+import OperationsReports from './OperationsReports'
 import './atelier.css'
 import './stylepro.css'
 
@@ -5888,6 +5889,15 @@ const loadPromotions = useCallback(async () => {
               <div className="stat-card"><div className="stat-icon violet"><Package /></div><span>Articles au catalogue</span><strong>{products.length}</strong><small>Dans la boutique sélectionnée</small></div>
               <div className="stat-card"><div className="stat-icon green"><TrendingUp /></div><span>Articles actifs</span><strong>{products.filter(item => item.active).length}</strong><small>Produits disponibles au catalogue</small></div>
             </div>
+
+            <OperationsReports
+              sales={analytics.sales}
+              expenses={analytics.expenses}
+              returns={analytics.returns}
+              lowStock={analytics.lowStock}
+              currency={stores.find(store => store.id === storeId)?.currency || 'DZD'}
+              storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'}
+            />
 
             <section className="dashboard-analytics-extra panel">
               <div className="panel-title">
