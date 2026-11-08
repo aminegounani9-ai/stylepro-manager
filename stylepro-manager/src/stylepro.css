@@ -6046,3 +6046,116 @@ body { min-height: 100svh; }
   #root > .app { min-height: 100vh; min-height: 100dvh; }
   .app > .workspace { flex: 1 0 auto; }
 }
+
+
+/* FINAL SCROLL FIX — mobile browser/PWA: restore document scrolling.
+   Earlier fixed-frame rules set body, #root and .app to overflow:hidden,
+   which trapped the page and clipped the footer on Android Chrome. */
+@media screen and (max-width: 760px) {
+  html {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    display: block !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    touch-action: pan-y pinch-zoom !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  #root {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+  #root > .app {
+    display: flex !important;
+    flex: 1 0 auto !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  .app > .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  .app > .workspace {
+    display: block !important;
+    flex: 1 0 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  .app > .workspace > .dashboard-content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 28px !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  .app > .footer {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 58px !important;
+    margin-top: auto !important;
+    padding: 14px 12px max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Keep the drawer independently scrollable without locking the page
+     when the drawer is closed. */
+  .app .workspace > aside.sidebar {
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .app .mobile-menu-backdrop {
+    position: fixed !important;
+    inset: 62px 0 0 !important;
+    height: auto !important;
+  }
+}
+@media screen and (min-width: 761px) {
+  /* Desktop uses the workspace content pane as its scroll container. */
+  html, body, #root { min-height: 100%; }
+  body { overflow: hidden !important; }
+  #root { height: 100dvh !important; overflow: hidden !important; }
+  #root > .app {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .app > .workspace {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .app > .workspace > .dashboard-content {
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
