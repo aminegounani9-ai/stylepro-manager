@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -572,7 +573,15 @@ export default function App() {
       }
     }
     void prepareOfflineCache()
-    return () => { active = false }
+    const appStateSubscription = AppState.addEventListener('change', state => {
+      if (state === 'active' && isOnline) {
+        void syncMobileScannerCatalog(storeId).catch(() => undefined)
+      }
+    })
+    return () => {
+      active = false
+      appStateSubscription.remove()
+    }
   }, [user, storeId, isOnline, syncMobileScannerCatalog])
 
   useEffect(() => {
