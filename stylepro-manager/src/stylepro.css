@@ -5974,99 +5974,75 @@ body {
 }
 
 
-/* Final mobile viewport clearance: keep the last controls above Android/iOS system navigation */
-@media (max-width: 760px) {
-  html, body, #root {
-    min-height: 100%;
-    min-height: 100dvh;
-    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  }
-  body {
-    padding-bottom: 0;
-    overscroll-behavior-y: contain;
-  }
-  .app {
-    min-height: 100dvh;
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  .workspace {
-    min-height: calc(100dvh - 62px);
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  }
-  .workspace > .sidebar {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    max-height: calc(100dvh - 62px - 72px - env(safe-area-inset-bottom, 0px)) !important;
-    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  .dashboard-content,
-  .login-layout {
-    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
-  }
-}
-@media (max-width: 760px) and (orientation: landscape) {
-  .app {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-  .workspace > .sidebar {
-    bottom: calc(48px + env(safe-area-inset-bottom, 0px)) !important;
-    max-height: calc(100dvh - 62px - 48px - env(safe-area-inset-bottom, 0px)) !important;
-  }
-}
 
 
-/* Device-safe bottom runway. The Android system navigation area is not always
-   reported by env(safe-area-inset-bottom), especially in Chrome/PWA mode. */
-html, body, #root { min-height: 100%; }
+/* Responsive app frame: footer stays at the bottom on short pages,
+   and naturally follows content on long pages. */
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
+}
+html { min-height: 100svh; }
 body { min-height: 100svh; }
-#root { min-height: 100svh; }
-.app {
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+#root > .app {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  width: 100%;
   min-height: 100svh;
   min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.app > .topbar { flex: 0 0 auto; }
+.app > .workspace,
+.app > .login-layout {
   flex: 1 0 auto;
+  width: 100%;
+}
+.app > .footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
 }
 @media screen and (max-width: 760px) {
-  body {
-    min-height: 100%;
+  #root, #root > .app {
     min-height: 100svh;
     min-height: 100dvh;
   }
-  #root {
-    min-height: 100%;
-    min-height: 100svh;
-    min-height: 100dvh;
+  #root > .app {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .app {
-    min-height: 100%;
-    min-height: 100svh;
-    min-height: 100dvh;
-    padding-bottom: 0 !important;
+  .app > .workspace {
+    flex: 1 0 auto;
+    min-height: 0;
+    padding-bottom: 0;
   }
-  /* A real flex item (not only min-height padding) extends the scrollable
-     document beyond the last form/table row on gesture and 3-button Android. */
-  .app::after {
-    content: "";
-    display: block;
-    flex: 0 0 calc(132px + env(safe-area-inset-bottom, 0px));
-    width: 100%;
-    min-height: calc(132px + env(safe-area-inset-bottom, 0px));
-    pointer-events: none;
+  .app > .workspace > .dashboard-content,
+  .app > .login-layout {
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
   }
-  .workspace {
-    min-height: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  .dashboard-content,
-  .login-layout {
-    padding-bottom: 28px !important;
+  .app > .footer {
+    margin-top: auto;
+    padding: 12px 12px max(14px, env(safe-area-inset-bottom, 0px));
+    gap: 5px;
+    line-height: 1.45;
   }
 }
-@media screen and (max-width: 760px) and (orientation: landscape) {
-  .app::after {
-    flex-basis: calc(76px + env(safe-area-inset-bottom, 0px));
-    min-height: calc(76px + env(safe-area-inset-bottom, 0px));
-  }
+@media screen and (max-width: 380px) {
+  .app > .topbar { padding-inline: 8px; }
+  .app > .topbar .brand { gap: 6px; }
+  .app > .topbar .brand-copy strong { font-size: 13px; }
+  .app > .topbar .header-actions { gap: 4px; }
+  .app > .topbar .header-actions .icon-button,
+  .app > .topbar .header-actions .secondary-button { min-width: 34px; width: 34px; }
+  .app > .footer { font-size: 9px; }
 }
 @media screen and (min-width: 761px) {
-  .app::after { content: none; }
-  .app { min-height: 100svh; min-height: 100dvh; }
+  #root > .app { min-height: 100vh; min-height: 100dvh; }
+  .app > .workspace { flex: 1 0 auto; }
 }
