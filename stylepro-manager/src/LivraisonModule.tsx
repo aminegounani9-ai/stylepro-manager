@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { ReactNode } from 'react'
 import { Truck, Plus, RefreshCw, Search, Package, ClipboardList, MapPin, Phone, User, Eye, RotateCcw, Printer, CheckCircle2, Clock3, AlertCircle, X, Trash2, Filter } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getLocalRecords, cacheServerRecord, type EntityTable } from './lib/offlineDb'
+import { getLocalRecords, cacheServerRecord, enqueueSyncOperation, type EntityTable } from './lib/offlineDb'
 import './livraison.css'
 
 type Delivery = { id: string; delivery_number: number | string; status: string; customer_id: string | null; recipient_name: string | null; recipient_phone: string | null; delivery_address: string | null; notes: string | null; created_at: string }
@@ -267,17 +267,31 @@ export default function LivraisonModule({ storeId, userId, storeName = 'StylePro
     if (!window.confirm('Confirmer la sortie du BL-' + delivery.delivery_number + ' ? Le stock sera déduit.')) return
     setSaving(true); setError(''); setNotice('')
     try {
-      const keyStorage = `stylepro:idempotency:confirm-delivery:${storeId}:${delivery.id}`
-      const key = localStorage.getItem(keyStorage) || crypto.randomUUID()
-      localStorage.setItem(keyStorage, key)
-      const { error: rpcError } = await supabase.rpc('confirm_delivery_idempotent', {
-        p_delivery_id: delivery.id, p_idempotency_key: key
-      })
-      if (rpcError) throw rpcError
-      localStorage.removeItem(keyStorage)
-      setNotice('Sortie BL-' + delivery.delivery_number + ' confirmée.')
-      await loadData()
-      if (selected?.id === delivery.id) await openDetails(delivery)
+      if (!navigator.onLine) {
+        const key = crypto.randomUUID()
+        await enqueueSyncOperation({
+          idempotency_key: key,
+          dedupe_key: `delivery-confirm:${delivery.id}`,
+          store_id: storeId,
+          table_name: 'deliveries',
+          record_id: delivery.id,
+          operation: 'upsert',
+          payload: { delivery_id: delivery.id },
+        })
+        setNotice('Confirmation BL-' + delivery.delivery_number + ' mise en attente. Le stock sera déduit à la reconnexion.')
+      } else {
+        const keyStorage = `stylepro:idempotency:confirm-delivery:${storeId}:${delivery.id}`
+        const key = localStorage.getItem(keyStorage) || crypto.randomUUID()
+        localStorage.setItem(keyStorage, key)
+        const { error: rpcError } = await supabase.rpc('confirm_delivery_idempotent', {
+          p_delivery_id: delivery.id, p_idempotency_key: key
+        })
+        if (rpcError) throw rpcError
+        localStorage.removeItem(keyStorage)
+        setNotice('Sortie BL-' + delivery.delivery_number + ' confirmée.')
+        await loadData()
+        if (selected?.id === delivery.id) await openDetails(delivery)
+      }
     } catch (e) { setError(e instanceof Error ? e.message : 'Confirmation impossible.') }
     finally { setSaving(false) }
   }
