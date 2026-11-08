@@ -94,3 +94,24 @@ export async function flushStoreSyncQueue(storeId: string): Promise<SyncFlushRes
   }
   return run()
 }
+
+
+/** Starts reconnect, tab-focus, and periodic replay for the active store. */
+export function startSyncScheduler(storeId: string): () => void {
+  if (typeof window === 'undefined' || !storeId) return () => undefined
+  let disposed = false
+  const trigger = () => {
+    if (!disposed && navigator.onLine) void flushStoreSyncQueue(storeId).catch(() => undefined)
+  }
+  const onVisibility = () => { if (document.visibilityState === 'visible') trigger() }
+  window.addEventListener('online', trigger)
+  document.addEventListener('visibilitychange', onVisibility)
+  const timer = window.setInterval(trigger, 20_000)
+  trigger()
+  return () => {
+    disposed = true
+    window.removeEventListener('online', trigger)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.clearInterval(timer)
+  }
+}
