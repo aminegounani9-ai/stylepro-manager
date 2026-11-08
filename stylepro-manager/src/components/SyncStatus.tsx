@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Cloud, CloudOff, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { getSyncQueueSummary } from '../lib/offlineDb'
-import { flushStoreSyncQueue } from '../lib/syncEngine'
+import { flushStoreSyncQueue, startSyncScheduler } from '../lib/syncEngine'
 
 type Props = { storeId: string; isOnline: boolean }
 
@@ -18,8 +18,9 @@ export default function SyncStatus({ storeId, isOnline }: Props) {
   useEffect(() => {
     void refresh()
     const timer = window.setInterval(() => void refresh(), 5000)
-    return () => window.clearInterval(timer)
-  }, [refresh])
+    const stopScheduler = startSyncScheduler(storeId)
+    return () => { window.clearInterval(timer); stopScheduler() }
+  }, [refresh, storeId])
 
   const synchronize = async () => {
     if (busy || !storeId || !isOnline) return
