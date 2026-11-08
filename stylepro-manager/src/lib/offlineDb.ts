@@ -163,7 +163,7 @@ export async function getLocalRecords<T = Record<string, unknown>>(
 }
 
 export async function enqueueSyncOperation(
-  operation: Omit<SyncOperation, 'id' | 'created_at' | 'attempts' | 'status' | 'next_retry_at' | 'lease_until'> & {
+  operation: Omit<SyncOperation, 'id' | 'created_at' | 'attempts' | 'status' | 'next_retry_at' | 'lease_until' | 'idempotency_key'> & {
     idempotency_key?: string
   },
 ): Promise<SyncOperation> {
