@@ -1,9 +1,9 @@
 /**
- * StylePro Manager - offline-first local database foundation.
+ * StylePro Manager — durable local store and transactional outbox.
  *
- * This module deliberately does not write business records to Supabase yet.
- * Each module must be migrated with its own validated read/write adapter before
- * queued operations are replayed, so stock and sales are never duplicated.
+ * IMPORTANT: queue replay is adapter-based. An adapter must call a server-side
+ * transactional endpoint that persists the idempotency key under a UNIQUE
+ * constraint. Never register a plain table upsert for sales/stock operations.
  */
 export type SyncState = 'pending' | 'syncing' | 'synced' | 'error'
 export type EntityTable =
@@ -27,6 +27,8 @@ export type LocalRecord<T = Record<string, unknown>> = {
 
 export type SyncOperation = {
   id: string
+  idempotency_key: string
+  dedupe_key?: string
   store_id: string
   table_name: EntityTable
   record_id: string
@@ -35,14 +37,17 @@ export type SyncOperation = {
   created_at: string
   attempts: number
   status: 'pending' | 'processing' | 'error'
+  next_retry_at?: string
+  lease_until?: string
   last_error?: string
 }
 
 const DB_NAME = 'stylepro-manager-local'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const RECORDS = 'records'
 const QUEUE = 'sync_queue'
 const META = 'metadata'
+const DEFAULT_LEASE_MS = 60_000
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -71,6 +76,7 @@ export function openLocalDatabase(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
     request.onupgradeneeded = () => {
       const db = request.result
+      const tx = request.transaction
       if (!db.objectStoreNames.contains(RECORDS)) {
         const records = db.createObjectStore(RECORDS, { keyPath: 'id' })
         records.createIndex('by_store', 'store_id')
@@ -78,49 +84,41 @@ export function openLocalDatabase(): Promise<IDBDatabase> {
         records.createIndex('by_store_table', ['store_id', 'table_name'])
         records.createIndex('by_sync_state', 'sync_state')
       }
+      let queue: IDBObjectStore
       if (!db.objectStoreNames.contains(QUEUE)) {
-        const queue = db.createObjectStore(QUEUE, { keyPath: 'id' })
+        queue = db.createObjectStore(QUEUE, { keyPath: 'id' })
         queue.createIndex('by_store', 'store_id')
         queue.createIndex('by_status', 'status')
         queue.createIndex('by_created', 'created_at')
+      } else {
+        queue = tx!.objectStore(QUEUE)
       }
-      if (!db.objectStoreNames.contains(META)) {
-        db.createObjectStore(META, { keyPath: 'key' })
+      if (!queue.indexNames.contains('by_store_dedupe')) {
+        queue.createIndex('by_store_dedupe', ['store_id', 'dedupe_key'])
       }
+      if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'key' })
     }
     request.onsuccess = () => {
       const db = request.result
-      db.onversionchange = () => {
-        db.close()
-        dbPromise = null
-      }
+      db.onversionchange = () => { db.close(); dbPromise = null }
       resolve(db)
     }
-    request.onerror = () => {
-      dbPromise = null
-      reject(request.error ?? new Error('Impossible d’ouvrir la base locale.'))
-    }
+    request.onerror = () => { dbPromise = null; reject(request.error ?? new Error('Impossible d’ouvrir la base locale.')) }
     request.onblocked = () => reject(new Error('Fermez les autres onglets StylePro pour terminer la mise à jour locale.'))
   })
   return dbPromise
 }
 
 export async function saveLocalRecord<T extends Record<string, unknown>>(
-  table: EntityTable,
-  storeId: string,
-  data: T,
+  table: EntityTable, storeId: string, data: T,
 ): Promise<LocalRecord<T>> {
   if (!storeId || typeof data.id !== 'string' || !data.id) {
     throw new Error('store_id et id sont obligatoires pour sauvegarder un enregistrement local.')
   }
   const db = await openLocalDatabase()
   const record: LocalRecord<T> = {
-    id: `${storeId}:${table}:${data.id}`,
-    store_id: storeId,
-    table_name: table,
-    data,
-    updated_at: new Date().toISOString(),
-    sync_state: 'pending',
+    id: `${storeId}:${table}:${data.id}`, store_id: storeId, table_name: table,
+    data, updated_at: new Date().toISOString(), sync_state: 'pending',
   }
   const tx = db.transaction(RECORDS, 'readwrite')
   tx.objectStore(RECORDS).put(record)
@@ -128,61 +126,66 @@ export async function saveLocalRecord<T extends Record<string, unknown>>(
   return record
 }
 
-/** Store a row fetched from Supabase as a confirmed server snapshot.
- * This is a cache write, not a local business mutation, so it must not enter
- * the outbound sync queue or appear as pending work.
- */
 export async function cacheServerRecord<T extends Record<string, unknown>>(
-  table: EntityTable,
-  storeId: string,
-  data: T,
+  table: EntityTable, storeId: string, data: T,
 ): Promise<LocalRecord<T>> {
   if (!storeId || typeof data.id !== 'string' || !data.id) {
     throw new Error('store_id et id sont obligatoires pour mettre en cache un enregistrement.')
   }
   const now = new Date().toISOString()
   const db = await openLocalDatabase()
-  const record: LocalRecord<T> = {
-    id: `${storeId}:${table}:${data.id}`,
-    store_id: storeId,
-    table_name: table,
-    data,
-    updated_at: now,
-    sync_state: 'synced',
-    last_sync_at: now,
-  }
+  const key = `${storeId}:${table}:${data.id}`
   const tx = db.transaction(RECORDS, 'readwrite')
-  tx.objectStore(RECORDS).put(record)
+  const store = tx.objectStore(RECORDS)
+  const existing = await requestResult(store.get(key)) as LocalRecord<T> | undefined
+  // Never overwrite an unsynced local edit with an older server snapshot.
+  if (existing?.sync_state === 'pending' || existing?.sync_state === 'error') {
+    await transactionDone(tx)
+    return existing
+  }
+  const record: LocalRecord<T> = {
+    id: key, store_id: storeId, table_name: table, data,
+    updated_at: now, sync_state: 'synced', last_sync_at: now,
+  }
+  store.put(record)
   await transactionDone(tx)
   return record
 }
 
 export async function getLocalRecords<T = Record<string, unknown>>(
-  storeId: string,
-  table: EntityTable,
+  storeId: string, table: EntityTable,
 ): Promise<LocalRecord<T>[]> {
   const db = await openLocalDatabase()
   const tx = db.transaction(RECORDS, 'readonly')
-  const rows = await requestResult(
-    tx.objectStore(RECORDS).index('by_store_table').getAll([storeId, table]),
-  ) as LocalRecord<T>[]
+  const rows = await requestResult(tx.objectStore(RECORDS).index('by_store_table').getAll([storeId, table])) as LocalRecord<T>[]
   await transactionDone(tx)
   return rows
 }
 
 export async function enqueueSyncOperation(
-  operation: Omit<SyncOperation, 'id' | 'created_at' | 'attempts' | 'status'>,
+  operation: Omit<SyncOperation, 'id' | 'created_at' | 'attempts' | 'status' | 'next_retry_at' | 'lease_until'> & {
+    idempotency_key?: string
+  },
 ): Promise<SyncOperation> {
+  if (!operation.store_id || !operation.record_id) throw new Error('store_id et record_id sont obligatoires.')
   const db = await openLocalDatabase()
+  const tx = db.transaction(QUEUE, 'readwrite')
+  const store = tx.objectStore(QUEUE)
+  const dedupeKey = operation.dedupe_key
+  if (dedupeKey) {
+    const existing = await requestResult(store.index('by_store_dedupe').get([operation.store_id, dedupeKey])) as SyncOperation | undefined
+    if (existing) { await transactionDone(tx); return existing }
+  }
   const item: SyncOperation = {
     ...operation,
     id: crypto.randomUUID(),
+    idempotency_key: operation.idempotency_key || crypto.randomUUID(),
     created_at: new Date().toISOString(),
     attempts: 0,
     status: 'pending',
+    next_retry_at: new Date().toISOString(),
   }
-  const tx = db.transaction(QUEUE, 'readwrite')
-  tx.objectStore(QUEUE).add(item)
+  store.add(item)
   await transactionDone(tx)
   return item
 }
@@ -192,26 +195,63 @@ export async function getPendingSyncOperations(storeId: string): Promise<SyncOpe
   const tx = db.transaction(QUEUE, 'readonly')
   const rows = await requestResult(tx.objectStore(QUEUE).index('by_store').getAll(storeId)) as SyncOperation[]
   await transactionDone(tx)
-  return rows
-    .filter(item => item.status === 'pending' || item.status === 'error')
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const now = Date.now()
+  return rows.filter(item =>
+    item.status === 'pending' ||
+    (item.status === 'error' && (!item.next_retry_at || Date.parse(item.next_retry_at) <= now)) ||
+    (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+  ).sort((a, b) => a.created_at.localeCompare(b.created_at))
+}
+
+export async function getSyncQueueSummary(storeId: string): Promise<{ pending: number; processing: number; errors: number }> {
+  const db = await openLocalDatabase()
+  const tx = db.transaction(QUEUE, 'readonly')
+  const rows = await requestResult(tx.objectStore(QUEUE).index('by_store').getAll(storeId)) as SyncOperation[]
+  await transactionDone(tx)
+  return {
+    pending: rows.filter(x => x.status === 'pending').length,
+    processing: rows.filter(x => x.status === 'processing' && !!x.lease_until && Date.parse(x.lease_until) > Date.now()).length,
+    errors: rows.filter(x => x.status === 'error').length,
+  }
+}
+
+/** Atomically claims one due operation. Expired processing leases are reclaimable. */
+export async function claimNextSyncOperation(storeId: string, leaseMs = DEFAULT_LEASE_MS): Promise<SyncOperation | null> {
+  const db = await openLocalDatabase()
+  const tx = db.transaction(QUEUE, 'readwrite')
+  const store = tx.objectStore(QUEUE)
+  const rows = await requestResult(store.index('by_store').getAll(storeId)) as SyncOperation[]
+  const now = Date.now()
+  const candidate = rows
+    .filter(item =>
+      (item.status === 'pending' || item.status === 'error') &&
+      (!item.next_retry_at || Date.parse(item.next_retry_at) <= now) ||
+      (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+    )
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]
+  if (!candidate) { await transactionDone(tx); return null }
+  const claimed: SyncOperation = {
+    ...candidate, status: 'processing', attempts: candidate.attempts + 1,
+    lease_until: new Date(now + leaseMs).toISOString(), last_error: undefined,
+  }
+  store.put(claimed)
+  await transactionDone(tx)
+  return claimed
 }
 
 export async function setSyncOperationState(
-  id: string,
-  status: SyncOperation['status'],
-  error?: string,
+  id: string, status: SyncOperation['status'], error?: string,
 ): Promise<void> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
   const store = tx.objectStore(QUEUE)
   const item = await requestResult(store.get(id)) as SyncOperation | undefined
   if (item) {
+    const attempts = item.attempts
+    const delay = Math.min(5 * 60_000, 2_000 * (2 ** Math.max(0, attempts - 1)))
     store.put({
-      ...item,
-      status,
-      attempts: status === 'processing' ? item.attempts : item.attempts + 1,
-      last_error: error,
+      ...item, status, lease_until: undefined, last_error: error,
+      next_retry_at: status === 'error' ? new Date(Date.now() + delay).toISOString() : item.next_retry_at,
     })
   }
   await transactionDone(tx)
@@ -240,5 +280,6 @@ export async function getLocalMetadata<T>(key: string): Promise<T | undefined> {
 }
 
 export async function getLocalSyncCount(storeId: string): Promise<number> {
-  return (await getPendingSyncOperations(storeId)).length
+  const summary = await getSyncQueueSummary(storeId)
+  return summary.pending + summary.errors + summary.processing
 }
