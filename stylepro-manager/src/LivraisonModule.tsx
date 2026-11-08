@@ -267,8 +267,14 @@ export default function LivraisonModule({ storeId, userId, storeName = 'StylePro
     if (!window.confirm('Confirmer la sortie du BL-' + delivery.delivery_number + ' ? Le stock sera déduit.')) return
     setSaving(true); setError(''); setNotice('')
     try {
-      const { error: rpcError } = await supabase.rpc('confirm_delivery', { p_delivery_id: delivery.id })
+      const keyStorage = `stylepro:idempotency:confirm-delivery:${storeId}:${delivery.id}`
+      const key = localStorage.getItem(keyStorage) || crypto.randomUUID()
+      localStorage.setItem(keyStorage, key)
+      const { error: rpcError } = await supabase.rpc('confirm_delivery_idempotent', {
+        p_delivery_id: delivery.id, p_idempotency_key: key
+      })
       if (rpcError) throw rpcError
+      localStorage.removeItem(keyStorage)
       setNotice('Sortie BL-' + delivery.delivery_number + ' confirmée.')
       await loadData()
       if (selected?.id === delivery.id) await openDetails(delivery)
