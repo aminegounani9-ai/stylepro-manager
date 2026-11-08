@@ -395,8 +395,8 @@ export default function App() {
     const movements: Movement[] = []
     for (let offset = 0; ; offset += 1000) {
       const { data, error } = await supabase.from('stock_movements')
-        .select('variant_id,quantity_delta').eq('store_id', id)
-        .order('created_at').range(offset, offset + 999)
+        .select('id,variant_id,quantity_delta').eq('store_id', id)
+        .order('id').range(offset, offset + 999)
       if (error) throw error
       const page = (data ?? []) as Movement[]
       movements.push(...page)
