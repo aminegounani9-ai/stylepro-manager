@@ -5880,3 +5880,95 @@ tbody tr:last-child td { border-bottom: 0; }
 .sync-spin{animation:stylepro-sync-spin 1s linear infinite}
 @keyframes stylepro-sync-spin{to{transform:rotate(360deg)}}
 @media(max-width:760px){.sync-status-badge{min-height:32px;padding:6px 8px;font-size:11px}.sync-status-badge span{max-width:105px;overflow:hidden;text-overflow:ellipsis}}
+
+
+/* Cross-device layout and safe-area support (notches, status bars, gesture bars) */
+html {
+  min-height: 100%;
+  min-height: 100dvh;
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+body, #root {
+  min-height: 100%;
+  min-height: 100dvh;
+  width: 100%;
+}
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+.app {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.app .topbar {
+  padding-left: max(clamp(12px, 3vw, 42px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(12px, 3vw, 42px), env(safe-area-inset-right, 0px));
+}
+.app .footer {
+  padding-bottom: max(17px, env(safe-area-inset-bottom, 0px));
+}
+.app button, .app input, .app select, .app textarea {
+  max-width: 100%;
+}
+.app img, .app svg, .app video, .app canvas {
+  max-width: 100%;
+}
+.app .dashboard-content,
+.app .panel,
+.app .workspace,
+.app .login-layout {
+  min-width: 0;
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .app .workspace { grid-template-columns: 190px minmax(0, 1fr); }
+  .app .sidebar { padding-left: 10px; padding-right: 10px; }
+  .app .dashboard-content { padding: 24px 16px; }
+  .app .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .app .topbar {
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  .app .dashboard-content {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  .app .footer {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  .app .workspace { width: 100%; }
+  .app .sidebar { max-width: 100%; overflow-x: auto; }
+  .app .sidebar > nav { min-width: 0; }
+  .app .nav-item { flex-shrink: 0; }
+  .app .welcome, .app .section-heading, .app .catalogue-header { min-width: 0; }
+  .app .panel { overflow-wrap: anywhere; }
+  .app .table-wrap { max-width: 100%; overscroll-behavior-x: contain; }
+}
+@media (max-width: 420px) {
+  .app .brand { gap: 8px; }
+  .app .brand-copy strong { font-size: 13px; }
+  .app .header-actions { gap: 5px; }
+  .app .header-actions > * { min-width: 34px; }
+  .app .secondary-button, .app .primary-button {
+    min-height: 39px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .app .welcome h1 { font-size: 23px; }
+  .app .stat-card > strong { font-size: 20px; overflow-wrap: anywhere; }
+  .app .panel { padding: 14px 11px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .app .topbar { min-height: 54px; }
+  .app .dashboard-content { padding-top: 14px; padding-bottom: 14px; }
+  .app .auth-card { padding-top: 18px; padding-bottom: 18px; }
+}
