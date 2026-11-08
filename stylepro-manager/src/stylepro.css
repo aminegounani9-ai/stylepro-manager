@@ -6159,3 +6159,130 @@ body { min-height: 100svh; }
     -webkit-overflow-scrolling: touch;
   }
 }
+
+
+/* Final device pass: natural page scrolling, correctly spaced footer and a
+   full-height mobile navigation drawer. Keep browser UI/system buttons clear. */
+@media screen and (max-width: 760px) {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  body {
+    display: block !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  #root {
+    display: block !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+  #root > .app {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 0 0 !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  .app > .topbar {
+    position: relative !important;
+    top: auto !important;
+    flex: 0 0 auto !important;
+  }
+  .app > .workspace {
+    display: block !important;
+    flex: 1 0 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .app > .workspace > .dashboard-content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 24px !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+  .app > .footer {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 58px !important;
+    margin: 0 0 calc(22px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 13px 12px 16px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Mobile drawer: wider, fully scrollable and ending above Android/iOS controls. */
+  .app .workspace > aside.sidebar {
+    position: fixed !important;
+    inset: 0 auto calc(22px + env(safe-area-inset-bottom, 0px)) 0 !important;
+    width: min(90vw, 380px) !important;
+    min-width: 0 !important;
+    max-width: min(90vw, 380px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 18px 15px 24px !important;
+    touch-action: pan-y !important;
+  }
+  .app .mobile-menu-backdrop {
+    position: fixed !important;
+    inset: 0 0 calc(22px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+}
+@media screen and (min-width: 761px) {
+  html, body, #root { height: 100% !important; }
+  body { overflow: hidden !important; }
+  #root { overflow: hidden !important; }
+  #root > .app {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .app > .topbar, .app > .footer { flex: 0 0 auto !important; }
+  .app > .workspace {
+    display: grid !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .app > .workspace > .dashboard-content {
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .app .workspace > aside.sidebar {
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+  }
+}
+@media screen and (min-width: 761px) and (max-width: 1100px) {
+  .app .workspace { grid-template-columns: 210px minmax(0, 1fr) !important; }
+  .app .sidebar { padding-left: 12px !important; padding-right: 12px !important; }
+}
