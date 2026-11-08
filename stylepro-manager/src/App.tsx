@@ -1271,6 +1271,49 @@ const filteredStockVariants = posVariants.filter(variant => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem('stylepro_sound_enabled') !== 'false' } catch { return true }
+  })
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    try { return localStorage.getItem('stylepro_notifications_enabled') === 'true' } catch { return false }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('stylepro_sound_enabled', String(soundEnabled)) } catch { /* storage may be unavailable */ }
+  }, [soundEnabled])
+
+  useEffect(() => {
+    try { localStorage.setItem('stylepro_notifications_enabled', String(notificationsEnabled)) } catch { /* storage may be unavailable */ }
+  }, [notificationsEnabled])
+
+  useEffect(() => {
+    if (!message) return
+    if (soundEnabled && typeof window !== 'undefined') {
+      try {
+        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (AudioContextClass) {
+          const context = new AudioContextClass()
+          const oscillator = context.createOscillator()
+          const gain = context.createGain()
+          oscillator.type = 'sine'
+          oscillator.frequency.setValueAtTime(880, context.currentTime)
+          oscillator.frequency.setValueAtTime(1174.66, context.currentTime + 0.09)
+          gain.gain.setValueAtTime(0.0001, context.currentTime)
+          gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.015)
+          gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22)
+          oscillator.connect(gain)
+          gain.connect(context.destination)
+          oscillator.start()
+          oscillator.stop(context.currentTime + 0.23)
+          oscillator.onended = () => { void context.close() }
+        }
+      } catch { /* sound is optional and must never block a business action */ }
+    }
+    if (notificationsEnabled && typeof document !== 'undefined' && document.hidden &&
+        typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try { new Notification('StylePro Manager', { body: message, tag: 'stylepro-success' }) } catch { /* notifications are optional */ }
+    }
+  }, [message, soundEnabled, notificationsEnabled])
   const [scannerCode, setScannerCode] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [scannerMessage, setScannerMessage] = useState('')
@@ -4665,7 +4708,7 @@ const loadPromotions = useCallback(async () => {
                       </div>
                       <article className="receipt-print-area">
                         <header className="receipt-header">
-                          <h1>StylePro Manager</h1>
+                          <h1>{stores.find(store => store.id === storeId)?.name || 'StylePro Manager'}</h1>
                           <p>Facture de vente</p>
                           <h2>Facture N° {receiptPreview.sale_number}</h2>
                           <p>Date : {new Date(receiptPreview.created_at).toLocaleString('fr-DZ')}</p>
@@ -5768,6 +5811,29 @@ const loadPromotions = useCallback(async () => {
                     ))}
                   </div>
                   <p className="appearance-note">Vos préférences sont enregistrées automatiquement dans ce navigateur.</p>
+                </section>
+
+                <section className="panel settings-preferences">
+                  <div className="panel-title">
+                    <Activity size={21} />
+                    <div>
+                      <h2>Notifications & Sons</h2>
+                      <p>Recevez un signal lors des opérations réussies.</p>
+                    </div>
+                  </div>
+                  <label className="settings-toggle-row">
+                    <span><strong>Effets sonores</strong><small>Jouer un son discret après une opération réussie.</small></span>
+                    <input type="checkbox" checked={soundEnabled} onChange={event => setSoundEnabled(event.target.checked)} />
+                  </label>
+                  <label className="settings-toggle-row">
+                    <span><strong>Notifications système</strong><small>Afficher une notification lorsque l'application est en arrière-plan.</small></span>
+                    <input type="checkbox" checked={notificationsEnabled} onChange={event => setNotificationsEnabled(event.target.checked)} />
+                  </label>
+                  {notificationsEnabled && typeof Notification !== 'undefined' && Notification.permission !== 'granted' && (
+                    <button type="button" className="secondary-button" onClick={() => void Notification.requestPermission()}>
+                      Autoriser les notifications
+                    </button>
+                  )}
                 </section>
 
                 <section className="panel settings-preferences">

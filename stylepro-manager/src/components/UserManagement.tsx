@@ -226,7 +226,7 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
             {loading ? <p>Chargement…</p> : members.length === 0 ? <p className="appearance-note">Aucun utilisateur trouvé.</p> :
               members.map(member=><div className="user-member-card" key={member.user_id}>
                 <div className="user-member-row">
-                  <div className="user-member-info"><UserRound size={18}/><div><strong>{member.full_name || member.email || member.user_id}</strong><small>{member.email}</small></div></div>
+                  <div className="user-member-info"><UserRound size={18}/><div><strong>{member.full_name || member.user_id}</strong>{member.email && <small>{member.email}</small>}</div></div>
                   <select aria-label="Rôle utilisateur" value={member.role} disabled={saving || member.user_id===user?.id || (!isAdmin && (member.role === 'admin' || member.role === 'manager'))}
                     onChange={e=>void updateRole(member,e.target.value as Role)}>
                     {(isAdmin ? roles : availableRoles).map(r=><option key={r.value} value={r.value}>{r.label}</option>)}

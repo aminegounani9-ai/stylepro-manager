@@ -266,7 +266,8 @@ Deno.serve(async (req) => {
         members: (members || []).map((m) => ({
           ...m,
           full_name: profileById.get(m.user_id) || "",
-          email: userById.get(m.user_id) || "",
+          // Managers may see the administrator account label, but never its email address.
+          email: callerRole === "manager" && m.role === "admin" ? "" : (userById.get(m.user_id) || ""),
           permissions: permissionsByUser.get(m.user_id) || [],
         })),
       });
