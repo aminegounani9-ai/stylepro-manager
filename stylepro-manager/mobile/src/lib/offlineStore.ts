@@ -242,3 +242,61 @@ export async function getCachedProducts(storeId: string): Promise<Array<{
     description: null, active: true,
   }))
 }
+
+type StoredMobileOperation = Omit<MobileSyncOperation, 'payload'> & { payload_json: string }
+
+export async function claimNextMobileSyncOperation(
+  storeId: string,
+  leaseMs = 60_000,
+): Promise<MobileSyncOperation | null> {
+  const database = await getDatabase()
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const leaseUntil = new Date(now.getTime() + leaseMs).toISOString()
+  let claimed: MobileSyncOperation | null = null
+
+  await database.withExclusiveTransactionAsync(async transaction => {
+    const row = await transaction.getFirstAsync<StoredMobileOperation>(
+      `SELECT * FROM mobile_sync_outbox
+       WHERE store_id = ? AND (
+         (status IN ('pending','error') AND next_retry_at <= ?)
+         OR (status = 'processing' AND (lease_until IS NULL OR lease_until <= ?))
+       )
+       ORDER BY created_at LIMIT 1`,
+      storeId, nowIso, nowIso,
+    )
+    if (!row) return
+    const attempts = Number(row.attempts ?? 0) + 1
+    await transaction.runAsync(
+      `UPDATE mobile_sync_outbox
+       SET status='processing',attempts=?,lease_until=?,last_error=NULL
+       WHERE id=?`,
+      attempts, leaseUntil, row.id,
+    )
+    claimed = {
+      id: row.id, store_id: row.store_id, operation: row.operation,
+      idempotency_key: row.idempotency_key, dedupe_key: row.dedupe_key,
+      payload: JSON.parse(row.payload_json) as Record<string, unknown>,
+      created_at: row.created_at, status: 'processing', attempts,
+      next_retry_at: row.next_retry_at, lease_until: leaseUntil, last_error: null,
+    }
+  })
+  return claimed
+}
+
+export async function completeMobileSyncOperation(id: string): Promise<void> {
+  const database = await getDatabase()
+  await database.runAsync('DELETE FROM mobile_sync_outbox WHERE id = ?', id)
+}
+
+export async function failMobileSyncOperation(id: string, attempts: number, message: string): Promise<void> {
+  const database = await getDatabase()
+  const delay = Math.min(5 * 60_000, 2_000 * (2 ** Math.max(0, attempts - 1)))
+  const nextRetry = new Date(Date.now() + delay).toISOString()
+  await database.runAsync(
+    `UPDATE mobile_sync_outbox
+     SET status='error',lease_until=NULL,last_error=?,next_retry_at=?
+     WHERE id=?`,
+    message.slice(0, 500), nextRetry, id,
+  )
+}
