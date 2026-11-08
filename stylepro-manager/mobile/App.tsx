@@ -873,7 +873,7 @@ export default function App() {
         operation: 'scanner_event',
         idempotencyKey: scanEventId,
         dedupeKey: `scanner-event:${scanEventId}`,
-        payload: { scanned_code: code, scanned_at: new Date().toISOString() },
+        payload: { scanned_code: code, scanned_at: new Date().toISOString(), scanned_by: user?.id || '' },
       })
       scanEventQueued = true
     } catch {
