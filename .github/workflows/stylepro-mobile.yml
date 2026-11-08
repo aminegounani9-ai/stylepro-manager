@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: stylepro-manager/mobile/package-lock.json
       - run: npm install
       - name: Install Expo-compatible native packages
-        run: npx expo install expo-print expo-sharing expo-sqlite expo-network
+        run: npx expo install expo-print expo-sharing expo-sqlite expo-network react-native-safe-area-context
       - name: Commit Expo-compatible dependency lockfile
         run: |
           if ! git diff --quiet -- package-lock.json app.json package.json; then
