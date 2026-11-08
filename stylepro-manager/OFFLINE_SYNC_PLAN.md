@@ -9,6 +9,20 @@
 ## Current foundation
 `src/lib/offlineDb.ts` creates versioned IndexedDB stores for business records, sync operations, and metadata. It provides typed helpers for local records, queue persistence, and sync status. Server snapshots are written with `cacheServerRecord` and marked `synced`; local mutations use a separate API and must never be confused with downloaded cache rows.
 
+## Durable outbox foundation (Web + Tauri Desktop)
+- IndexedDB schema version 2 keeps existing cached rows and adds a store-scoped deduplication index for queued operations.
+- Each queued operation has a stable idempotency key, optional dedupe key, retry schedule, and expiring processing lease.
+- A lease is claimed atomically; the Web Locks API prevents concurrent replay from multiple tabs where supported.
+- Retry delay grows exponentially and is capped. Expired leases can be reclaimed after a tab/browser crash.
+- The sync engine only replays tables with an explicitly registered adapter that declares server-side idempotency support. It does not perform arbitrary Supabase table upserts/deletes.
+- The app header displays connectivity and local outbox status.
+
+## Production safety gate — still required
+- No business-table adapter is registered yet. This is intentional: Supabase project schema access was unavailable during this implementation, so the existing sale/return/stock/delivery RPC signatures and constraints could not be audited.
+- Offline sales, returns, stock movements, delivery confirmation, and other financial/inventory writes remain online-only until each server RPC accepts a client idempotency key and enforces uniqueness transactionally. A client-only UUID cannot prevent duplicate effects if the server commits but the response is lost.
+- Android remains an online companion; this IndexedDB queue applies to Web and Tauri Desktop only.
+- Before enabling adapters, inspect the live schema and RLS, add additive idempotency support to each relevant transactional RPC, verify duplicate-key replay returns the original result, then add an adapter and run multi-tab / timeout / reconnect acceptance tests.
+
 ## Implemented read-only offline coverage (Web + Tauri Desktop)
 - Catalogue products, categories, brands, product variants, customers, and stock-movement snapshots are cached by active `store_id`.
 - Atelier and delivery modules cache their downloaded records and can use local snapshots when a network request fails.
