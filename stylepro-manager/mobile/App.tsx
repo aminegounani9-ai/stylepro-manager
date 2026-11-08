@@ -524,7 +524,7 @@ export default function App() {
       await loadStores()
       // A manual refresh must also refresh the currently selected store's data.
       if (manual && storeId) {
-        await Promise.all([loadProducts(storeId), loadAnalytics(storeId)])
+        await Promise.all([loadProducts(storeId), loadAnalytics(storeId), syncMobileScannerCatalog(storeId)])
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Impossible d’actualiser les données.')
@@ -532,7 +532,7 @@ export default function App() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [user, loadStores, storeId, loadProducts, loadAnalytics])
+  }, [user, loadStores, storeId, loadProducts, loadAnalytics, syncMobileScannerCatalog])
 
   useEffect(() => {
     if (user) {
