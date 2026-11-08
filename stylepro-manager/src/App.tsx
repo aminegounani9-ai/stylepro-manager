@@ -67,6 +67,7 @@ async function cachedRows<T>(
   return rows.map(row => row.data)
 }
 import MobileScanner from './MobileScanner'
+import SyncStatus from './components/SyncStatus'
 import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
@@ -3657,6 +3658,7 @@ const loadPromotions = useCallback(async () => {
           <span className={`system-status ${isOnline ? 'is-online' : 'is-offline'}`} role="status" aria-live="polite" title={isOnline ? 'Connexion Internet détectée' : 'Aucune connexion Internet détectée'}>
             <span className="status-dot" /> {isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
+          {user && storeId && <SyncStatus storeId={storeId} isOnline={isOnline} />}
           <button
             className="icon-button"
             onClick={() => setThemeMode(dark ? 'light' : 'dark')}
