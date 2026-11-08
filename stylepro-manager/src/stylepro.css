@@ -5508,3 +5508,24 @@ tbody tr:last-child td { border-bottom: 0; }
   .user-permission-card { max-height: min(460px, 60vh); padding: 10px; }
   .user-permission-editor { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Notification preferences */
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 15px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--soft);
+}
+.settings-toggle-row span { display: grid; gap: 4px; }
+.settings-toggle-row strong { font-size: 12px; color: var(--text); }
+.settings-toggle-row small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.settings-toggle-row input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--primary); }
+@media (max-width: 560px) {
+  .settings-toggle-row { align-items: flex-start; padding: 11px; }
+}
