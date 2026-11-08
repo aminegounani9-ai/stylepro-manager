@@ -1,6 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#243b35"/>
-  <path d="M256 112c-27 0-49 22-49 49 0 13 5 25 14 34l-126 94c-18 13-9 41 13 41h296c22 0 31-28 13-41l-126-94c9-9 14-21 14-34 0-27-22-49-49-49Zm0 32a17 17 0 1 1 0 34 17 17 0 0 1 0-34Zm-143 154 143-106 143 106H113Z" fill="#f5f1e9"/>
-  <path d="M164 354h184v26H164z" fill="#c69b67"/>
-  <text x="256" y="445" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="700" letter-spacing="8" fill="#f5f1e9">STYLEPRO</text>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#304b42"/><stop offset="1" stop-color="#172d28"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8c99a"/><stop offset="1" stop-color="#b9824c"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<rect x="28" y="28" width="456" height="456" rx="92" fill="none" stroke="#e8c99a" stroke-opacity=".28" stroke-width="5"/>
+<path d="M256 92c-27 0-48 21-48 48 0 16 8 31 21 40L104 268c-18 13-9 42 14 42h276c23 0 32-29 14-42L283 180c13-9 21-24 21-40 0-27-21-48-48-48Zm0 29a19 19 0 1 1 0 38 19 19 0 0 1 0-38Z" fill="none" stroke="url(#gold)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M126 281h260l-22 99H148z" fill="#f5f1e9" fill-opacity=".10" stroke="#f5f1e9" stroke-opacity=".82" stroke-width="10" stroke-linejoin="round"/>
+<path d="M183 337c16-28 48-37 73-19 17 12 37 12 55-1" fill="none" stroke="url(#gold)" stroke-width="17" stroke-linecap="round"/>
+<path d="M204 397h104" stroke="#e8c99a" stroke-width="9" stroke-linecap="round"/>
+<text x="256" y="454" text-anchor="middle" font-family="Arial,sans-serif" font-size="37" font-weight="700" letter-spacing="5" fill="#f5f1e9">STYLEPRO</text>
 </svg>
