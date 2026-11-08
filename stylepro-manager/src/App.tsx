@@ -48,7 +48,8 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getLocalRecords, cacheServerRecord } from './lib/offlineDb'
+import { getLocalRecords, cacheServerRecord, enqueueSyncOperation } from './lib/offlineDb'
+import { registerSyncAdapter } from './lib/syncEngine'
 import type { EntityTable } from './lib/offlineDb'
 
 async function cacheRows<T extends { id: string }>(
@@ -73,7 +74,41 @@ import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
 import OperationsReports from './OperationsReports'
 import './atelier.css'
+
 import './stylepro.css'
+
+function operationFingerprint(value: unknown): string {
+  const input = JSON.stringify(value)
+  let hash = 2166136261
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+function getStableIdempotencyKey(scope: string, payload: unknown): string {
+  const storageKey = `stylepro:idempotency:${scope}:${operationFingerprint(payload)}`
+  const existing = localStorage.getItem(storageKey)
+  if (existing) return existing
+  const key = crypto.randomUUID()
+  localStorage.setItem(storageKey, key)
+  return key
+}
+
+registerSyncAdapter('sales', {
+  supportsServerIdempotency: true,
+  apply: async operation => {
+    const payload = operation.payload as { items: Array<{ variant_id: string; quantity: number; discount: number }>; customer_id: string | null }
+    const { error } = await supabase.rpc('create_pos_sale_cart_idempotent', {
+      p_store_id: operation.store_id,
+      p_items: payload.items,
+      p_customer_id: payload.customer_id,
+      p_idempotency_key: operation.idempotency_key,
+    })
+    if (error) throw error
+  },
+})
 
 
 type PromotionRow = {
@@ -2677,26 +2712,48 @@ async function stopPOSCamera() {
     setError('')
     setMessage('')
     try {
-      const { data, error } = await supabase.rpc('create_pos_sale_cart', {
-        p_store_id: storeId,
-        p_items: posCart.map(i => ({
-          variant_id: i.variant_id,
-          quantity: i.quantity,
-          discount: getPOSLineDiscount(i)
-        })),
-        p_customer_id: posCustomerId || null
-      })
-      if (error) throw error
-      const row = Array.isArray(data) ? data[0] : data
-      if (!row || row.sale_number == null) throw new Error('La vente n’a pas retourné de numéro de reçu.')
-      setLastReceipt({sale_number: Number(row.sale_number), total: Number(row.total)})
-      setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
+      const items = posCart.map(i => ({
+        variant_id: i.variant_id,
+        quantity: i.quantity,
+        discount: getPOSLineDiscount(i)
+      }))
+      const customerId = posCustomerId || null
+      const requestPayload = { items, customer_id: customerId }
+      const fingerprint = operationFingerprint(requestPayload)
+
+      if (!navigator.onLine) {
+        const key = crypto.randomUUID()
+        await enqueueSyncOperation({
+          idempotency_key: key,
+          dedupe_key: `pos-sale:${fingerprint}`,
+          store_id: storeId,
+          table_name: 'sales',
+          record_id: key,
+          operation: 'upsert',
+          payload: requestPayload,
+        })
+        setMessage('Vente enregistrée localement. Elle sera envoyée automatiquement au retour de la connexion.')
+      } else {
+        const key = getStableIdempotencyKey(`pos-sale:${storeId}`, requestPayload)
+        const { data, error } = await supabase.rpc('create_pos_sale_cart_idempotent', {
+          p_store_id: storeId,
+          p_items: items,
+          p_customer_id: customerId,
+          p_idempotency_key: key,
+        })
+        if (error) throw error
+        const row = Array.isArray(data) ? data[0] : data
+        if (!row || row.sale_number == null) throw new Error('La vente n’a pas retourné de numéro de reçu.')
+        localStorage.removeItem(`stylepro:idempotency:pos-sale:${operationFingerprint(requestPayload)}`)
+        setLastReceipt({sale_number: Number(row.sale_number), total: Number(row.total)})
+        setMessage(`Vente #${row.sale_number} enregistrée avec succès.`)
+        await Promise.all([loadPOSData(), loadProducts()])
+      }
       setPosCart([])
       setPosCustomerId('')
       setPosCashReceived('')
       setPosCardAmount('')
       setPosPaymentMethod('cash')
-      await Promise.all([loadPOSData(), loadProducts()])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de la vente.')
     } finally {
