@@ -23,7 +23,7 @@
 - Stock transfers use `transfer_stock_idempotent`; the two movement rows are created by the existing transactional stock-transfer RPC only once.
 - Delivery dispatch confirmation uses `confirm_delivery_idempotent`; stock deductions are replay-safe.
 - Five authenticated RPCs use a private `private.idempotency_requests` table with a primary key over store, actor, operation and client key. The request payload hash is checked; reusing a key with a different payload is rejected; successful RPC results are stored and returned on retries.
-- The idempotency table has no SELECT grants for `anon` or `authenticated`. RPC execution is granted only to `authenticated`, with membership/role checks performed in each wrapper.
+- The idempotency table has no SELECT grants for `anon` or `authenticated`. RPC execution is granted only to `authenticated`, with membership/role and per-module action checks performed in each wrapper.
 - Android remains an online companion; this IndexedDB queue applies to Web and Tauri Desktop only.
 - Business operations are committed server-side after reconnect, not speculatively applied to cloud stock. The UI reports queued operations until the server confirms them.
 
@@ -51,7 +51,7 @@ All cache reads must filter by the active store. On logout or store switch, clea
 ## Not yet enabled / release gates
 - General-purpose replay of queued writes remains disabled. Only sales, returns, stock transfers and delivery dispatch have registered idempotent adapters.
 - Offline expenses, purchase orders, production records, delivery creation/returns, arbitrary stock adjustments, and payment recording are not yet queued. Each requires a reviewed transactional RPC and idempotency contract.
-- Queue acceptance tests for real multi-device network interruption, duplicate retries and server timeout-after-commit are still required; metadata and grants were verified, but no live sale/refund/stock operation was generated as a test.
+- Queue acceptance tests for real multi-device network interruption, duplicate retries and server timeout-after-commit are still required; RPC definitions, grants, private table access and migration history were verified, but no live sale/refund/stock operation was generated as a test.
 - The Android client does not yet have a persistent SQLite business-data cache or background sync worker.
 - Manager delegation and per-user module/action permissions are present in the project; verify the current deployed `manage-users` Edge Function separately before relying on backend redaction.
 - Web and Desktop share source code, but Windows installers must pass the dedicated desktop workflow before distribution. Android APK must pass the standalone APK workflow. A successful web build does not certify either native package.
