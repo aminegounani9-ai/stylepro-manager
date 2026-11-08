@@ -12,6 +12,9 @@ on:
       - ".github/workflows/stylepro-mobile.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: stylepro-mobile-${{ github.ref }}
   cancel-in-progress: true
@@ -31,7 +34,16 @@ jobs:
           cache-dependency-path: stylepro-manager/mobile/package-lock.json
       - run: npm install
       - name: Install Expo-compatible native packages
-        run: npx expo install expo-print expo-sharing
+        run: npx expo install expo-print expo-sharing expo-sqlite expo-network
+      - name: Commit Expo-compatible dependency lockfile
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore(mobile): sync Expo SDK 58 dependency lockfile"
+            git push
+          fi
       - name: Check Expo package compatibility
         run: npx expo install --check
       - name: Validate Expo configuration
