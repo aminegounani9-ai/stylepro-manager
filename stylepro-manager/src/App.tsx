@@ -3829,7 +3829,7 @@ const loadPromotions = useCallback(async () => {
             {currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
 ) : currentView === 'livraisons' ? (
-              <LivraisonModule storeId={storeId} userId={user.id} />
+              <LivraisonModule storeId={storeId} userId={user.id} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
             ) : currentView === 'stock' ? (
               <section className="panel">
                 <div className="panel-heading">
