@@ -11,15 +11,15 @@ export default function SyncStatus({ storeId, isOnline }: Props) {
   const [hint, setHint] = useState('')
 
   const refresh = useCallback(async () => {
-    if (!storeId) { setSummary({ pending: 0, processing: 0, errors: 0 }); return }
+    if (!storeId) return
     try { setSummary(await getSyncQueueSummary(storeId)) } catch { /* IndexedDB may be unavailable */ }
   }, [storeId])
 
   useEffect(() => {
-    void refresh()
+    const initial = window.setTimeout(() => void refresh(), 0)
     const timer = window.setInterval(() => void refresh(), 5000)
     const stopScheduler = startSyncScheduler(storeId)
-    return () => { window.clearInterval(timer); stopScheduler() }
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); stopScheduler() }
   }, [refresh, storeId])
 
   const synchronize = async () => {
