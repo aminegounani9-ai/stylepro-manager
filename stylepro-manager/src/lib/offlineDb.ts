@@ -216,7 +216,7 @@ export async function getSyncQueueSummary(storeId: string): Promise<{ pending: n
 }
 
 /** Atomically claims one due operation. Expired processing leases are reclaimable. */
-export async function claimNextSyncOperation(storeId: string, leaseMs = DEFAULT_LEASE_MS): Promise<SyncOperation | null> {
+export async function claimNextSyncOperation(storeId: string, leaseMs = DEFAULT_LEASE_MS, allowedTables?: EntityTable[]): Promise<SyncOperation | null> {
   const db = await openLocalDatabase()
   const tx = db.transaction(QUEUE, 'readwrite')
   const store = tx.objectStore(QUEUE)
@@ -224,9 +224,11 @@ export async function claimNextSyncOperation(storeId: string, leaseMs = DEFAULT_
   const now = Date.now()
   const candidate = rows
     .filter(item =>
-      (item.status === 'pending' || item.status === 'error') &&
-      (!item.next_retry_at || Date.parse(item.next_retry_at) <= now) ||
-      (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+      (!allowedTables || allowedTables.includes(item.table_name)) && (
+        ((item.status === 'pending' || item.status === 'error') &&
+          (!item.next_retry_at || Date.parse(item.next_retry_at) <= now)) ||
+        (item.status === 'processing' && (!item.lease_until || Date.parse(item.lease_until) <= now))
+      )
     )
     .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]
   if (!candidate) { await transactionDone(tx); return null }
