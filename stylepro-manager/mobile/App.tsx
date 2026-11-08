@@ -8,7 +8,6 @@ import {
   Platform,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -18,6 +17,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNetworkState } from 'expo-network'
 import { enqueueMobileSyncOperation, findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, getMobileSyncQueueSummary, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
@@ -203,7 +203,7 @@ const MOBILE_MODULE_FOR_VIEW: Record<string, string> = {
   deliveries: 'deliveries', promotions: 'promotions', labels: 'labels', users: 'users', settings: 'settings',
 }
 
-export default function App() {
+function AppContent() {
   const { width: windowWidth } = useWindowDimensions()
   const networkState = useNetworkState()
   const isOnline = networkState.isConnected === true && networkState.isInternetReachable !== false
@@ -1068,7 +1068,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <SafeAreaView style={styles.center}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.muted}>Chargement de StylePro...</Text>
       </SafeAreaView>
@@ -1077,8 +1077,8 @@ export default function App() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="dark-content" />
+      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} translucent={false} />
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentContainerStyle={[styles.loginContainer, { paddingHorizontal: compactScreen ? 14 : 24 }]}>
           <View style={styles.logo}>
@@ -1145,8 +1145,8 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} translucent={false} />
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -1597,7 +1597,7 @@ export default function App() {
         animationType="slide"
         onRequestClose={() => setNotificationsOpen(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: COLORS.background }}>
           <View style={{ padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: COLORS.navy, fontSize: 23, fontWeight: '900' }}>Notifications</Text>
@@ -1669,7 +1669,7 @@ export default function App() {
         animationType="slide"
         onRequestClose={() => setScannerOpen(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: COLORS.background }}>
           <View style={{
             padding: 18,
             flexDirection: 'row',
@@ -1861,6 +1861,14 @@ export default function App() {
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
+  )
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   )
 }
 
