@@ -33,7 +33,9 @@
           "cameraPermission": "StylePro Manager utilise la caméra pour scanner les codes-barres et QR des articles.",
           "barcodeScannerEnabled": true
         }
-      ]
+      ],
+      "expo-sharing",
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {
