@@ -554,11 +554,7 @@ export default function App() {
   }, [user, refreshAll])
 
   useEffect(() => {
-    if (!user || !storeId) {
-      setMobileCacheCount(0)
-      setMobileCacheSyncedAt(null)
-      return
-    }
+    if (!user || !storeId) return
     let active = true
     async function prepareOfflineCache() {
       try {
@@ -585,11 +581,7 @@ export default function App() {
   }, [user, storeId, isOnline, syncMobileScannerCatalog])
 
   useEffect(() => {
-    if (!user || !storeId) {
-      setMobileQueuePending(0)
-      setMobileQueueErrors(0)
-      return
-    }
+    if (!user || !storeId) return
     let active = true
     const refreshQueue = async () => {
       try {
@@ -1177,9 +1169,9 @@ export default function App() {
               {isOnline
                 ? (language === 'ar' ? 'متصل · مزامنة نشطة' : 'En ligne · Synchronisation active')
                 : (language === 'ar' ? 'غير متصل · وضع محلي' : 'Hors ligne · Mode local')}
-              {'  ·  '}{mobileCacheCount} {language === 'ar' ? 'منتج محفوظ' : 'articles en cache'}
-              {'  ·  '}{mobileQueuePending} {language === 'ar' ? 'قيد المزامنة' : 'en attente'}
-              {mobileQueueErrors > 0 ? ' · ' + mobileQueueErrors + (language === 'ar' ? ' أخطاء' : ' erreurs') : ''}
+              {'  ·  '}{user && storeId ? mobileCacheCount : 0} {language === 'ar' ? 'منتج محفوظ' : 'articles en cache'}
+              {'  ·  '}{user && storeId ? mobileQueuePending : 0} {language === 'ar' ? 'قيد المزامنة' : 'en attente'}
+              {user && storeId && mobileQueueErrors > 0 ? ' · ' + mobileQueueErrors + (language === 'ar' ? ' أخطاء' : ' erreurs') : ''}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
