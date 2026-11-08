@@ -9,7 +9,6 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +17,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNetworkState } from 'expo-network'
 import { enqueueMobileSyncOperation, findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, getMobileSyncQueueSummary, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
@@ -1078,7 +1078,7 @@ function AppContent() {
   if (!user) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} translucent={false} />
+        <StatusBar style="dark" backgroundColor={COLORS.background} translucent={false} />
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentContainerStyle={[styles.loginContainer, { paddingHorizontal: compactScreen ? 14 : 24 }]}>
           <View style={styles.logo}>
@@ -1146,7 +1146,7 @@ function AppContent() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} translucent={false} />
+      <StatusBar style="dark" backgroundColor={COLORS.background} translucent={false} />
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
