@@ -2096,19 +2096,25 @@ async function saveStockTransfer(e: FormEvent<HTMLFormElement>) {
   setMessage('')
 
   try {
-    const { error: transferError } = await supabase.rpc(
-      'transfer_stock',
-      {
-        p_store_id: storeId,
-        p_variant_id: transferVariant,
-        p_from_location_id: sourceLocationId,
-        p_to_location_id: destinationLocationId,
-        p_quantity: qty,
-        p_reason: transferReason.trim() || 'Transfert interne'
-      }
-    )
-
+    const transferPayload = {
+      variant_id: transferVariant,
+      from_location_id: sourceLocationId,
+      to_location_id: destinationLocationId,
+      quantity: qty,
+      reason: transferReason.trim() || 'Transfert interne'
+    }
+    const transferKey = getStableIdempotencyKey(`stock-transfer:${storeId}`, transferPayload)
+    const { error: transferError } = await supabase.rpc('transfer_stock_idempotent', {
+      p_store_id: storeId,
+      p_variant_id: transferVariant,
+      p_from_location_id: sourceLocationId,
+      p_to_location_id: destinationLocationId,
+      p_quantity: qty,
+      p_reason: transferPayload.reason,
+      p_idempotency_key: transferKey
+    })
     if (transferError) throw transferError
+    localStorage.removeItem(`stylepro:idempotency:stock-transfer:${storeId}:${operationFingerprint(transferPayload)}`)
 
     setTransferQty('1')
     setTransferReason('')
