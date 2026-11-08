@@ -6012,3 +6012,61 @@ body {
     max-height: calc(100dvh - 62px - 48px - env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* Device-safe bottom runway. The Android system navigation area is not always
+   reported by env(safe-area-inset-bottom), especially in Chrome/PWA mode. */
+html, body, #root { min-height: 100%; }
+body { min-height: 100svh; }
+#root { min-height: 100svh; }
+.app {
+  min-height: 100svh;
+  min-height: 100dvh;
+  flex: 1 0 auto;
+}
+@media screen and (max-width: 760px) {
+  body {
+    min-height: 100%;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+  #root {
+    min-height: 100%;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+  .app {
+    min-height: 100%;
+    min-height: 100svh;
+    min-height: 100dvh;
+    padding-bottom: 0 !important;
+  }
+  /* A real flex item (not only min-height padding) extends the scrollable
+     document beyond the last form/table row on gesture and 3-button Android. */
+  .app::after {
+    content: "";
+    display: block;
+    flex: 0 0 calc(132px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    min-height: calc(132px + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+  }
+  .workspace {
+    min-height: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .dashboard-content,
+  .login-layout {
+    padding-bottom: 28px !important;
+  }
+}
+@media screen and (max-width: 760px) and (orientation: landscape) {
+  .app::after {
+    flex-basis: calc(76px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media screen and (min-width: 761px) {
+  .app::after { content: none; }
+  .app { min-height: 100svh; min-height: 100dvh; }
+}
