@@ -15,7 +15,7 @@ type Position = { id: string; location_id: string; zone_code: string | null; ais
 type ReturnRecord = { id: string; return_number: number | string; delivery_id: string; reason: string | null; notes: string | null; created_at: string }
 type DraftLine = { key: string; variant_id: string; quantity: string; unit_price: string; location_id: string }
 type ReturnLine = { delivery_item_id: string; quantity: string; condition: 'new' | 'damaged' | 'defective'; location_id: string; storage_position_id: string }
-type Props = { storeId: string; userId: string }
+type Props = { storeId: string; userId: string; storeName?: string }
 
 const BOUTIQUE = '5f2ccda1-58c1-4282-997b-309698834ad7'
 const RESERVE = 'd67f391c-a873-4b56-a8db-0e709117eae6'
@@ -24,7 +24,7 @@ const dateLabel = (s: string) => new Date(s).toLocaleDateString('fr-DZ')
 const statusLabel = (s: string) => ({ draft: 'Brouillon', confirmed: 'Sortie confirmée', dispatched: 'Expédiée', partially_returned: 'Retour partiel', returned: 'Retournée', failed: 'Échec' }[s] || s)
 const statusClass = (s: string) => ({ draft: 'draft', confirmed: 'confirmed', dispatched: 'confirmed', partially_returned: 'partial', returned: 'returned', failed: 'failed' }[s] || 'draft')
 
-export default function LivraisonModule({ storeId, userId }: Props) {
+export default function LivraisonModule({ storeId, userId, storeName = 'StylePro Manager' }: Props) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
@@ -439,7 +439,7 @@ export default function LivraisonModule({ storeId, userId }: Props) {
         {selected.status === 'draft' && <button className="livraison-btn primary" onClick={() => void confirmDispatch(selected)}><CheckCircle2 size={16} /> Confirmer la sortie</button>}
       </div>
     </section></div>}
-    <div className={`livraison-print-document ${deliveryPrintFormat === 'thermal' ? 'livraison-print-thermal' : 'livraison-print-a4'}`}><h1>Bon de livraison BL-{selected?.delivery_number || ''}</h1><p>Date : {selected ? dateLabel(selected.created_at) : ''}</p><p>Destinataire : {selected?.recipient_name || ''}</p><p>Téléphone : {selected?.recipient_phone || ''}</p><p>Adresse : {selected?.delivery_address || ''}</p><table><thead><tr><th>Article</th><th>Référence</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td>{item.product?.name || 'Article'}</td><td>{item.variant?.sku || ''}</td><td>{item.quantity}</td><td>{money(item.unit_price)}</td><td>{money(item.quantity * item.unit_price)}</td></tr>)}</tbody></table><h2>Total : {money(total)}</h2><p>Signature du destinataire : __________________________</p></div>
+    <div className={`livraison-print-document ${deliveryPrintFormat === 'thermal' ? 'livraison-print-thermal' : 'livraison-print-a4'}`}><div className="livraison-print-store">{storeName}</div><h1>Bon de livraison BL-{selected?.delivery_number || ''}</h1><p>Date : {selected ? dateLabel(selected.created_at) : ''}</p><p>Destinataire : {selected?.recipient_name || ''}</p><p>Téléphone : {selected?.recipient_phone || ''}</p><p>Adresse : {selected?.delivery_address || ''}</p><table><thead><tr><th>Article</th><th>Référence</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td>{item.product?.name || 'Article'}</td><td>{item.variant?.sku || ''}</td><td>{item.quantity}</td><td>{money(item.unit_price)}</td><td>{money(item.quantity * item.unit_price)}</td></tr>)}</tbody></table><h2>Total : {money(total)}</h2><p>Signature du destinataire : __________________________</p></div>
   </div>
 }
 
