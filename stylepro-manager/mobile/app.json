@@ -20,7 +20,11 @@
       ],
       "softwareKeyboardLayoutMode": "resize",
       "navigationBarColor": "#F4EFE5",
-      "backgroundColor": "#F4EFE5"
+      "backgroundColor": "#F4EFE5",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#243b35"
+      }
     },
     "plugins": [
       [
@@ -35,6 +39,15 @@
       "eas": {
         "projectId": ""
       }
+    },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#243b35"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }
