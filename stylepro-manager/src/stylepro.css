@@ -5850,3 +5850,15 @@ tbody tr:last-child td { border-bottom: 0; }
   .operations-report-presets, .operations-report-actions { grid-column: auto; }
   .operations-report-actions > button { flex: 1 1 auto; }
 }
+
+.movement-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 560px) {
+  .movement-history-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .movement-history-actions { width: 100%; }
+  .movement-history-actions button { flex: 1 1 120px; }
+}
