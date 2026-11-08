@@ -18,6 +18,8 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { useNetworkState } from 'expo-network'
+import { findCachedScannerVariant, getCachedProducts, getMobileCacheInfo, replaceScannerCatalog, upsertScannerVariant } from './src/lib/offlineStore'
 import {
   AlertTriangle,
   Bell,
@@ -193,6 +195,8 @@ const MOBILE_MODULE_FOR_VIEW: Record<string, string> = {
 
 export default function App() {
   const { width: windowWidth } = useWindowDimensions()
+  const networkState = useNetworkState()
+  const isOnline = networkState.isConnected === true && networkState.isInternetReachable !== false
   const compactScreen = windowWidth < 380
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
@@ -246,6 +250,8 @@ export default function App() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [mobileCacheCount, setMobileCacheCount] = useState(0)
+  const [mobileCacheSyncedAt, setMobileCacheSyncedAt] = useState<string | null>(null)
   const t = (value: string) => language === 'ar' ? (AR[value] || value) : value
 
   const currentStore = stores.find(store => store.id === storeId)
@@ -331,8 +337,77 @@ export default function App() {
       .eq('store_id', id)
       .order('name')
 
-    if (error) throw new Error(`Catalogue : ${error.message}`)
+    if (error) {
+      const cached = await getCachedProducts(id)
+      if (cached.length > 0) {
+        setProducts(cached as ProductRow[])
+        return
+      }
+      throw new Error(`Catalogue : ${error.message}`)
+    }
     setProducts((data ?? []) as ProductRow[])
+  }, [])
+
+  const syncMobileScannerCatalog = useCallback(async (id: string) => {
+    if (!id) return { itemCount: 0, lastSyncedAt: null as string | null }
+    type Variant = {
+      id: string; product_id: string; sku: string | null; barcode: string | null;
+      qr_token: string | null; size: string | null; color: string | null;
+      sale_price: number | string | null; active: boolean
+    }
+    type Product = { id: string; name: string }
+    type Movement = { variant_id: string; quantity_delta: number | string | null }
+
+    const variants: Variant[] = []
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.from('product_variants')
+        .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
+        .eq('store_id', id).eq('active', true)
+        .order('id').range(offset, offset + 999)
+      if (error) throw error
+      const page = (data ?? []) as Variant[]
+      variants.push(...page)
+      if (page.length < 1000) break
+    }
+
+    const productsRows: Product[] = []
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.from('products')
+        .select('id,name').eq('store_id', id).order('id')
+        .range(offset, offset + 999)
+      if (error) throw error
+      const page = (data ?? []) as Product[]
+      productsRows.push(...page)
+      if (page.length < 1000) break
+    }
+
+    const movements: Movement[] = []
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.from('stock_movements')
+        .select('variant_id,quantity_delta').eq('store_id', id)
+        .order('created_at').range(offset, offset + 999)
+      if (error) throw error
+      const page = (data ?? []) as Movement[]
+      movements.push(...page)
+      if (page.length < 1000) break
+    }
+
+    const names = new Map(productsRows.map(product => [product.id, product.name]))
+    const stock: Record<string, number> = {}
+    for (const movement of movements) {
+      stock[movement.variant_id] = (stock[movement.variant_id] ?? 0) + Number(movement.quantity_delta ?? 0)
+    }
+    const cached = variants.map(variant => ({
+      id: variant.id, store_id: id, product_id: variant.product_id,
+      sku: variant.sku, barcode: variant.barcode, qr_token: variant.qr_token,
+      size: variant.size, color: variant.color, sale_price: Number(variant.sale_price ?? 0),
+      active: variant.active, product_name: names.get(variant.product_id) ?? 'Produit',
+      current_stock: stock[variant.id] ?? 0,
+    }))
+    const info = await replaceScannerCatalog(id, cached)
+    setMobileCacheCount(info.itemCount)
+    setMobileCacheSyncedAt(info.lastSyncedAt)
+    return info
   }, [])
 
   const loadAnalytics = useCallback(async (id: string) => {
@@ -465,6 +540,29 @@ export default function App() {
     }
   // The auth transition intentionally resets screen state when the user signs out.
   }, [user, refreshAll])
+
+  useEffect(() => {
+    if (!user || !storeId) {
+      setMobileCacheCount(0)
+      setMobileCacheSyncedAt(null)
+      return
+    }
+    let active = true
+    async function prepareOfflineCache() {
+      try {
+        const info = await getMobileCacheInfo(storeId)
+        if (active) {
+          setMobileCacheCount(info.itemCount)
+          setMobileCacheSyncedAt(info.lastSyncedAt)
+        }
+        if (isOnline) await syncMobileScannerCatalog(storeId)
+      } catch {
+        // Preserve the last good SQLite snapshot when Supabase is unreachable.
+      }
+    }
+    void prepareOfflineCache()
+    return () => { active = false }
+  }, [user, storeId, isOnline, syncMobileScannerCatalog])
 
   useEffect(() => {
     if (!user || !storeId) return
@@ -707,7 +805,6 @@ export default function App() {
 
   async function handleBarcodeScanned(result: { data: string }, fromHardwareScanner = false) {
     if ((!fromHardwareScanner && scanLocked) || scannerLoading) return
-
     const code = result.data?.trim()
     if (!code || !storeId) {
       setScanMessage(!storeId ? 'Sélectionne d’abord une boutique.' : 'Code vide.')
@@ -718,93 +815,92 @@ export default function App() {
     setScanLocked(true)
     setScannerLoading(true)
     setScanResult(null)
-    setScanMessage('Recherche du produit…')
+    setScanMessage(isOnline ? 'Recherche du produit…' : 'Recherche dans le catalogue local…')
+
+    const showCachedResult = async () => {
+      const cached = await findCachedScannerVariant(storeId, code)
+      if (!cached) return false
+      setScanResult({
+        code, name: cached.product_name || 'Produit sans nom',
+        sku: cached.sku || 'Sans référence', size: cached.size || 'Non renseigné',
+        color: cached.color || 'Non renseignée', price: Number(cached.sale_price ?? 0),
+        stock: cached.current_stock,
+      })
+      setScanMessage(language === 'ar'
+        ? 'نتيجة من قاعدة البيانات المحلية · آخر مزامنة: ' + (mobileCacheSyncedAt ? dateLabel(mobileCacheSyncedAt) : 'غير متوفر')
+        : 'Résultat du cache local · Dernière synchro : ' + (mobileCacheSyncedAt ? dateLabel(mobileCacheSyncedAt) : 'non disponible'))
+      return true
+    }
 
     try {
-      // Recherche limitée à la boutique sélectionnée.
-      const barcodeLookup = await supabase
-        .from('product_variants')
-        .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
-        .eq('store_id', storeId)
-        .eq('active', true)
-        .eq('barcode', code)
-        .maybeSingle()
+      if (!isOnline) {
+        const found = await showCachedResult()
+        if (!found) setScanMessage(language === 'ar'
+          ? 'هذا الرمز غير موجود في الكتالوج المحلي. اتصل بالإنترنت لمزامنة المنتجات.'
+          : 'Code absent du cache local. Connecte-toi pour synchroniser le catalogue.')
+        return
+      }
 
+      const barcodeLookup = await supabase.from('product_variants')
+        .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
+        .eq('store_id', storeId).eq('active', true).eq('barcode', code).maybeSingle()
       if (barcodeLookup.error) throw barcodeLookup.error
 
       let variant = barcodeLookup.data
-
       if (!variant) {
-        const qrLookup = await supabase
-          .from('product_variants')
+        const qrLookup = await supabase.from('product_variants')
           .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
-          .eq('store_id', storeId)
-          .eq('active', true)
-          .eq('qr_token', code)
-          .maybeSingle()
-
+          .eq('store_id', storeId).eq('active', true).eq('qr_token', code).maybeSingle()
         if (qrLookup.error) throw qrLookup.error
         variant = qrLookup.data
       }
-
       if (!variant) {
-        const skuLookup = await supabase
-          .from('product_variants')
+        const skuLookup = await supabase.from('product_variants')
           .select('id,product_id,sku,barcode,qr_token,size,color,sale_price,active')
-          .eq('store_id', storeId)
-          .eq('active', true)
-          .eq('sku', code)
-          .maybeSingle()
-
+          .eq('store_id', storeId).eq('active', true).eq('sku', code).maybeSingle()
         if (skuLookup.error) throw skuLookup.error
         variant = skuLookup.data
       }
-
       if (!variant) {
         setScanMessage(`Aucun produit trouvé pour le code : ${code}`)
         return
       }
 
       const [productLookup, movementLookup] = await Promise.all([
-        supabase
-          .from('products')
-          .select('id,name')
-          .eq('store_id', storeId)
-          .eq('id', variant.product_id)
-          .maybeSingle(),
-        supabase
-          .from('stock_movements')
-          .select('quantity_delta')
-          .eq('store_id', storeId)
-          .eq('variant_id', variant.id),
+        supabase.from('products').select('id,name')
+          .eq('store_id', storeId).eq('id', variant.product_id).maybeSingle(),
+        supabase.from('stock_movements').select('quantity_delta')
+          .eq('store_id', storeId).eq('variant_id', variant.id),
       ])
-
       if (productLookup.error) throw productLookup.error
 
-      // Stock indisponible si la lecture des mouvements échoue.
       let stock: number | null = null
       if (!movementLookup.error) {
         stock = (movementLookup.data ?? []).reduce(
           (sum: number, movement: { quantity_delta: number | string | null }) =>
-            sum + Number(movement.quantity_delta ?? 0),
-          0
+            sum + Number(movement.quantity_delta ?? 0), 0,
         )
       }
-
+      const productName = productLookup.data?.name || 'Produit sans nom'
+      await upsertScannerVariant({
+        id: variant.id, store_id: storeId, product_id: variant.product_id,
+        sku: variant.sku, barcode: variant.barcode, qr_token: variant.qr_token,
+        size: variant.size, color: variant.color, sale_price: Number(variant.sale_price ?? 0),
+        active: variant.active, product_name: productName, current_stock: stock,
+      })
       setScanResult({
-        code,
-        name: productLookup.data?.name || 'Produit sans nom',
-        sku: variant.sku || 'Sans référence',
-        size: variant.size || 'Non renseigné',
-        color: variant.color || 'Non renseignée',
-        price: Number(variant.sale_price ?? 0),
-        stock,
+        code, name: productName, sku: variant.sku || 'Sans référence',
+        size: variant.size || 'Non renseigné', color: variant.color || 'Non renseignée',
+        price: Number(variant.sale_price ?? 0), stock,
       })
       setScanMessage('')
     } catch (e) {
-      setScanMessage(
-        e instanceof Error ? `Erreur de recherche : ${e.message}` : 'Erreur pendant la recherche du produit.'
-      )
+      const usedCache = await showCachedResult().catch(() => false)
+      if (!usedCache) {
+        setScanMessage(e instanceof Error
+          ? `Erreur de recherche : ${e.message}`
+          : 'Erreur pendant la recherche du produit.')
+      }
     } finally {
       setScannerLoading(false)
     }
@@ -1014,6 +1110,12 @@ export default function App() {
           <View>
             <Text style={styles.brand}>STYLEPRO</Text>
             <Text style={styles.subtitle}>{t('MANAGER · ESPACE COMMERCIAL')}</Text>
+            <Text style={{ fontSize: 10, fontWeight: '800', marginTop: 4, color: isOnline ? COLORS.green : COLORS.danger }}>
+              {isOnline
+                ? (language === 'ar' ? 'متصل · مزامنة نشطة' : 'En ligne · Synchronisation active')
+                : (language === 'ar' ? 'غير متصل · وضع محلي' : 'Hors ligne · Mode local')}
+              {'  ·  '}{mobileCacheCount} {language === 'ar' ? 'منتج محفوظ' : 'articles en cache'}
+            </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
             <TouchableOpacity onPress={() => void changeLanguage(language === 'fr' ? 'ar' : 'fr')} style={styles.languageButton}><Text style={styles.languageButtonText}>{language === 'fr' ? 'عربي' : 'FR'}</Text></TouchableOpacity>
