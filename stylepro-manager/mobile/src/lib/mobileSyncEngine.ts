@@ -22,7 +22,8 @@ async function getScannerSession(storeId: string): Promise<{ session: ScannerSes
   const { data: authData, error: authError } = await supabase.auth.getUser()
   if (authError || !authData.user) throw new Error('Session utilisateur absente pour synchroniser les scans.')
   const userId = authData.user.id
-  const cached = scannerSessions.get(storeId)
+  const sessionCacheKey = `${storeId}:${userId}`
+  const cached = scannerSessions.get(sessionCacheKey)
   if (cached && Date.parse(cached.expires_at) > Date.now() + 60_000) {
     return { session: cached, userId }
   }
@@ -40,7 +41,7 @@ async function getScannerSession(storeId: string): Promise<{ session: ScannerSes
   if (lookupError) throw lookupError
 
   if (existing) {
-    scannerSessions.set(storeId, existing)
+    scannerSessions.set(sessionCacheKey, existing)
     return { session: existing, userId }
   }
 
@@ -50,7 +51,7 @@ async function getScannerSession(storeId: string): Promise<{ session: ScannerSes
     .select('id,session_token,expires_at')
     .single()
   if (createError || !created) throw createError ?? new Error('Impossible de créer la session scanner.')
-  scannerSessions.set(storeId, created)
+  scannerSessions.set(sessionCacheKey, created)
   return { session: created, userId }
 }
 
