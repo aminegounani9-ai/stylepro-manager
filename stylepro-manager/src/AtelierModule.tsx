@@ -70,7 +70,7 @@ const makeModel = (): ModelDraft => ({
   target_audience: 'unisex',
   sizes: []
 })
-export default function AtelierModule({ storeId, userId }: { storeId: string; userId: string }) {
+export default function AtelierModule({ storeId, userId, storeName = 'StylePro Manager' }: { storeId: string; userId: string; storeName?: string }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [productions, setProductions] = useState<Production[]>([])
   const [modelsByProduction, setModelsByProduction] = useState<Record<string, ModelRecord[]>>({})
@@ -100,6 +100,7 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [integratedProductionIds, setIntegratedProductionIds] = useState<string[]>([])
   const [integratingId, setIntegratingId] = useState<string | null>(null)
+  const [reportPrintFormat, setReportPrintFormat] = useState<'a4' | 'thermal'>('a4')
 
   const fabricSuppliers = suppliers.filter(s => s.supplier_type === 'tissu')
   const sewingSuppliers = suppliers.filter(s => s.supplier_type === 'confection')
@@ -459,19 +460,24 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
 
   function printReport(production?: Production) {
     const rows = production ? [production] : filteredProductions
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport Atelier</title>
-    <style>
-    body{font:12px Arial,sans-serif;color:#29251f;padding:28px}h1{color:#684c35;margin-bottom:4px}
-    .meta{color:#71685e;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:14px}
-    th,td{border:1px solid #d8cabb;padding:8px;text-align:left}th{background:#eee5da}
-    .tot{font-weight:bold;background:#f7f1e9}.brand{display:flex;justify-content:space-between}
-    @media print{button{display:none}}
-    </style></head><body><div class="brand"><div><h1>STYLEPRO MANAGER — ATELIER</h1><div class="meta">Rapport ${production ? `production #${production.production_number}` : 'historique des productions'}</div></div><div>${new Date().toLocaleDateString('fr-DZ')}</div></div>
-    <table><thead><tr><th>N°</th><th>Date</th><th>Tissu</th><th>Fournisseur</th><th>Modèles / SKU</th><th>Qté</th><th>Coût total</th><th>Ventes</th><th>Bénéfice</th></tr></thead><tbody>
-    ${rows.map(p => `<tr><td>${p.production_number}</td><td>${p.production_date}</td><td>${escapeHtml(p.fabric_name)}</td><td>${escapeHtml(p.supplier_name_snapshot)}</td><td>${(modelsByProduction[p.id] || []).map(m => `${escapeHtml(m.model_name)} (${escapeHtml(m.sku)})`).join('<br>') || escapeHtml(p.model_name)}</td><td>${p.total_quantity}</td><td>${money(Number(p.total_cost ?? (Number(p.fabric_total_cost || 0) + Number(p.total_production_price || 0) + Number(p.total_confection_cost || 0))))}</td><td>${money(Number(p.total_sales_price || 0))}</td><td>${money(Number(p.gross_profit || 0))}</td></tr>`).join('')}
-    </tbody></table><p class="meta">Rapport généré depuis les données enregistrées dans cette boutique.</p><script>window.onload=()=>window.print()</script></body></html>`
+    const thermal = reportPrintFormat === 'thermal'
+    const headers = thermal ? '<th>N° / Date</th><th>Modèle / SKU</th><th>Qté</th><th>Coût</th><th>Bénéfice</th>' : '<th>N°</th><th>Date</th><th>Tissu</th><th>Fournisseur</th><th>Modèles / SKU</th><th>Qté</th><th>Coût total</th><th>Ventes</th><th>Bénéfice</th>'
+    const body = rows.map(p => {
+      const models = (modelsByProduction[p.id] || []).map(m => escapeHtml(m.model_name) + ' (' + escapeHtml(m.sku) + ')').join('<br>') || escapeHtml(p.model_name)
+      const cost = Number(p.total_cost ?? (Number(p.fabric_total_cost || 0) + Number(p.total_production_price || 0) + Number(p.total_confection_cost || 0)))
+      if (thermal) return '<tr><td>#' + p.production_number + '<br>' + escapeHtml(p.production_date) + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + money(cost) + '</td><td>' + money(Number(p.gross_profit || 0)) + '</td></tr>'
+      return '<tr><td>' + p.production_number + '</td><td>' + escapeHtml(p.production_date) + '</td><td>' + escapeHtml(p.fabric_name) + '</td><td>' + escapeHtml(p.supplier_name_snapshot) + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + money(cost) + '</td><td>' + money(Number(p.total_sales_price || 0)) + '</td><td>' + money(Number(p.gross_profit || 0)) + '</td></tr>'
+    }).join('')
+    const html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport Atelier</title><style>' +
+      '@page{size:' + (thermal ? '80mm auto' : 'A4 landscape') + ';margin:' + (thermal ? '3mm' : '12mm') + '}' +
+      '*{box-sizing:border-box}body{font:' + (thermal ? '8px' : '11px') + ' Arial,sans-serif;color:#29251f;margin:0}h1{color:#684c35;margin:0 0 4px;font-size:' + (thermal ? '13px' : '20px') + '}' +
+      '.meta{color:#71685e;margin-bottom:12px}.brand{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #d8cabb;padding-bottom:9px}.store{font-weight:bold;font-size:' + (thermal ? '11px' : '14px') + '}' +
+      'table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}th,td{border:1px solid #d8cabb;padding:' + (thermal ? '3px 2px' : '6px') + ';text-align:left;overflow-wrap:anywhere;vertical-align:top}th{background:#eee5da}tr{break-inside:avoid}' +
+      (thermal ? 'th:nth-child(1),td:nth-child(1){width:19%}th:nth-child(2),td:nth-child(2){width:31%}th:nth-child(3),td:nth-child(3){width:10%}th:nth-child(4),td:nth-child(4){width:20%}th:nth-child(5),td:nth-child(5){width:20%}' : '') +
+      '</style></head><body><div class="brand"><div><div class="store">' + escapeHtml(storeName) + '</div><h1>RAPPORT ATELIER</h1><div class="meta">' + (production ? 'Production #' + production.production_number : 'Historique des productions') + '</div></div><div>' + new Date().toLocaleDateString('fr-DZ') + '</div></div>' +
+      '<table><thead><tr>' + headers + '</tr></thead><tbody>' + (body || '<tr><td colspan="' + (thermal ? 5 : 9) + '">Aucune production à afficher.</td></tr>') + '</tbody></table><p class="meta">Rapport généré depuis les données enregistrées dans cette boutique.</p><script>window.onload=()=>window.print()</script></body></html>'
     const w = window.open('', '_blank')
-    if (!w) { setError('Autorisez les fenêtres pop-up pour générer le rapport PDF.'); return }
+    if (!w) { setError('Autorisez les fenêtres pop-up pour générer le rapport.'); return }
     w.document.write(html); w.document.close()
   }
   function escapeHtml(value: string) {
@@ -690,6 +696,12 @@ export default function AtelierModule({ storeId, userId }: { storeId: string; us
       <h2>Historique des productions</h2>
       <p>Recherche par numéro, SKU, modèle, fournisseur, tissu ou couleur.</p>
     </div>
+    <label className="atelier-report-format">Format
+      <select value={reportPrintFormat} onChange={e => setReportPrintFormat(e.target.value as 'a4' | 'thermal')}>
+        <option value="a4">A4 paysage</option>
+        <option value="thermal">Ticket 80 mm</option>
+      </select>
+    </label>
     <button
       type="button"
       className="atelier-secondary-button"
