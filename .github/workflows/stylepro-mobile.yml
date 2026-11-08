@@ -40,9 +40,11 @@ jobs:
           if ! git diff --quiet -- package-lock.json; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git fetch origin main
+            git rebase origin/main
             git add package-lock.json
             git commit -m "chore(mobile): sync Expo SDK 58 dependency lockfile"
-            git push
+            git push origin HEAD:main
           fi
       - name: Check Expo package compatibility
         run: npx expo install --check
