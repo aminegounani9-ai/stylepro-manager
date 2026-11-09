@@ -28,7 +28,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
+      - name: Verify desktop environment can be prepared
+        run: npm run desktop:env
       - name: Build Windows installers
         run: npx --yes "@tauri-apps/cli@^2" build
       - name: Upload Windows installers

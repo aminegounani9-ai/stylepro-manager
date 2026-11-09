@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "desktop:env": "node scripts/ensure-desktop-env.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

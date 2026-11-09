@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev -- --host 127.0.0.1",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run desktop:env && npm run build -- --mode desktop",
     "frontendDist": "../dist"
   },
   "app": {
@@ -32,7 +32,7 @@
     ],
     "category": "Business",
     "shortDescription": "Gestion professionnelle de boutique, stock, ventes et atelier",
-    "longDescription": "StylePro Manager pour la gestion de boutique, catalogue, stock, ventes, atelier et utilisateurs.",
+    "longDescription": "StylePro Manager pour la gestion de boutique, catalogue, stock, atelier et utilisateurs.",
     "icon": [
       "icons/icon.ico"
     ]
