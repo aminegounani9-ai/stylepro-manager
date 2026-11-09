@@ -3,6 +3,9 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // Tauri loads the production frontend from the app's local asset protocol.
+  // Relative paths are required; absolute "/" paths lead to a blank window.
+  base: './',
   plugins: [
     react(),
     VitePWA({
