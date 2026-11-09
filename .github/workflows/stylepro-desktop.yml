@@ -15,10 +15,6 @@ on:
 jobs:
   windows-installer:
     runs-on: windows-latest
-    env:
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      VITE_ADMIN_EMAIL: ${{ vars.VITE_ADMIN_EMAIL }}
     defaults:
       run:
         working-directory: stylepro-manager
@@ -32,13 +28,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: npm run lint
-      - name: Verify desktop Supabase configuration
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_URL) -or
-              [string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_PUBLISHABLE_KEY)) {
-            throw "Missing GitHub Actions secrets: VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY. Add them in Settings > Secrets and variables > Actions."
-          }
+      - name: Verify desktop environment can be prepared
+        run: npm run desktop:env
       - name: Build Windows installers
         run: npx --yes "@tauri-apps/cli@^2" build
       - name: Upload Windows installers
