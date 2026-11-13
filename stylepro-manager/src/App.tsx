@@ -296,7 +296,7 @@ function code128DataUrl(value: string): string {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (x + 10) + '" height="72" viewBox="0 0 ' + (x + 10) + ' 72"><rect width="100%" height="100%" fill="#fff"/>' + bars.join('') + '<text x="' + ((x + 20) / 2) + '" y="68" font-family="Arial" font-size="10" text-anchor="middle" fill="#111">' + safe + '</text></svg>'
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
-const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
+const LABEL_SETTINGS_KEY = 'stylepro_label_settings_v2'
 
 type LabelSettings = {
   labelPaperSize: 'A4' | '50x30' | '70x40'
@@ -1108,7 +1108,7 @@ export default function App() {
   const [labelError, setLabelError] = useState('')
   const [labelImages, setLabelImages] = useState<Record<string, string>>({})
   const [labelBarcodeImages, setLabelBarcodeImages] = useState<Record<string, string>>({})
-  const [labelCodeType, setLabelCodeType] = useState<LabelSettings['labelCodeType']>(() => loadLabelSettings().labelCodeType ?? 'qr')
+  const [labelCodeType, setLabelCodeType] = useState<LabelSettings['labelCodeType']>(() => loadLabelSettings().labelCodeType ?? 'both')
 
   const [labelPaperSize, setLabelPaperSize] = useState<LabelSettings['labelPaperSize']>(() => loadLabelSettings().labelPaperSize ?? 'A4')
   const [labelColumns, setLabelColumns] = useState(() => loadLabelSettings().labelColumns ?? 3)
@@ -4754,7 +4754,7 @@ const loadPromotions = useCallback(async () => {
                 <span className={`qr-selection-mark ${selected ? 'checked' : ''}`}>
                   {selected ? <Check size={14} /> : null}
                 </span>
-                <span className="qr-card-tag">{selected ? 'Sélectionné' : 'Étiquette QR'}</span>
+                <span className="qr-card-tag">{selected ? 'Sélectionné' : 'Étiquette produit'}</span>
               </div>
               {labelCodeType !== 'barcode' && <div className="qr-code-frame">{labelImages[v.id] ? <img src={labelImages[v.id]} alt={`QR ${v.sku}`} /> : <div className="qr-placeholder">QR indisponible</div>}</div>}
               {labelCodeType !== 'qr' && <div className="qr-barcode-frame">{labelBarcodeImages[v.id] ? <img src={labelBarcodeImages[v.id]} alt={`Code-barres ${v.barcode ?? v.sku}`} /> : <div className="qr-placeholder">Code-barres indisponible</div>}</div>}
