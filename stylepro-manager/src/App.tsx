@@ -301,7 +301,6 @@ const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
 type LabelSettings = {
   labelPaperSize: 'A4' | '50x30' | '70x40'
   labelCodeType: 'qr' | 'barcode' | 'both'
-  labelCodeType: 'qr' | 'barcode' | 'both'
   labelColumns: number
   labelCopies: number
   labelCopiesByVariant: Record<string, number>
