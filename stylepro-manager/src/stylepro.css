@@ -6434,3 +6434,97 @@ body { min-height: 100svh; }
  .pos-total strong{font-size:17px}
  .pos-checkout{bottom:-13px}
 }
+
+
+/* POS catalogue cards — clearer product hierarchy and readable stock/price */
+.pos-product-list {
+  align-content: start;
+  gap: 10px;
+  padding: 3px 9px 6px 2px;
+}
+.pos-product {
+  min-height: 82px;
+  align-items: center;
+  padding: 13px 15px;
+  gap: 16px;
+  border-radius: 12px;
+  background: var(--surface, #fffdf9);
+}
+.pos-product > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 6px;
+}
+.pos-product > span > strong {
+  display: block;
+  color: var(--text, #30291f);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.pos-product > span > small:first-of-type {
+  color: var(--muted, #817767);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pos-product > span > small:last-of-type {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.pos-product .pos-stock-ok {
+  color: #34734a;
+  background: #eaf4ec;
+}
+.pos-product .pos-stock-warning {
+  color: #a34b38;
+  background: #faeae5;
+}
+.pos-product > strong {
+  flex: 0 0 auto;
+  max-width: 38%;
+  color: var(--primary, #6e5738);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.pos-product:hover:not(:disabled) {
+  box-shadow: 0 5px 14px rgb(54 42 27 / 7%);
+}
+.app.dark .pos-product .pos-stock-ok {
+  color: #a8d8b3;
+  background: #243d31;
+}
+.app.dark .pos-product .pos-stock-warning {
+  color: #f0b4a5;
+  background: #482d2b;
+}
+.app.dark .pos-product > span > strong {
+  color: var(--text);
+}
+@media(max-width:560px) {
+  .pos-product {
+    min-height: 76px;
+    padding: 11px 12px;
+    gap: 9px;
+  }
+  .pos-product > span > strong {
+    font-size: 13px;
+  }
+  .pos-product > strong {
+    max-width: 42%;
+    font-size: 12px;
+  }
+}
