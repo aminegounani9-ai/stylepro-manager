@@ -76,6 +76,7 @@ import UserManagement from './components/UserManagement'
 import OperationsReports from './OperationsReports'
 import ExpensesModule from './ExpensesModule'
 import CashRegisterPanel from './CashRegisterPanel'
+import WebOrdersModule from './WebOrdersModule'
 import './atelier.css'
 
 import './stylepro.css'
@@ -1046,6 +1047,7 @@ export default function App() {
   | 'livraisons'
   | 'stock'
   | 'sales'
+  | 'webOrders'
   | 'returns'
   | 'customers'
   | 'statistics'
@@ -4057,6 +4059,9 @@ const loadPromotions = useCallback(async () => {
             <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
               <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
             </button>
+            <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'webOrders' ? 'active' : ''}`} onClick={() => setCurrentView('webOrders')}>
+              <Globe2 size={19} /> <span>Commandes Web</span>
+            </button>
             <button type="button" style={{ display: hasModuleView('returns') ? undefined : 'none' }} className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
               <Undo2 size={19} /> <span>Retours / Remboursements</span>
             </button>
@@ -5390,6 +5395,9 @@ const loadPromotions = useCallback(async () => {
                   </div>
                 </div>
               </section>
+
+            ) : currentView === 'webOrders' ? (
+              <WebOrdersModule storeId={storeId} />
 
             ) : currentView === 'returns' ? (
               <section className="panel returns-panel">
