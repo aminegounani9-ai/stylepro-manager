@@ -272,10 +272,35 @@ type VariantDraft = {
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
 
+const CODE128_PATTERNS = '212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232'.split(' ')
+function makeInternalBarcode(sku: string): string {
+  const safeSku = sku.trim().toUpperCase().replace(/[^A-Z0-9._-]/g, '-').replace(/-+/g, '-')
+  return 'SP-' + (safeSku || crypto.randomUUID().slice(0, 8).toUpperCase())
+}
+function code128DataUrl(value: string): string {
+  if (!value || [...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) > 126)) throw new Error('Code 128 accepte uniquement les caractères ASCII imprimables.')
+  const values = [...value].map(char => char.charCodeAt(0) - 32)
+  const checksum = (104 + values.reduce((sum, code, index) => sum + code * (index + 1), 0)) % 103
+  const sequence = [104, ...values, checksum]
+  let x = 10
+  const bars: string[] = []
+  for (const code of sequence) {
+    const pattern = CODE128_PATTERNS[code]
+    if (!pattern) throw new Error('Code 128 invalide.')
+    let isBar = true
+    for (const digit of pattern) { const width = Number(digit) * 2; if (isBar) bars.push('<rect x="' + x + '" y="0" width="' + width + '" height="54" fill="#111"/>'); x += width; isBar = !isBar }
+  }
+  const stop = '2331112'; let isBar = true
+  for (const digit of stop) { const width = Number(digit) * 2; if (isBar) bars.push('<rect x="' + x + '" y="0" width="' + width + '" height="54" fill="#111"/>'); x += width; isBar = !isBar }
+  const safe = value.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (x + 10) + '" height="72" viewBox="0 0 ' + (x + 10) + ' 72"><rect width="100%" height="100%" fill="#fff"/>' + bars.join('') + '<text x="' + ((x + 20) / 2) + '" y="68" font-family="Arial" font-size="10" text-anchor="middle" fill="#111">' + safe + '</text></svg>'
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+}
 const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
 
 type LabelSettings = {
   labelPaperSize: 'A4' | '50x30' | '70x40'
+  labelCodeType: 'qr' | 'barcode' | 'both'
   labelColumns: number
   labelCopies: number
   labelCopiesByVariant: Record<string, number>
@@ -296,6 +321,7 @@ function loadLabelSettings(): Partial<LabelSettings> {
 
     const data = value as Record<string, unknown>
     const result: Partial<LabelSettings> = {}
+    if (['qr', 'barcode', 'both'].includes(String(data.labelCodeType))) result.labelCodeType = data.labelCodeType as LabelSettings['labelCodeType']
 
     if (['A4', '50x30', '70x40'].includes(String(data.labelPaperSize))) {
       result.labelPaperSize = data.labelPaperSize as LabelSettings['labelPaperSize']
