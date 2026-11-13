@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, ShoppingBag, Search, Menu, X, Plus, Minus, ShoppingCart, Store, ShieldCheck, Truck } from 'lucide-react'
+import { ArrowRight, ShoppingBag, Search, X, Plus, Minus, Store, ShieldCheck, Truck } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import './storefront.css'
 
@@ -23,20 +23,25 @@ export default function Storefront() {
 
   useEffect(() => {
     let alive = true
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storeId)) {
-      setError('Lien boutique invalide.')
-      setLoading(false)
-      return
-    }
-    supabase.rpc('get_public_storefront', { p_store_id: storeId })
-      .then(({ data: result, error: rpcError }) => {
+    const loadStorefront = async () => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storeId)) {
+        setError('Lien boutique invalide.')
+        setLoading(false)
+        return
+      }
+      try {
+        const { data: result, error: rpcError } = await supabase.rpc('get_public_storefront', { p_store_id: storeId })
         if (!alive) return
         if (rpcError) throw rpcError
         if (!result?.store) throw new Error('Cette boutique est introuvable ou indisponible.')
         setData(result as StorefrontData)
-      })
-      .catch((reason: unknown) => { if (alive) setError(reason instanceof Error ? reason.message : 'Impossible de charger la boutique.') })
-      .finally(() => { if (alive) setLoading(false) })
+      } catch (reason: unknown) {
+        if (alive) setError(reason instanceof Error ? reason.message : 'Impossible de charger la boutique.')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+    void loadStorefront()
     return () => { alive = false }
   }, [storeId])
 
