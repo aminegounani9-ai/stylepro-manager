@@ -39,6 +39,7 @@ import {
   Scissors,
   BadgePercent,
   Warehouse,
+  Wallet,
   ShoppingBasket,
   Undo2,
   ContactRound,
