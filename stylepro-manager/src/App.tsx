@@ -5222,7 +5222,7 @@ const loadPromotions = useCallback(async () => {
                           </div>
                           <span className={stock <= 0 ? "pos-stock-warning" : stock <= Number(v.min_stock ?? 0) ? "pos-stock-warning" : "pos-stock-ok"}>
                             {stock > 0 ? `Stock disponible : ${stock} pièce(s)` : 'Rupture de stock'}
-                          </div>
+                          </span>
                           <span className="pos-product-min-stock">Seuil d’alerte : {Number(v.min_stock ?? 0)} pièce(s)</span>
                           <div className="pos-product-price">
                             <small>PRIX DE VENTE</small>
