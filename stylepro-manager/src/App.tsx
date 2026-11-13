@@ -5174,7 +5174,8 @@ const loadPromotions = useCallback(async () => {
                   <div className="pos-products">
                     <h3>Articles actifs</h3>
                     <div className="pos-results-count">
-                      {posVariants.filter(v => {
+                      <div className="pos-product-list" aria-label="Liste des articles disponibles">
+                    {posVariants.filter(v => {
                         const p = products.find(x => x.id === v.product_id && x.active)
                         const q = posSearch.trim().toLowerCase()
                         return Boolean(
@@ -5222,6 +5223,8 @@ const loadPromotions = useCallback(async () => {
                         (!posColorFilter || v.color === posColorFilter)
                       )
                     }) && <div className="empty-state"><Package size={26}/><p>Aucun article ne correspond aux filtres.</p><button type="button" className="secondary-button" onClick={() => { setPosSearch(''); setPosCategoryFilter(''); setPosBrandFilter(''); setPosSizeFilter(''); setPosColorFilter('') }}>Réinitialiser</button></div>}
+
+                    </div>
                   </div>
                   <div className="pos-cart"><h3>Panier ({posCart.reduce((n,i) => n + i.quantity, 0)})</h3>
                     {!posCart.length ? <div className="empty-state"><ShoppingBag size={26}/><p>Ajoutez des articles au panier.</p></div> :
