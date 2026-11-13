@@ -1598,6 +1598,7 @@ const [productName, setProductName] = useState('')
 const [productDescription, setProductDescription] = useState('')
 const [productImageFile, setProductImageFile] = useState<File | null>(null)
 const [productImageUrl, setProductImageUrl] = useState('')
+const [productImageRemove, setProductImageRemove] = useState(false)
 const [targetAudience, setTargetAudience] = useState('women')
 const [categoryId, setCategoryId] = useState('')
 const [brandId, setBrandId] = useState('')
@@ -3026,6 +3027,7 @@ function resetProductForm() {
   setProductDescription('')
   setProductImageFile(null)
   setProductImageUrl('')
+  setProductImageRemove(false)
   setTargetAudience('women')
   setCategoryId('')
   setBrandId('')
@@ -3072,6 +3074,7 @@ async function openProductEditor(productId: string, duplicate = false) {
     setProductDescription(product.description ?? '')
     setProductImageFile(null)
     setProductImageUrl(product.image_url ?? '')
+    setProductImageRemove(false)
     setTargetAudience(product.target_audience ?? 'women')
     setCategoryId(product.category_id ?? '')
     setBrandId(product.brand_id ?? '')
@@ -3304,6 +3307,13 @@ async function saveProduct(event: FormEvent<HTMLFormElement>) {
         .eq('id', savedProductId)
         .eq('store_id', storeId)
       if (imageUpdateError) throw imageUpdateError
+    } else if (productImageRemove) {
+      const { error: imageRemoveError } = await supabase
+        .from('products')
+        .update({ image_url: null })
+        .eq('id', savedProductId)
+        .eq('store_id', storeId)
+      if (imageRemoveError) throw imageRemoveError
     }
 
     const variantPayload = (variant: VariantDraft) => ({
@@ -6673,6 +6683,7 @@ const loadPromotions = useCallback(async () => {
                           onChange={event => {
                             const file = event.target.files?.[0] ?? null
                             setProductImageFile(file)
+                            setProductImageRemove(false)
                             if (file) setProductImageUrl(URL.createObjectURL(file))
                           }}
                         />
@@ -6681,7 +6692,7 @@ const loadPromotions = useCallback(async () => {
                       {productImageUrl && (
                         <div className="product-image-preview">
                           <img src={productImageUrl} alt="Aperçu de la photo de l’article" />
-                          <button type="button" className="secondary-button" onClick={() => { setProductImageFile(null); setProductImageUrl('') }}>Retirer la photo</button>
+                          <button type="button" className="secondary-button" onClick={() => { setProductImageFile(null); setProductImageUrl(''); setProductImageRemove(true) }}>Retirer la photo</button>
                         </div>
                       )}
                     </div>
