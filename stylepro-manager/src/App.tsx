@@ -73,6 +73,7 @@ import AtelierModule from './AtelierModule'
 import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
 import OperationsReports from './OperationsReports'
+import ExpensesModule from './ExpensesModule'
 import './atelier.css'
 
 import './stylepro.css'
@@ -890,7 +891,7 @@ const STOCK_LOCATIONS = {
 const APP_MODULE_FOR_VIEW: Record<string, string> = {
   dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
   stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
-  statistics: 'dashboard', labels: 'labels', promotions: 'promotions', settings: 'settings',
+  statistics: 'dashboard', labels: 'labels', promotions: 'promotions', expenses: 'expenses', settings: 'settings',
 }
 
 export default function App() {
@@ -1000,6 +1001,7 @@ export default function App() {
   | 'statistics'
   | 'labels'
   | 'promotions'
+  | 'expenses'
   | 'settings'
 >('dashboard')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
@@ -1048,7 +1050,7 @@ export default function App() {
     if (moduleKey && !hasModuleView(moduleKey) && !canOpenSettings) {
       const firstAllowed = [
         ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['stock', 'stock'],
-        ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'settings'], ['atelier', 'atelier'],
+        ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'expenses'], ['atelier', 'atelier'],
         ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['users', 'settings'], ['settings', 'settings'],
       ].find(([key]) => hasModuleView(key))
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep the selected screen within the user's server-authorized modules.
@@ -3984,6 +3986,11 @@ const loadPromotions = useCallback(async () => {
               <ContactRound size={19} /> <span>Clients</span>
             </button>
 
+            <p className="sidebar-group-label">FINANCES</p>
+            <button type="button" style={{ display: hasModuleView('expenses') ? undefined : 'none' }} className={`nav-item ${currentView === 'expenses' ? 'active' : ''}`} onClick={() => setCurrentView('expenses')}>
+              <Wallet size={19} /> <span>Dépenses & caisse</span>
+            </button>
+
             <p className="sidebar-group-label">ANALYSE</p>
             <button type="button" style={{ display: hasModuleView('dashboard') ? undefined : 'none' }} className={`nav-item ${currentView === 'statistics' ? 'active' : ''}`} onClick={() => setCurrentView('statistics')}>
               <ChartNoAxesCombined size={19} /> <span>Statistiques</span>
@@ -4013,7 +4020,9 @@ const loadPromotions = useCallback(async () => {
             {error && <div className="alert error"><AlertCircle size={18} />{error}</div>}
             {message && <div className="alert success">{message}</div>}
 
-            {currentView === 'atelier' ? (
+            {currentView === 'expenses' ? (
+              <ExpensesModule storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} />
+            ) : currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
 ) : currentView === 'livraisons' ? (
               <LivraisonModule storeId={storeId} userId={user.id} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
