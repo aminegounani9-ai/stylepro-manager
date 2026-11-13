@@ -31,7 +31,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
   else {const next=(data as CashSession|null);setSession(next);onSessionChange?.(next?.id??null)}
   setLoading(false)
  },[storeId,userId,onSessionChange])
- useEffect(()=>{void load()},[load])
+ useEffect(()=>{const timer=window.setTimeout(()=>{void load()},0);return()=>window.clearTimeout(timer)},[load])
  async function open(){
   const amount=Number(opening)
   if(!Number.isFinite(amount)||amount<0){setError('Montant initial invalide.');return}
