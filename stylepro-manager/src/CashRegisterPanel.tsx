@@ -25,7 +25,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
  const [error,setError]=useState('')
  const load=useCallback(async()=>{
   if(!storeId||!userId)return
-  setLoading(true);setError('')
+  setError('')
   const {data,error:loadError}=await supabase.from('cash_register_sessions').select('id,store_id,cashier_id,opened_at,opening_float,status').eq('store_id',storeId).eq('cashier_id',userId).eq('status','open').maybeSingle()
   if(loadError){setError(loadError.message);setSession(null);onSessionChange?.(null)}
   else {const next=(data as CashSession|null);setSession(next);onSessionChange?.(next?.id??null)}
@@ -36,7 +36,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
   const amount=Number(opening)
   if(!Number.isFinite(amount)||amount<0){setError('Montant initial invalide.');return}
   setBusy(true);setError('')
-  const {data,error:openError}=await supabase.rpc('open_cash_register',{p_store_id:storeId,p_opening_float:amount,p_note:note||null})
+  const {error:openError}=await supabase.rpc('open_cash_register',{p_store_id:storeId,p_opening_float:amount,p_note:note||null})
   if(openError)setError(openError.message)
   else {setOpening('');setNote('');await load()}
   setBusy(false)
