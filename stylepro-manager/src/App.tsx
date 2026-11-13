@@ -5202,13 +5202,30 @@ const loadPromotions = useCallback(async () => {
                     }).map(v => {
                       const p = products.find(x => x.id === v.product_id && x.active)
                       const stock = posStocks[v.id] ?? 0
+                      const categoryName = categories.find(item => item.id === p?.category_id)?.name
+                      const brandName = brands.find(item => item.id === p?.brand_id)?.name
                       return <button type="button" className="pos-product" key={v.id} disabled={stock <= 0} onClick={() => addPOSItem(v)}>
-                        <span>
-                          <strong>{p?.name}</strong>
-                          <small>{v.sku}{v.size ? ` · ${v.size}` : ''}{v.color ? ` · ${v.color}` : ''}</small>
-                          <small className={stock <= 0 ? "pos-stock-warning" : "pos-stock-ok"}>{stock > 0 ? `Stock disponible : ${stock}` : 'Rupture de stock'}</small>
+                        <span className="pos-product-main">
+                          <strong className="pos-product-name">{p?.name ?? 'Article sans nom'}</strong>
+                          <span className="pos-product-meta">
+                            <span className="pos-product-ref">Réf. {v.sku}</span>
+                            {v.barcode && <span>Code-barres : {v.barcode}</span>}
+                          </span>
+                          <span className="pos-product-tags">
+                            {categoryName && <span>{categoryName}</span>}
+                            {brandName && <span>{brandName}</span>}
+                            {p?.target_audience && <span>{p.target_audience === 'women' ? 'Femme' : p.target_audience === 'men' ? 'Homme' : p.target_audience === 'children' ? 'Enfant' : p.target_audience}</span>}
+                            {v.size && <span>Taille : {v.size}</span>}
+                            {v.color && <span>Couleur : {v.color}</span>}
+                          </span>
+                          <span className={stock <= 0 ? "pos-stock-warning" : stock <= Number(v.min_stock ?? 0) ? "pos-stock-warning" : "pos-stock-ok"}>
+                            {stock > 0 ? `Stock : ${stock} pièce(s)${stock <= Number(v.min_stock ?? 0) ? ' · Stock faible' : ''}` : 'Rupture de stock'}
+                          </span>
                         </span>
-                        <strong>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</strong>
+                        <span className="pos-product-price">
+                          <small>Prix de vente</small>
+                          <strong>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</strong>
+                        </span>
                       </button>
                     })}
                     {!posVariants.some(v => {
