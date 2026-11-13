@@ -7225,3 +7225,135 @@ body { min-height: 100svh; }
   .pos-product-list > button.pos-product .pos-product-main {padding:14px !important;gap:9px !important}
   .pos-product-list > button.pos-product .pos-product-name {font-size:15px !important}
 }
+
+
+/* MOBILE + DESKTOP ROOT LAYOUT FIX: the products panel must not grid its own children */
+.pos-layout,
+.pos-products,
+.pos-product-list,
+.pos-results-count {
+  min-width:0 !important;
+  max-width:100% !important;
+}
+.pos-products {
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  justify-content:flex-start !important;
+  width:100% !important;
+  gap:12px !important;
+}
+.pos-products > h3,
+.pos-products > .pos-results-count,
+.pos-products > .pos-product-list {
+  display:block !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  grid-column:auto !important;
+}
+.pos-results-count {
+  flex:0 0 auto !important;
+  margin:0 !important;
+  padding:10px 12px !important;
+  border-radius:9px !important;
+  line-height:1.45 !important;
+  overflow-wrap:anywhere !important;
+}
+.pos-product-list {
+  flex:1 1 auto !important;
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  align-items:stretch !important;
+  align-content:start !important;
+  gap:12px !important;
+  width:100% !important;
+  min-height:0 !important;
+  max-height:calc(100vh - 280px) !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  padding:2px 5px 12px 2px !important;
+  scrollbar-gutter:stable !important;
+}
+.pos-product-list > button.pos-product {
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.pos-product-list > button.pos-product .pos-product-main {
+  width:100% !important;
+  min-width:0 !important;
+  padding:15px !important;
+}
+@media(max-width:700px) {
+  .pos-layout {
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    width:100% !important;
+    gap:14px !important;
+    margin-top:14px !important;
+  }
+  .pos-products,
+  .pos-cart {
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    padding:13px !important;
+    border-radius:14px !important;
+  }
+  .pos-products {gap:10px !important}
+  .pos-product-list {
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    gap:10px !important;
+    max-height: min(58vh, 560px) !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    padding:2px 3px 12px 2px !important;
+  }
+  .pos-product-list > button.pos-product {
+    display:block !important;
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    border-radius:12px !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-main {
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    gap:9px !important;
+    width:100% !important;
+    padding:14px !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-name {
+    font-size:16px !important;
+    line-height:1.4 !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-meta,
+  .pos-product-list > button.pos-product .pos-product-tags,
+  .pos-product-list > button.pos-product .pos-product-price {
+    width:100% !important;
+    min-width:0 !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-tags {
+    display:flex !important;
+    flex-wrap:wrap !important;
+    gap:6px !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-tags > span {
+    max-width:100% !important;
+    overflow-wrap:anywhere !important;
+  }
+  .pos-product-list > button.pos-product .pos-product-price > strong {
+    font-size:20px !important;
+  }
+}
+@media(max-width:380px) {
+  .pos-products,.pos-cart {padding:10px !important}
+  .pos-product-list > button.pos-product .pos-product-main {padding:12px !important}
+  .pos-product-list > button.pos-product .pos-product-name {font-size:15px !important}
+}
