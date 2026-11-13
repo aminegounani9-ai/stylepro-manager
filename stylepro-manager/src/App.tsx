@@ -282,18 +282,18 @@ function code128DataUrl(value: string): string {
   const values = [...value].map(char => char.charCodeAt(0) - 32)
   const checksum = (104 + values.reduce((sum, code, index) => sum + code * (index + 1), 0)) % 103
   const sequence = [104, ...values, checksum]
-  let x = 10
+  let x = 6
   const bars: string[] = []
   for (const code of sequence) {
     const pattern = CODE128_PATTERNS[code]
     if (!pattern) throw new Error('Code 128 invalide.')
     let isBar = true
-    for (const digit of pattern) { const width = Number(digit) * 2; if (isBar) bars.push('<rect x="' + x + '" y="0" width="' + width + '" height="54" fill="#111"/>'); x += width; isBar = !isBar }
+    for (const digit of pattern) { const width = Number(digit) * 1.35; if (isBar) bars.push('<rect x="' + x.toFixed(2) + '" y="0" width="' + width.toFixed(2) + '" height="34" fill="#111"/>'); x += width; isBar = !isBar }
   }
   const stop = '2331112'; let isBar = true
-  for (const digit of stop) { const width = Number(digit) * 2; if (isBar) bars.push('<rect x="' + x + '" y="0" width="' + width + '" height="54" fill="#111"/>'); x += width; isBar = !isBar }
+  for (const digit of stop) { const width = Number(digit) * 1.35; if (isBar) bars.push('<rect x="' + x.toFixed(2) + '" y="0" width="' + width.toFixed(2) + '" height="34" fill="#111"/>'); x += width; isBar = !isBar }
   const safe = value.replace(/&/g, '&amp;').replace(/</g, '&lt;')
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (x + 10) + '" height="72" viewBox="0 0 ' + (x + 10) + ' 72"><rect width="100%" height="100%" fill="#fff"/>' + bars.join('') + '<text x="' + ((x + 20) / 2) + '" y="68" font-family="Arial" font-size="10" text-anchor="middle" fill="#111">' + safe + '</text></svg>'
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (x + 12).toFixed(2) + '" height="48" viewBox="0 0 ' + (x + 12).toFixed(2) + ' 48"><rect width="100%" height="100%" fill="#fff"/>' + bars.join('') + '<text x="' + ((x + 12) / 2).toFixed(2) + '" y="45" font-family="Arial" font-size="8" text-anchor="middle" fill="#111">' + safe + '</text></svg>'
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
 const LABEL_SETTINGS_KEY = 'stylepro_label_settings_v2'
