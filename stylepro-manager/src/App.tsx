@@ -1282,6 +1282,7 @@ export default function App() {
   const [returnSale, setReturnSale] = useState<ReturnSale | null>(null)
   const [returnLines, setReturnLines] = useState<ReturnLine[]>([])
   const [returnReason, setReturnReason] = useState('Retour produit')
+  const [returnRefundMethod, setReturnRefundMethod] = useState<'cash' | 'card' | 'transfer' | 'other'>('cash')
   const [returnLoading, setReturnLoading] = useState(false)
   const [returnBusy, setReturnBusy] = useState(false)
   const [products, setProducts] = useState<ProductRow[]>([])
@@ -2704,14 +2705,14 @@ async function stopPOSCamera() {
           table_name: 'returns',
           record_id: key,
           operation: 'upsert',
-          payload: { ...requestPayload, payment_method: posPaymentMethod, cash_amount: posPaymentMethod === 'cash' ? posPaymentTotal : posCashValue, card_amount: posPaymentMethod === 'card' ? posPaymentTotal : posCardValue, cash_session_id: activeCashSessionId },
+          payload: { ...requestPayload, refund_method: returnRefundMethod },
         })
         setMessage('Retour enregistré localement. Il sera traité automatiquement au retour de la connexion.')
       } else {
         const key = getStableIdempotencyKey(`pos-return:${storeId}`, requestPayload)
-        const { data, error: rpcError } = await supabase.rpc('create_pos_return_idempotent', {
+        const { data, error: rpcError } = await supabase.rpc('create_pos_return_paid_idempotent', {
           p_store_id: storeId, p_sale_id: returnSale.id, p_reason: reason,
-          p_items: items, p_idempotency_key: key,
+          p_items: items, p_idempotency_key: key, p_refund_method: returnRefundMethod,
         })
         if (rpcError) throw rpcError
         const result = Array.isArray(data) ? data[0] : data
@@ -2726,6 +2727,7 @@ async function stopPOSCamera() {
       setReturnLines([])
       setReturnSearch('')
       setReturnReason('Retour produit')
+      setReturnRefundMethod('cash')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de l’enregistrement du retour.')
     } finally {
@@ -5349,6 +5351,15 @@ const loadPromotions = useCallback(async () => {
                         <option value="Défaut produit">Défaut produit</option>
                         <option value="Erreur de vente">Erreur de vente</option>
                         <option value="Autre">Autre</option>
+                      </select>
+                    </label>
+                    <label className="field returns-reason">
+                      Mode de remboursement
+                      <select value={returnRefundMethod} onChange={e => setReturnRefundMethod(e.target.value as 'cash' | 'card' | 'transfer' | 'other')}>
+                        <option value="cash">Remboursement en espèces</option>
+                        <option value="card">Remboursement par carte</option>
+                        <option value="transfer">Virement</option>
+                        <option value="other">Autre</option>
                       </select>
                     </label>
 
