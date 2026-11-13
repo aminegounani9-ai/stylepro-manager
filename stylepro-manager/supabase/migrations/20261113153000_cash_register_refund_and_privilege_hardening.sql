@@ -25,7 +25,8 @@ end $$;
 revoke all on function public.create_pos_return_paid_idempotent(uuid,uuid,jsonb,text,uuid,text) from public,anon;
 grant execute on function public.create_pos_return_paid_idempotent(uuid,uuid,jsonb,text,uuid,text) to authenticated;
 
-create or replace function public.close_cash_register(p_session_id uuid,p_counted_cash numeric,p_note text default null)
+drop function if exists public.close_cash_register(uuid,numeric,text);
+create function public.close_cash_register(p_session_id uuid,p_counted_cash numeric,p_note text default null)
 returns table(session_id uuid,opening_float numeric,cash_sales numeric,cash_expenses numeric,cash_refunds numeric,expected_cash numeric,counted_cash numeric,cash_difference numeric,closed_at timestamptz)
 language plpgsql security definer set search_path=''
 as $$
