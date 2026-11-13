@@ -377,7 +377,7 @@ const UI_TRANSLATIONS: Record<string, string> = {
   'Connexion sécurisée par Supabase':'اتصال آمن بواسطة Supabase','VOTRE ESPACE':'مساحتك',
   'GÉNÉRAL':'عام','BOUTIQUE':'المتجر','ANALYSE':'التحليلات',
   'Tableau de bord':'لوحة التحكم','Catalogue articles':'كتالوج المنتجات','Atelier / Production':'الورشة / الإنتاج',
-  'Promotions':'العروض','Étiquettes QR':'ملصقات QR','Livraisons':'التوصيلات',
+  'Promotions':'العروض','Étiquettes QR / Code-barres':'ملصقات QR والباركود','Livraisons':'التوصيلات',
   'Gestion du stock':'تسيير المخزون','Ventes / Caisse':'المبيعات / الصندوق',
   'Retours / Remboursements':'المرتجعات / الاسترداد','Clients':'الزبائن','Statistiques':'الإحصائيات',
   'Paramètres':'الإعدادات','Compte connecté':'الحساب المتصل','Préparation de votre espace…':'جارٍ تحضير مساحتك…',
@@ -3610,12 +3610,15 @@ const loadPromotions = useCallback(async () => {
     variants = await Promise.all(variants.map(async variant => {
       if (variant.barcode?.trim()) return variant
       const generatedBarcode = makeInternalBarcode(variant.sku)
-      const { error: barcodeError } = await supabase
+      const { data: barcodeRow, error: barcodeError } = await supabase
         .from('product_variants')
         .update({ barcode: generatedBarcode })
         .eq('id', variant.id)
         .eq('store_id', storeId)
+        .select('id')
+        .maybeSingle()
       if (barcodeError) throw new Error('Code-barres ' + variant.sku + ' : ' + barcodeError.message)
+      if (!barcodeRow) throw new Error('Impossible d’enregistrer le code-barres de ' + variant.sku + '. Vérifiez les droits de modification.')
       return { ...variant, barcode: generatedBarcode }
     }))
 
@@ -4020,7 +4023,7 @@ const loadPromotions = useCallback(async () => {
               <BadgePercent size={19} /> <span>Promotions</span>
             </button>
             <button type="button" style={{ display: hasModuleView('labels') ? undefined : 'none' }} className={`nav-item ${currentView === 'labels' ? 'active' : ''}`} onClick={() => { setCurrentView('labels'); void loadLabelVariants() }}>
-              <QrCode size={19} /> <span>Étiquettes QR</span>
+              <QrCode size={19} /> <span>Étiquettes QR / Code-barres</span>
             </button>
 
             <p className="sidebar-group-label">GESTION COMMERCIALE</p>
