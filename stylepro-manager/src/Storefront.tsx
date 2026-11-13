@@ -65,17 +65,23 @@ export default function Storefront() {
       setNotice('Renseignez votre nom, téléphone et panier.')
       return
     }
-    const lines = cart.map(line => `• ${line.product.name} — ${line.variant.size || 'Taille unique'} / ${line.variant.color || 'Couleur standard'} × ${line.quantity} = ${(Number(line.variant.sale_price) * line.quantity).toLocaleString('fr-DZ')} ${data?.store.currency}`).join('\n')
-    const message = `Bonjour, je souhaite commander auprès de ${data?.store.name}.\nNom : ${customerName}\nTéléphone : ${customerPhone}\n\n${lines}\n\nTotal estimé : ${total.toLocaleString('fr-DZ')} ${data?.store.currency}\nMerci de me confirmer la disponibilité et la livraison.`
-    try {
-      if (navigator.share) await navigator.share({ title: `Commande — ${data?.store.name}`, text: message })
-      else {
-        await navigator.clipboard.writeText(message)
-        setNotice('Commande copiée. Collez-la dans WhatsApp pour envoyer à la boutique.')
-      }
-    } catch (reason) {
-      if (reason instanceof Error && reason.name !== 'AbortError') setNotice('Partage indisponible sur cet appareil.')
+    setNotice('Envoi de la commande…')
+    const { data: result, error: submitError } = await supabase.rpc('submit_web_order', {
+      p_store_id: storeId,
+      p_customer_name: customerName.trim(),
+      p_customer_phone: customerPhone.trim(),
+      p_customer_note: null,
+      p_items: cart.map(line => ({ variant_id: line.variant.id, quantity: line.quantity })),
+    })
+    if (submitError) {
+      setNotice(submitError.message || 'Impossible d’envoyer la commande.')
+      return
     }
+    setCart([])
+    setCartOpen(false)
+    setCustomerName('')
+    setCustomerPhone('')
+    setNotice(`Commande #${result.order_number} envoyée avec succès !`)
   }
 
   if (loading) return <main className="shop-state"><div className="shop-spinner" /><p>Préparation de la boutique…</p></main>
@@ -100,6 +106,6 @@ export default function Storefront() {
     <section id="about" className="shop-about"><div><span className="shop-eyebrow">VOTRE BOUTIQUE EN LIGNE</span><h2>Un choix simple.<br/><em>Un style qui vous ressemble.</em></h2></div><p>Choisissez vos articles, tailles et couleurs, puis envoyez votre demande à la boutique. La disponibilité finale et les modalités de livraison seront confirmées directement par notre équipe.</p></section>
     <footer className="shop-footer"><a className="shop-brand" href="#"><span className="shop-brand-mark"><Store size={18}/></span><span>{data.store.name}<small>MERCI POUR VOTRE VISITE</small></span></a><span>© {new Date().getFullYear()} {data.store.name}. Tous droits réservés.</span><span>Powered by StylePro Manager</span></footer>
     {notice && <div className="shop-toast">{notice}</div>}
-    {cartOpen && <div className="shop-drawer-backdrop" onClick={() => setCartOpen(false)}><aside className="shop-drawer" onClick={e => e.stopPropagation()}><div className="shop-drawer-head"><div><span className="shop-eyebrow">VOTRE SÉLECTION</span><h2>Mon panier ({itemCount})</h2></div><button onClick={() => setCartOpen(false)}><X/></button></div>{cart.length ? <><div className="shop-cart-lines">{cart.map(line => <div className="shop-cart-line" key={line.variant.id}><div><b>{line.product.name}</b><span>{line.variant.size || 'Standard'} · {line.variant.color || '—'}</span><strong>{(Number(line.variant.sale_price) * line.quantity).toLocaleString('fr-DZ')} {data.store.currency}</strong></div><div className="shop-qty"><button onClick={() => changeQty(line.variant.id, -1)}><Minus size={14}/></button><b>{line.quantity}</b><button onClick={() => changeQty(line.variant.id, 1)}><Plus size={14}/></button></div></div>)}</div><div className="shop-checkout"><label>Votre nom<input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nom et prénom"/></label><label>Téléphone<input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="05 / 06 / 07…" inputMode="tel"/></label><div className="shop-total"><span>Total estimé</span><strong>{total.toLocaleString('fr-DZ')} {data.store.currency}</strong></div><button className="shop-primary shop-submit" onClick={() => void shareOrder()}>Envoyer ma demande <ArrowRight size={17}/></button><small>La commande sera partagée depuis votre appareil. Elle n'est pas confirmée tant que la boutique ne vous a pas répondu.</small></div></> : <div className="shop-empty">Votre panier est vide.</div>}</aside></div>}
+    {cartOpen && <div className="shop-drawer-backdrop" onClick={() => setCartOpen(false)}><aside className="shop-drawer" onClick={e => e.stopPropagation()}><div className="shop-drawer-head"><div><span className="shop-eyebrow">VOTRE SÉLECTION</span><h2>Mon panier ({itemCount})</h2></div><button onClick={() => setCartOpen(false)}><X/></button></div>{cart.length ? <><div className="shop-cart-lines">{cart.map(line => <div className="shop-cart-line" key={line.variant.id}><div><b>{line.product.name}</b><span>{line.variant.size || 'Standard'} · {line.variant.color || '—'}</span><strong>{(Number(line.variant.sale_price) * line.quantity).toLocaleString('fr-DZ')} {data.store.currency}</strong></div><div className="shop-qty"><button onClick={() => changeQty(line.variant.id, -1)}><Minus size={14}/></button><b>{line.quantity}</b><button onClick={() => changeQty(line.variant.id, 1)}><Plus size={14}/></button></div></div>)}</div><div className="shop-checkout"><label>Votre nom<input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nom et prénom"/></label><label>Téléphone<input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="05 / 06 / 07…" inputMode="tel"/></label><div className="shop-total"><span>Total estimé</span><strong>{total.toLocaleString('fr-DZ')} {data.store.currency}</strong></div><button className="shop-primary shop-submit" onClick={() => void shareOrder()}>Envoyer ma demande <ArrowRight size={17}/></button><small>Votre demande sera enregistrée dans la boutique. La disponibilité et la livraison seront confirmées par l'équipe.</small></div></> : <div className="shop-empty">Votre panier est vide.</div>}</aside></div>}
   </div>
 }
