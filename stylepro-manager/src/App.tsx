@@ -182,6 +182,7 @@ type ProductRow = {
   description?: string | null
   category_id?: string | null
   brand_id?: string | null
+  online_visible: boolean
   active: boolean
 }
 
@@ -1682,7 +1683,7 @@ const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([
 
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,target_audience,description,category_id,brand_id,active')
+      .select('id,name,target_audience,description,category_id,brand_id,online_visible,active')
       .eq('store_id', storeId)
       .order('name')
 
@@ -3105,6 +3106,31 @@ async function openProductEditor(productId: string, duplicate = false) {
   }
 }
 
+
+async function toggleOnlineVisibility(product: ProductRow) {
+  if (!storeId || !user || !product.active) return
+  const nextVisible = !product.online_visible
+  setError('')
+  setMessage('')
+  try {
+    const { data: updated, error: updateError } = await supabase
+      .from('products')
+      .update({ online_visible: nextVisible })
+      .eq('id', product.id)
+      .eq('store_id', storeId)
+      .select('id,online_visible')
+      .single()
+    if (updateError) throw updateError
+    setProducts(current => current.map(item =>
+      item.id === product.id ? { ...item, online_visible: updated.online_visible } : item
+    ))
+    setMessage(nextVisible
+      ? `« ${product.name} » ajouté à la Landing Page.`
+      : `« ${product.name} » retiré de la Landing Page. Il reste dans le catalogue et le stock.`)
+  } catch (err) {
+    setError(err instanceof Error ? `Mise à jour boutique en ligne : ${err.message}` : 'Impossible de modifier la visibilité en ligne.')
+  }
+}
 
 async function archiveProduct(product: ProductRow) {
   if (!storeId || !user || !product.active) return
@@ -6862,12 +6888,13 @@ const loadPromotions = useCallback(async () => {
               ) : (
                 catalogueLayout === 'table' ? (
                   <div className="table-wrap"><table>
-                    <thead><tr><th>Article</th><th>Public</th><th>Statut</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Article</th><th>Public</th><th>Statut</th><th>Boutique en ligne</th><th>Actions</th></tr></thead>
                     <tbody>{filteredProducts.map(product => (
                       <tr key={product.id}>
                         <td><div className="product-name"><div className="product-mini-icon"><Shirt size={17} /></div><strong>{product.name}</strong></div></td>
                         <td>{product.target_audience || 'Non défini'}</td>
                         <td><span className={product.active ? 'status-pill active-pill' : 'status-pill inactive-pill'}>{product.active ? 'Actif' : 'Archivé'}</span></td>
+                        <td><button type="button" className={product.online_visible ? 'secondary-button online-visible-button' : 'secondary-button'} onClick={() => void toggleOnlineVisibility(product)} disabled={!product.active || loading || savingProduct}>{product.online_visible ? 'Retirer' : 'Publier'}</button></td>
                         <td>
                           <div className="product-variant-actions">
                             <button type="button" className="secondary-button" onClick={() => void openProductEditor(product.id)} disabled={loading || savingProduct}><Pencil size={15} /> Modifier</button>
@@ -6912,6 +6939,7 @@ const loadPromotions = useCallback(async () => {
                             {variants.length === 0 && <p className="catalogue-no-variant">Aucune variante active</p>}
                           </div>
                           <div className="catalogue-card-actions">
+                            <button type="button" className={product.online_visible ? 'secondary-button online-visible-button' : 'secondary-button'} onClick={() => void toggleOnlineVisibility(product)} disabled={!product.active || loading || savingProduct}>{product.online_visible ? 'Retirer de la boutique' : 'Publier sur la boutique'}</button>
                             <button type="button" className="secondary-button" onClick={() => void openProductEditor(product.id)} disabled={loading || savingProduct}><Pencil size={15} /> Modifier</button>
                             <button type="button" className="secondary-button" onClick={() => void openProductEditor(product.id, true)} disabled={loading || savingProduct}><Copy size={15} /> Dupliquer</button>
                             {product.active ? (
