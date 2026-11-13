@@ -1264,6 +1264,7 @@ export default function App() {
   const [lastReceipt, setLastReceipt] = useState<{sale_number: number; total: number} | null>(null)
   const [salesHistory, setSalesHistory] = useState<{id: string; sale_number: number; total: number; status: string; created_at: string; currency: string}[]>([])
   const [salesHistoryLoading, setSalesHistoryLoading] = useState(false)
+  const [salesHistoryVisible, setSalesHistoryVisible] = useState(false)
   const [salesHistorySearch, setSalesHistorySearch] = useState('')
 
   type ReceiptPreview = {
@@ -5052,10 +5053,16 @@ const loadPromotions = useCallback(async () => {
                     </div>
                     <button type="button" className="secondary-button"
                       disabled={salesHistoryLoading || !storeId}
-                      onClick={() => void loadSalesHistory()}>
-                      <RefreshCw size={16} /> {salesHistoryLoading ? 'Chargement…' : 'Afficher les factures'}
+                      aria-expanded={salesHistoryVisible}
+                      onClick={() => {
+                        if (salesHistoryVisible) setSalesHistoryVisible(false)
+                        else { setSalesHistoryVisible(true); void loadSalesHistory() }
+                      }}>
+                      {salesHistoryVisible ? <Eye size={16} /> : <RefreshCw size={16} />}
+                      {salesHistoryLoading ? 'Chargement…' : salesHistoryVisible ? 'Masquer les factures' : 'Afficher les factures'}
                     </button>
                   </div>
+                  {salesHistoryVisible && <>
                   <form className="sales-history-search" onSubmit={e => { e.preventDefault(); void loadSalesHistory() }}>
                     <input
                       value={salesHistorySearch}
@@ -5100,6 +5107,7 @@ const loadPromotions = useCallback(async () => {
                   {!salesHistory.length && !salesHistoryLoading && (
                     <p className="muted">Cliquez sur « Afficher les factures » pour charger l’historique.</p>
                   )}
+                  </>}
                 </section>
                 {receiptPreview && (
                   <div className={`invoice-preview-overlay ${invoicePrintFormat === "thermal" ? "print-thermal" : "print-a4"}`}>
