@@ -58,7 +58,6 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
 
   const load = useCallback(async () => {
     if (!storeId) return
-    setLoading(true)
     setError('')
     let query = supabase.from('expenses')
       .select('id,description,amount,expense_date,expense_type,payment_source,payee_name,reference,notes,created_at')
