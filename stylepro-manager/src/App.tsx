@@ -5207,24 +5207,27 @@ const loadPromotions = useCallback(async () => {
                       return <button type="button" className="pos-product" key={v.id} disabled={stock <= 0} onClick={() => addPOSItem(v)}>
                         <span className="pos-product-main">
                           <strong className="pos-product-name">{p?.name ?? 'Article sans nom'}</strong>
+                          {p?.description && <span className="pos-product-description">{p.description}</span>}
                           <span className="pos-product-meta">
-                            <span className="pos-product-ref">Réf. {v.sku}</span>
+                            <span className="pos-product-ref">Référence : {v.sku}</span>
                             {v.barcode && <span>Code-barres : {v.barcode}</span>}
+                            {v.qr_token && <span>Code QR : {v.qr_token}</span>}
                           </span>
                           <span className="pos-product-tags">
-                            {categoryName && <span>{categoryName}</span>}
-                            {brandName && <span>{brandName}</span>}
+                            {categoryName && <span>Catégorie : {categoryName}</span>}
+                            {brandName && <span>Marque : {brandName}</span>}
                             {p?.target_audience && <span>{p.target_audience === 'women' ? 'Femme' : p.target_audience === 'men' ? 'Homme' : p.target_audience === 'children' ? 'Enfant' : p.target_audience}</span>}
                             {v.size && <span>Taille : {v.size}</span>}
                             {v.color && <span>Couleur : {v.color}</span>}
                           </span>
                           <span className={stock <= 0 ? "pos-stock-warning" : stock <= Number(v.min_stock ?? 0) ? "pos-stock-warning" : "pos-stock-ok"}>
-                            {stock > 0 ? `Stock : ${stock} pièce(s)${stock <= Number(v.min_stock ?? 0) ? ' · Stock faible' : ''}` : 'Rupture de stock'}
+                            {stock > 0 ? `Stock disponible : ${stock} pièce(s)` : 'Rupture de stock'}
                           </span>
-                        </span>
-                        <span className="pos-product-price">
-                          <small>Prix de vente</small>
-                          <strong>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</strong>
+                          <span className="pos-product-min-stock">Seuil d’alerte : {Number(v.min_stock ?? 0)} pièce(s)</span>
+                          <span className="pos-product-price">
+                            <small>PRIX DE VENTE</small>
+                            <strong>{Number(v.sale_price).toLocaleString('fr-DZ')} DZD</strong>
+                          </span>
                         </span>
                       </button>
                     })}
