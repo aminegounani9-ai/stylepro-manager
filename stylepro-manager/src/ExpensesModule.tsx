@@ -58,7 +58,6 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
 
   const load = useCallback(async () => {
     if (!storeId) return
-    setError('')
     let query = supabase.from('expenses')
       .select('id,description,amount,expense_date,expense_type,payment_source,payee_name,reference,notes,created_at')
       .eq('store_id', storeId)
@@ -72,6 +71,7 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
       query = query.gte('expense_date', startDate)
     }
     const { data, error: queryError } = await query
+    setError('')
     if (queryError) setError(queryError.message)
     else setRows((data ?? []) as ExpenseRow[])
     setLoading(false)
