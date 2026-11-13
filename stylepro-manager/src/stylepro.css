@@ -6288,37 +6288,38 @@ body { min-height: 100svh; }
 }
 
 
-/* Code 128 label presentation — keep linear bars wide and undistorted. */
+/* Compact Code 128 labels: shorter bars, readable digits, no stretching. */
 .qr-barcode-frame,
 .label-preview-barcode {
   display: grid;
   place-items: center;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: 4px;
+  min-height: 38px;
+  padding: 3px;
   box-sizing: border-box;
   background: #fff;
   border: 1px solid #f0ece5;
-  border-radius: 8px;
+  border-radius: 7px;
 }
 .qr-barcode-frame img,
 .label-preview-barcode img {
   display: block;
-  width: 100% !important;
+  width: auto !important;
   height: auto !important;
-  max-width: 240px;
-  max-height: 58px;
+  max-width: min(100%, 190px);
+  max-height: 42px;
   object-fit: contain;
 }
 .label-preview-barcode {
-  flex: 0 1 48%;
-  min-height: 35px;
-  padding: 2px;
+  flex: 0 1 42%;
+  min-height: 30px;
+  padding: 1px;
   border: 0;
 }
 .label-preview-barcode img {
-  max-height: 34px;
+  max-width: 150px;
+  max-height: 28px;
 }
 @media print {
   .qr-label-print .qr-barcode-frame {
@@ -6330,10 +6331,10 @@ body { min-height: 100svh; }
     border: 0;
   }
   .qr-label-print .qr-barcode-frame img {
-    width: 42mm !important;
+    width: 32mm !important;
     height: auto !important;
     max-width: 100%;
-    max-height: 9mm;
+    max-height: 6mm;
     object-fit: contain;
   }
   .qr-label-print .qr-code-frame img {
@@ -6341,12 +6342,12 @@ body { min-height: 100svh; }
     height: 15mm;
   }
   html[data-label-paper="50x30"] .qr-label-print .qr-barcode-frame img {
-    width: 42mm !important;
-    max-height: 7mm;
+    width: 27mm !important;
+    max-height: 5mm;
   }
   html[data-label-paper="70x40"] .qr-label-print .qr-barcode-frame img {
-    width: 58mm !important;
-    max-height: 9mm;
+    width: 40mm !important;
+    max-height: 6mm;
   }
 }
 
