@@ -5531,7 +5531,7 @@ const loadPromotions = useCallback(async () => {
               </section>
 
             ) : currentView === 'webOrders' ? (
-              <WebOrdersModule storeId={storeId} />
+              <WebOrdersModule storeId={storeId} onOpenDelivery={() => setCurrentView('livraisons')} />
 
             ) : currentView === 'returns' ? (
               <section className="panel returns-panel">
