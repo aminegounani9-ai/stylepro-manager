@@ -2803,7 +2803,7 @@ async function stopPOSCamera() {
           table_name: 'sales',
           record_id: key,
           operation: 'upsert',
-          payload: requestPayload,
+          payload: { ...requestPayload, payment_method: posPaymentMethod, cash_amount: posPaymentMethod === 'cash' ? posPaymentTotal : posCashValue, card_amount: posPaymentMethod === 'card' ? posPaymentTotal : posCardValue, cash_session_id: activeCashSessionId },
         })
         setMessage('Vente enregistrée localement. Elle sera envoyée automatiquement au retour de la connexion.')
       } else {
