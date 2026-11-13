@@ -25,8 +25,8 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
  const [error,setError]=useState('')
  const load=useCallback(async()=>{
   if(!storeId||!userId)return
-  setError('')
   const {data,error:loadError}=await supabase.from('cash_register_sessions').select('id,store_id,cashier_id,opened_at,opening_float,status').eq('store_id',storeId).eq('cashier_id',userId).eq('status','open').maybeSingle()
+  setError('')
   if(loadError){setError(loadError.message);setSession(null);onSessionChange?.(null)}
   else {const next=(data as CashSession|null);setSession(next);onSessionChange?.(next?.id??null)}
   setLoading(false)
