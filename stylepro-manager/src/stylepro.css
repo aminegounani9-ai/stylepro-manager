@@ -6349,3 +6349,25 @@ body { min-height: 100svh; }
     max-height: 9mm;
   }
 }
+
+/* Desktop: keep the main content pane and its vertical scrollbar flush with
+   the right edge of the application window. */
+@media screen and (min-width: 761px) {
+  .app > .workspace {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+  }
+
+  .app > .workspace > .dashboard-content {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    justify-self: stretch !important;
+    scrollbar-gutter: auto !important;
+  }
+}
