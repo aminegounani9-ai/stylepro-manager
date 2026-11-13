@@ -75,6 +75,7 @@ import LivraisonModule from './LivraisonModule'
 import UserManagement from './components/UserManagement'
 import OperationsReports from './OperationsReports'
 import ExpensesModule from './ExpensesModule'
+import CashRegisterPanel from './CashRegisterPanel'
 import './atelier.css'
 
 import './stylepro.css'
@@ -1115,6 +1116,7 @@ export default function App() {
   'all' | 'low' | 'out' | 'available'
 >('all')
   const [posCart, setPosCart] = useState<POSCartItem[]>([])
+  const [activeCashSessionId, setActiveCashSessionId] = useState<string | null>(null)
   const [posSearch, setPosSearch] = useState('')
   const [posCategoryFilter, setPosCategoryFilter] = useState('')
   const [posBrandFilter, setPosBrandFilter] = useState('')
@@ -2702,7 +2704,7 @@ async function stopPOSCamera() {
           table_name: 'returns',
           record_id: key,
           operation: 'upsert',
-          payload: requestPayload,
+          payload: { ...requestPayload, payment_method: posPaymentMethod, cash_amount: posPaymentMethod === 'cash' ? posPaymentTotal : posCashValue, card_amount: posPaymentMethod === 'card' ? posPaymentTotal : posCardValue, cash_session_id: activeCashSessionId },
         })
         setMessage('Retour enregistré localement. Il sera traité automatiquement au retour de la connexion.')
       } else {
@@ -2764,6 +2766,7 @@ async function stopPOSCamera() {
 
   async function finishPOS() {
     if (!storeId || posCart.length === 0) { setError('Le panier est vide.'); return }
+    if (navigator.onLine && !activeCashSessionId) { setError('Ouvrez votre caisse et saisissez le fond de départ avant de valider une vente.'); return }
     if (posCart.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > item.stock)) {
       setError('Vérifiez les quantités : elles doivent être entières et ne pas dépasser le stock disponible.')
       return
@@ -2803,11 +2806,15 @@ async function stopPOSCamera() {
         setMessage('Vente enregistrée localement. Elle sera envoyée automatiquement au retour de la connexion.')
       } else {
         const key = getStableIdempotencyKey(`pos-sale:${storeId}`, requestPayload)
-        const { data, error } = await supabase.rpc('create_pos_sale_cart_idempotent', {
+        const { data, error } = await supabase.rpc('create_pos_sale_paid_idempotent', {
           p_store_id: storeId,
           p_items: items,
           p_customer_id: customerId,
           p_idempotency_key: key,
+          p_cash_session_id: activeCashSessionId,
+          p_payment_method: posPaymentMethod,
+          p_cash_amount: posPaymentMethod === 'cash' ? posPaymentTotal : posCashValue,
+          p_card_amount: posPaymentMethod === 'card' ? posPaymentTotal : posCardValue,
         })
         if (error) throw error
         const row = Array.isArray(data) ? data[0] : data
@@ -4817,6 +4824,7 @@ const loadPromotions = useCallback(async () => {
   </section>
 ) : currentView === 'sales' ? (
               <section className="panel pos-panel">
+                <CashRegisterPanel storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} onSessionChange={setActiveCashSessionId} />
                 <div className="panel-heading">
                   <div className="panel-title"><ShoppingBag size={22}/><div><h2>Ventes / Caisse</h2><p>Ajoutez les articles puis validez la vente.</p></div></div>
                   <button type="button" className="secondary-button" onClick={() => void loadPOSData().catch(e => setError(e.message))} disabled={posBusy}><RefreshCw size={16}/> Actualiser</button>
