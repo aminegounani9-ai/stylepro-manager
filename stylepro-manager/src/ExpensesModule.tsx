@@ -77,7 +77,7 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
     setLoading(false)
   }, [storeId, period])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { const timer = window.setTimeout(() => { void load() }, 0); return () => window.clearTimeout(timer) }, [load])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase()
