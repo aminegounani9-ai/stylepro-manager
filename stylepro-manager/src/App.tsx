@@ -47,6 +47,7 @@ import {
   SlidersHorizontal,
   Menu,
   X,
+  Bell,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, cacheServerRecord, enqueueSyncOperation } from './lib/offlineDb'
@@ -1058,6 +1059,8 @@ export default function App() {
   | 'settings'
 >('dashboard')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [webOrderNotifications, setWebOrderNotifications] = useState<Array<{id:string;order_number:number;customer_name:string;subtotal:number;currency:string;created_at:string}>>([])
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false)
   const [modulePermissions, setModulePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({})
   const hasModuleView = useCallback((moduleKey: string) => currentRole === 'admin' || modulePermissions[moduleKey]?.can_view === true, [currentRole, modulePermissions])
@@ -1096,6 +1099,26 @@ export default function App() {
     void loadAccess()
     return () => { cancelled = true }
   }, [user, storeId])
+  useEffect(() => {
+    if (!user || !storeId || !['admin', 'manager'].includes(currentRole || '')) {
+      setWebOrderNotifications([])
+      return
+    }
+    let active = true
+    const loadWebOrderNotifications = async () => {
+      const { data, error } = await supabase.rpc('get_web_orders', { p_store_id: storeId })
+      if (!active || error) return
+      const pending = ((data ?? []) as Array<{id:string;order_number:number;customer_name:string;subtotal:number;currency:string;created_at:string;status:string}>)
+        .filter(order => order.status === 'pending')
+        .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 8)
+      setWebOrderNotifications(pending)
+    }
+    void loadWebOrderNotifications()
+    const timer = window.setInterval(() => void loadWebOrderNotifications(), 30000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [user, storeId, currentRole])
+
   useEffect(() => {
     if (!currentRole) return
     const moduleKey = APP_MODULE_FOR_VIEW[currentView]
@@ -3931,6 +3954,49 @@ const loadPromotions = useCallback(async () => {
             <span className="status-dot" /> {isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
           {user && storeId && <SyncStatus storeId={storeId} isOnline={isOnline} />}
+          {user && storeId && ['admin', 'manager'].includes(currentRole || '') && (
+            <div className="notification-menu">
+              <button
+                type="button"
+                className="icon-button notification-trigger"
+                aria-label={`Commandes web en attente : ${webOrderNotifications.length}`}
+                aria-expanded={notificationsOpen}
+                title="Notifications des commandes web"
+                onClick={() => setNotificationsOpen(value => !value)}
+              >
+                <Bell size={19} />
+                {webOrderNotifications.length > 0 && <span className="notification-badge">{webOrderNotifications.length > 9 ? '9+' : webOrderNotifications.length}</span>}
+              </button>
+              {notificationsOpen && (
+                <div className="notification-popover">
+                  <div className="notification-popover-head">
+                    <strong>Commandes web</strong>
+                    <span>{webOrderNotifications.length} nouvelle(s) à traiter</span>
+                  </div>
+                  {webOrderNotifications.length === 0 ? (
+                    <p className="notification-empty">Aucune nouvelle commande.</p>
+                  ) : webOrderNotifications.map(order => (
+                    <button
+                      type="button"
+                      className="notification-order"
+                      key={order.id}
+                      onClick={() => { setCurrentView('webOrders'); setNotificationsOpen(false) }}
+                    >
+                      <span className="notification-order-icon"><ShoppingBag size={16}/></span>
+                      <span className="notification-order-copy">
+                        <strong>Commande #{order.order_number}</strong>
+                        <small>{order.customer_name} · {Number(order.subtotal).toLocaleString('fr-DZ')} {order.currency}</small>
+                      </span>
+                      <ChevronRight size={16}/>
+                    </button>
+                  ))}
+                  <button type="button" className="notification-view-all" onClick={() => { setCurrentView('webOrders'); setNotificationsOpen(false) }}>
+                    Voir toutes les commandes <ChevronRight size={15}/>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button
             className="icon-button"
             onClick={() => setThemeMode(dark ? 'light' : 'dark')}
