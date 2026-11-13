@@ -21,7 +21,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
  const [opening,setOpening]=useState('')
  const [counted,setCounted]=useState('')
  const [note,setNote]=useState('')
- const [summary,setSummary]=useState<{opening_float:number;cash_sales:number;cash_expenses:number;expected_cash:number;counted_cash:number;cash_difference:number}|null>(null)
+ const [summary,setSummary]=useState<{opening_float:number;cash_sales:number;cash_expenses:number;cash_refunds:number;expected_cash:number;counted_cash:number;cash_difference:number}|null>(null)
  const [error,setError]=useState('')
  const load=useCallback(async()=>{
   if(!storeId||!userId)return
@@ -48,7 +48,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
   setBusy(true);setError('')
   const {data,error:closeError}=await supabase.rpc('close_cash_register',{p_session_id:session.id,p_counted_cash:amount,p_note:note||null})
   if(closeError)setError(closeError.message)
-  else {const row=Array.isArray(data)?data[0]:data;if(row)setSummary({opening_float:Number(row.opening_float),cash_sales:Number(row.cash_sales),cash_expenses:Number(row.cash_expenses),expected_cash:Number(row.expected_cash),counted_cash:Number(row.counted_cash),cash_difference:Number(row.cash_difference)});setSession(null);onSessionChange?.(null);setCounted('');setNote('')}
+  else {const row=Array.isArray(data)?data[0]:data;if(row)setSummary({opening_float:Number(row.opening_float),cash_sales:Number(row.cash_sales),cash_expenses:Number(row.cash_expenses),cash_refunds:Number(row.cash_refunds),expected_cash:Number(row.expected_cash),counted_cash:Number(row.counted_cash),cash_difference:Number(row.cash_difference)});setSession(null);onSessionChange?.(null);setCounted('');setNote('')}
   setBusy(false)
  }
  return <section className="cash-register-panel">
@@ -61,7 +61,7 @@ export default function CashRegisterPanel({storeId,userId,currency='DZD',onSessi
   </>:<>
    <div className="cash-register-open-form"><label>Fond de caisse remis au caissier le matin ({currency})<input type="number" min="0" step="0.01" value={opening} onChange={e=>setOpening(e.target.value)} placeholder="Ex. 5000"/></label><label>Note / personne ayant remis la caisse<input value={note} onChange={e=>setNote(e.target.value)} placeholder="Ex. Remis par le responsable"/></label><button type="button" className="primary-button" onClick={()=>void open()} disabled={busy||opening===''}><Banknote size={16}/>{busy?'Ouverture…':'Ouvrir la caisse'}</button></div>
   </>}
-  {summary&&<div className="cash-register-summary"><div className="cash-register-summary-title"><CheckCircle2 size={17}/> Résultat de la dernière clôture</div><div><span>Fond initial</span><strong>{money(summary.opening_float,currency)}</strong></div><div><span>Ventes en espèces</span><strong>{money(summary.cash_sales,currency)}</strong></div><div><span>Dépenses sorties de caisse</span><strong>{money(summary.cash_expenses,currency)}</strong></div><div className="cash-register-expected"><span>Montant théorique attendu</span><strong>{money(summary.expected_cash,currency)}</strong></div><div><span>Montant réellement compté</span><strong>{money(summary.counted_cash,currency)}</strong></div><div className={summary.cash_difference===0?'cash-register-balanced':'cash-register-difference'}><span>{summary.cash_difference===0?'Caisse équilibrée':summary.cash_difference>0?'Excédent':'Manquant'}</span><strong>{money(Math.abs(summary.cash_difference),currency)}</strong></div></div>}
-  <p className="cash-register-footnote"><Calculator size={14}/> Le fond initial n’est pas un revenu. Le calcul théorique utilise les paiements espèces enregistrés et les dépenses marquées « Caisse boutique » de ce caissier.</p>
+  {summary&&<div className="cash-register-summary"><div className="cash-register-summary-title"><CheckCircle2 size={17}/> Résultat de la dernière clôture</div><div><span>Fond initial</span><strong>{money(summary.opening_float,currency)}</strong></div><div><span>Ventes en espèces</span><strong>{money(summary.cash_sales,currency)}</strong></div><div><span>Dépenses sorties de caisse</span><strong>{money(summary.cash_expenses,currency)}</strong></div><div><span>Remboursements espèces</span><strong>{money(summary.cash_refunds,currency)}</strong></div><div className="cash-register-expected"><span>Montant théorique attendu</span><strong>{money(summary.expected_cash,currency)}</strong></div><div><span>Montant réellement compté</span><strong>{money(summary.counted_cash,currency)}</strong></div><div className={summary.cash_difference===0?'cash-register-balanced':'cash-register-difference'}><span>{summary.cash_difference===0?'Caisse équilibrée':summary.cash_difference>0?'Excédent':'Manquant'}</span><strong>{money(Math.abs(summary.cash_difference),currency)}</strong></div></div>}
+  <p className="cash-register-footnote"><Calculator size={14}/> Le fond initial n’est pas un revenu. Le calcul théorique utilise les paiements espèces enregistrés les remboursements marqués « espèces » et les dépenses marquées « Caisse boutique » de ce caissier.</p>
  </section>
 }
