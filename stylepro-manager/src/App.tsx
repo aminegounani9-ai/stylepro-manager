@@ -301,6 +301,7 @@ const LABEL_SETTINGS_KEY = 'stylepro_qr_label_settings_v1'
 type LabelSettings = {
   labelPaperSize: 'A4' | '50x30' | '70x40'
   labelCodeType: 'qr' | 'barcode' | 'both'
+  labelCodeType: 'qr' | 'barcode' | 'both'
   labelColumns: number
   labelCopies: number
   labelCopiesByVariant: Record<string, number>
@@ -321,6 +322,7 @@ function loadLabelSettings(): Partial<LabelSettings> {
 
     const data = value as Record<string, unknown>
     const result: Partial<LabelSettings> = {}
+    if (['qr', 'barcode', 'both'].includes(String(data.labelCodeType))) result.labelCodeType = data.labelCodeType as LabelSettings['labelCodeType']
     if (['qr', 'barcode', 'both'].includes(String(data.labelCodeType))) result.labelCodeType = data.labelCodeType as LabelSettings['labelCodeType']
 
     if (['A4', '50x30', '70x40'].includes(String(data.labelPaperSize))) {
@@ -1106,6 +1108,8 @@ export default function App() {
   const [labelLoading, setLabelLoading] = useState(false)
   const [labelError, setLabelError] = useState('')
   const [labelImages, setLabelImages] = useState<Record<string, string>>({})
+  const [labelBarcodeImages, setLabelBarcodeImages] = useState<Record<string, string>>({})
+  const [labelCodeType, setLabelCodeType] = useState<LabelSettings['labelCodeType']>(() => loadLabelSettings().labelCodeType ?? 'qr')
 
   const [labelPaperSize, setLabelPaperSize] = useState<LabelSettings['labelPaperSize']>(() => loadLabelSettings().labelPaperSize ?? 'A4')
   const [labelColumns, setLabelColumns] = useState(() => loadLabelSettings().labelColumns ?? 3)
@@ -1518,6 +1522,7 @@ useEffect(() => {
   useEffect(() => {
     const settings: LabelSettings = {
       labelPaperSize,
+      labelCodeType,
       labelColumns,
       labelCopies,
       labelCopiesByVariant,
@@ -1535,6 +1540,7 @@ useEffect(() => {
     }
   }, [
     labelPaperSize,
+    labelCodeType,
     labelColumns,
     labelCopies,
     labelCopiesByVariant,
@@ -3250,7 +3256,7 @@ async function saveProduct(event: FormEvent<HTMLFormElement>) {
       store_id: storeId,
       product_id: savedProductId,
       sku: variant.sku.trim(),
-      barcode: variant.barcode.trim() || null,
+      barcode: variant.barcode.trim() || makeInternalBarcode(variant.sku),
       size: variant.size.trim() || null,
       color: variant.color.trim() || null,
       purchase_cost: Number(variant.purchase_cost),
@@ -3598,22 +3604,32 @@ const loadPromotions = useCallback(async () => {
       products.filter(product => product.active).map(product => product.id)
     )
 
-    const variants = ((data ?? []) as POSVariant[])
+    let variants = ((data ?? []) as POSVariant[])
       .filter(variant => activeProducts.has(variant.product_id))
 
-    setLabelVariants(variants)
+    // Generate and persist internal codes only when no supplier barcode exists.
+    variants = await Promise.all(variants.map(async variant => {
+      if (variant.barcode?.trim()) return variant
+      const generatedBarcode = makeInternalBarcode(variant.sku)
+      const { error: barcodeError } = await supabase
+        .from('product_variants')
+        .update({ barcode: generatedBarcode })
+        .eq('id', variant.id)
+        .eq('store_id', storeId)
+      if (barcodeError) throw new Error('Code-barres ' + variant.sku + ' : ' + barcodeError.message)
+      return { ...variant, barcode: generatedBarcode }
+    }))
 
+    setLabelVariants(variants)
     const images: Record<string, string> = {}
+    const barcodeImages: Record<string, string> = {}
     for (const variant of variants) {
       const token = variant.qr_token || variant.sku
-      if (!token) continue
-      images[variant.id] = await QRCode.toDataURL(token, {
-        width: 180,
-        margin: 1,
-        errorCorrectionLevel: 'M'
-      })
+      if (token) images[variant.id] = await QRCode.toDataURL(token, { width: 180, margin: 1, errorCorrectionLevel: 'M' })
+      if (variant.barcode) barcodeImages[variant.id] = code128DataUrl(variant.barcode)
     }
     setLabelImages(images)
+    setLabelBarcodeImages(barcodeImages)
   } catch (error) {
     setLabelError(
       error instanceof Error ? error.message : 'Impossible de charger les étiquettes.'
@@ -4497,7 +4513,7 @@ const loadPromotions = useCallback(async () => {
     <div className="label-hero">
       <div className="label-hero-icon"><Package size={25} /></div>
       <div className="label-hero-copy">
-        <h2>Étiquettes QR</h2>
+        <h2>Étiquettes QR & codes-barres</h2>
         <p>Préparez et imprimez les étiquettes de vos articles.</p>
       </div>
       <div className="label-count">
@@ -4574,6 +4590,13 @@ const loadPromotions = useCallback(async () => {
     </div>
 
     <div className="label-print-settings">
+      <label>Type de code
+        <select value={labelCodeType} onChange={e => setLabelCodeType(e.target.value as LabelSettings['labelCodeType'])}>
+          <option value="qr">QR Code uniquement</option>
+          <option value="barcode">Code-barres Code 128 uniquement</option>
+          <option value="both">QR Code + Code-barres</option>
+        </select>
+      </label>
       <label>Format d'impression
         <select
   value={labelPaperSize}
@@ -4637,13 +4660,8 @@ const loadPromotions = useCallback(async () => {
         return v ? (
           <div className={`label-preview-stage label-preview-${labelPaperSize}`}>
             <article className="label-preview-card">
-              <div className="label-preview-qr">
-                {labelImages[v.id] ? (
-                  <img src={labelImages[v.id]} alt={`Aperçu QR ${v.sku}`} />
-                ) : (
-                  <span>QR indisponible</span>
-                )}
-              </div>
+              {labelCodeType !== 'barcode' && <div className="label-preview-qr">{labelImages[v.id] ? <img src={labelImages[v.id]} alt={`Aperçu QR ${v.sku}`} /> : <span>QR indisponible</span>}</div>}
+              {labelCodeType !== 'qr' && <div className="label-preview-barcode">{labelBarcodeImages[v.id] ? <img src={labelBarcodeImages[v.id]} alt={`Code-barres ${v.barcode ?? v.sku}`} /> : <span>Code-barres indisponible</span>}</div>}
               <div className="label-preview-info">
                 {showLabelName && <strong>{product?.name ?? 'Article'}</strong>}
                 {showLabelSku && <span>Réf. {v.sku}</span>}
@@ -4736,13 +4754,8 @@ const loadPromotions = useCallback(async () => {
                 </span>
                 <span className="qr-card-tag">{selected ? 'Sélectionné' : 'Étiquette QR'}</span>
               </div>
-              <div className="qr-code-frame">
-                {labelImages[v.id] ? (
-                  <img src={labelImages[v.id]} alt={`QR ${v.sku}`} />
-                ) : (
-                  <div className="qr-placeholder">QR indisponible</div>
-                )}
-              </div>
+              {labelCodeType !== 'barcode' && <div className="qr-code-frame">{labelImages[v.id] ? <img src={labelImages[v.id]} alt={`QR ${v.sku}`} /> : <div className="qr-placeholder">QR indisponible</div>}</div>}
+              {labelCodeType !== 'qr' && <div className="qr-barcode-frame">{labelBarcodeImages[v.id] ? <img src={labelBarcodeImages[v.id]} alt={`Code-barres ${v.barcode ?? v.sku}`} /> : <div className="qr-placeholder">Code-barres indisponible</div>}</div>}
               <strong className="qr-product-name">{product?.name ?? 'Article'}</strong>
               <span className="qr-sku">Réf. {v.sku}</span>
               {(v.size || v.color) && (
@@ -4815,13 +4828,8 @@ const loadPromotions = useCallback(async () => {
 
         return Array.from({ length: labelCopiesByVariant[v.id] ?? labelCopies }, (_, copyIndex) => (
           <article className="qr-label qr-label-print" key={`${v.id}-${copyIndex}`}>
-            <div className="qr-code-frame">
-              {labelImages[v.id] ? (
-                <img src={labelImages[v.id]} alt={`QR ${v.sku}`} />
-              ) : (
-                <div className="qr-placeholder">QR indisponible</div>
-              )}
-            </div>
+            {labelCodeType !== 'barcode' && <div className="qr-code-frame">{labelImages[v.id] ? <img src={labelImages[v.id]} alt={`QR ${v.sku}`} /> : <div className="qr-placeholder">QR indisponible</div>}</div>}
+            {labelCodeType !== 'qr' && <div className="qr-barcode-frame">{labelBarcodeImages[v.id] ? <img src={labelBarcodeImages[v.id]} alt={`Code-barres ${v.barcode ?? v.sku}`} /> : <div className="qr-placeholder">Code-barres indisponible</div>}</div>}
             {showLabelName && (
               <strong className="qr-product-name">{product?.name ?? 'Article'}</strong>
             )}
@@ -6592,14 +6600,21 @@ const loadPromotions = useCallback(async () => {
                         SKU *
                         <input
                           value={variant.sku}
-                          onChange={e => updateVariantDraft(index, 'sku', e.target.value)}
+                          onChange={e => {
+                            const nextSku = e.target.value
+                            setVariantDrafts(current => current.map((item, i) => {
+                              if (i !== index) return item
+                              const previousGenerated = makeInternalBarcode(item.sku)
+                              return { ...item, sku: nextSku, barcode: !item.barcode || item.barcode === previousGenerated ? (nextSku.trim() ? makeInternalBarcode(nextSku) : '') : item.barcode }
+                            }))
+                          }}
                           placeholder="TSH-BLK-M"
                           required
                         />
                       </label>
 
                       <label>
-                        Code-barres
+                        Code-barres (généré automatiquement si vide)
                         <input
                           value={variant.barcode}
                           onChange={e => updateVariantDraft(index, 'barcode', e.target.value)}
