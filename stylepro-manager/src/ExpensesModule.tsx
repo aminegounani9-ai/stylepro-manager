@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { ArrowDownLeft, Banknote, Building2, CalendarDays, Download, Plus, RefreshCw, Search, Trash2, Truck, Wallet } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import './expenses.css'
@@ -89,7 +90,7 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
   const salaryTotal = filtered.filter(row => row.expense_type === 'salary').reduce((sum, row) => sum + Number(row.amount || 0), 0)
   const deliveryTotal = filtered.filter(row => row.expense_type === 'delivery').reduce((sum, row) => sum + Number(row.amount || 0), 0)
 
-  async function saveExpense(event: React.FormEvent<HTMLFormElement>) {
+  async function saveExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const numericAmount = Number(amount)
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
