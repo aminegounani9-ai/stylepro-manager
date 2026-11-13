@@ -116,8 +116,8 @@ export default function MobileScanner({ userId, onClose }: Props) {
     let scanner: import('html5-qrcode').Html5Qrcode | null = null
     try {
       setStatus('Ouverture de la caméra…')
-      const { Html5Qrcode } = await import('html5-qrcode')
-      scanner = new Html5Qrcode(elementId)
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
+      scanner = new Html5Qrcode(elementId, { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8] })
       scannerRef.current = scanner
 
       await scanner.start(
