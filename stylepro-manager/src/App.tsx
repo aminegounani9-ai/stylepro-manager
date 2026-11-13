@@ -2482,8 +2482,8 @@ async function startPOSCamera() {
     setScannerMessage('')
     setError('')
 
-    const { Html5Qrcode } = await import('html5-qrcode')
-    const scanner = new Html5Qrcode(scannerElementId)
+    const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
+    const scanner = new Html5Qrcode(scannerElementId, { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8] })
     scannerRef.current = scanner
 
     await scanner.start(
