@@ -293,7 +293,7 @@ function makeInternalBarcode(sku: string): string {
 }
 
 function ean13DataUrl(value: string): string {
-  if (!/^\\d{13}$/.test(value)) throw new Error('EAN-13 doit contenir exactement 13 chiffres.')
+  if (!/^\d{13}$/.test(value)) throw new Error('EAN-13 doit contenir exactement 13 chiffres.')
   const digits = value.split('').map(Number)
   const checksum = digits.slice(0, 12).reduce((sum, digit, index) => sum + digit * (index % 2 === 0 ? 1 : 3), 0)
   if ((10 - (checksum % 10)) % 10 !== digits[12]) throw new Error('Clé de contrôle EAN-13 invalide.')
