@@ -5174,7 +5174,6 @@ const loadPromotions = useCallback(async () => {
                   <div className="pos-products">
                     <h3>Articles actifs</h3>
                     <div className="pos-results-count">
-                      <div className="pos-product-list" aria-label="Liste des articles disponibles">
                     {posVariants.filter(v => {
                         const p = products.find(x => x.id === v.product_id && x.active)
                         const q = posSearch.trim().toLowerCase()
@@ -5188,6 +5187,7 @@ const loadPromotions = useCallback(async () => {
                         )
                       }).length} variante(s) trouvée(s)
                     </div>
+                    <div className="pos-product-list" aria-label="Liste des articles disponibles">
                     {posVariants.filter(v => {
                       const p = products.find(x => x.id === v.product_id && x.active)
                       const q = posSearch.trim().toLowerCase()
