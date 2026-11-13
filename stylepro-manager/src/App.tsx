@@ -1596,6 +1596,8 @@ const [savingProduct, setSavingProduct] = useState(false)
 
 const [productName, setProductName] = useState('')
 const [productDescription, setProductDescription] = useState('')
+const [productImageFile, setProductImageFile] = useState<File | null>(null)
+const [productImageUrl, setProductImageUrl] = useState('')
 const [targetAudience, setTargetAudience] = useState('women')
 const [categoryId, setCategoryId] = useState('')
 const [brandId, setBrandId] = useState('')
@@ -3022,6 +3024,8 @@ function resetProductForm() {
   setEditingProductId(null)
   setProductName('')
   setProductDescription('')
+  setProductImageFile(null)
+  setProductImageUrl('')
   setTargetAudience('women')
   setCategoryId('')
   setBrandId('')
@@ -3048,7 +3052,7 @@ async function openProductEditor(productId: string, duplicate = false) {
   try {
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id,name,description,target_audience,category_id,brand_id,active')
+      .select('id,name,description,target_audience,category_id,brand_id,image_url,active')
       .eq('id', productId)
       .eq('store_id', storeId)
       .single()
@@ -3066,6 +3070,8 @@ async function openProductEditor(productId: string, duplicate = false) {
 
     setProductName(product.name ?? '')
     setProductDescription(product.description ?? '')
+    setProductImageFile(null)
+    setProductImageUrl(product.image_url ?? '')
     setTargetAudience(product.target_audience ?? 'women')
     setCategoryId(product.category_id ?? '')
     setBrandId(product.brand_id ?? '')
@@ -3272,6 +3278,32 @@ async function saveProduct(event: FormEvent<HTMLFormElement>) {
       }
 
       savedProductId = newProduct.id
+    }
+
+    if (productImageFile) {
+      if (!productImageFile.type.startsWith('image/')) {
+        throw new Error('Le fichier doit être une image.')
+      }
+      if (productImageFile.size > 5 * 1024 * 1024) {
+        throw new Error('La photo ne doit pas dépasser 5 Mo.')
+      }
+      const extension = productImageFile.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const objectPath = `${storeId}/${savedProductId}/${crypto.randomUUID()}.${extension}`
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(objectPath, productImageFile, {
+          cacheControl: '3600',
+          contentType: productImageFile.type,
+          upsert: false,
+        })
+      if (uploadError) throw uploadError
+      const { data: publicImage } = supabase.storage.from('product-images').getPublicUrl(objectPath)
+      const { error: imageUpdateError } = await supabase
+        .from('products')
+        .update({ image_url: publicImage.publicUrl })
+        .eq('id', savedProductId)
+        .eq('store_id', storeId)
+      if (imageUpdateError) throw imageUpdateError
     }
 
     const variantPayload = (variant: VariantDraft) => ({
@@ -6631,6 +6663,28 @@ const loadPromotions = useCallback(async () => {
                         rows={3}
                       />
                     </label>
+
+                    <div className="product-form-full product-image-editor">
+                      <label>
+                        Photo de l’article – affichée sur la boutique en ligne
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={event => {
+                            const file = event.target.files?.[0] ?? null
+                            setProductImageFile(file)
+                            if (file) setProductImageUrl(URL.createObjectURL(file))
+                          }}
+                        />
+                      </label>
+                      <small>Formats image acceptés · 5 Mo maximum. La photo sera envoyée vers la galerie sécurisée de votre boutique.</small>
+                      {productImageUrl && (
+                        <div className="product-image-preview">
+                          <img src={productImageUrl} alt="Aperçu de la photo de l’article" />
+                          <button type="button" className="secondary-button" onClick={() => { setProductImageFile(null); setProductImageUrl('') }}>Retirer la photo</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="product-variants-heading">
