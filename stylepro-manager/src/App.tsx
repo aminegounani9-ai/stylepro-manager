@@ -2832,7 +2832,10 @@ async function stopPOSCamera() {
       setPosCardAmount('')
       setPosPaymentMethod('cash')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Échec de la vente.')
+      const message = e && typeof e === 'object' && 'message' in e && typeof e.message === 'string'
+        ? e.message
+        : e instanceof Error ? e.message : 'Échec de la vente.'
+      setError(message)
     } finally {
       setPosBusy(false)
     }
