@@ -7357,3 +7357,40 @@ body { min-height: 100svh; }
   .pos-product-list > button.pos-product .pos-product-main {padding:12px !important}
   .pos-product-list > button.pos-product .pos-product-name {font-size:15px !important}
 }
+
+
+/* Web-order notifications */
+.notification-menu { position: relative; flex-shrink: 0; }
+.notification-trigger { position: relative; }
+.notification-badge {
+  position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px;
+  padding: 0 4px; display: grid; place-items: center; border-radius: 999px;
+  background: #c84c3a; color: #fff; border: 2px solid var(--surface);
+  font-size: 9px; line-height: 1; font-weight: 800;
+}
+.notification-popover {
+  position: absolute; z-index: 30; top: calc(100% + 12px); right: 0;
+  width: min(350px, calc(100vw - 24px)); padding: 10px;
+  border: 1px solid var(--border); border-radius: 15px;
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+}
+.notification-popover-head { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 8px 12px; border-bottom:1px solid var(--border); }
+.notification-popover-head strong { font-size:13px; }
+.notification-popover-head span { color:var(--muted); font-size:10px; }
+.notification-empty { padding:18px 8px; color:var(--muted); font-size:12px; text-align:center; }
+.notification-order {
+  width:100%; display:flex; align-items:center; gap:10px; padding:11px 8px;
+  border:0; border-bottom:1px solid var(--border); background:transparent;
+  color:var(--text); text-align:left; border-radius:9px;
+}
+.notification-order:hover { background:var(--soft); }
+.notification-order-icon { width:34px; height:34px; flex-shrink:0; display:grid; place-items:center; border-radius:10px; background:var(--soft); color:var(--primary); }
+.notification-order-copy { min-width:0; flex:1; }
+.notification-order-copy strong,.notification-order-copy small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.notification-order-copy strong { font-size:11px; margin-bottom:4px; }
+.notification-order-copy small { color:var(--muted); font-size:10px; }
+.notification-view-all { width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 8px 7px; border:0; background:transparent; color:var(--primary); font-size:11px; font-weight:800; }
+@media (max-width:760px) {
+  .notification-popover { right:-44px; }
+  .header-actions { gap:6px; }
+}
