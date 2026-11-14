@@ -29,10 +29,6 @@ const csvCell = (value: unknown) => {
   const safe = /^[=+@-]/.test(text) ? "'" + text : text
   return '"' + safe.replace(/"/g, '""') + '"'
 }
-const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-})[char]!)
-
 export default function OperationsReports({ sales, expenses, returns, lowStock, currency, storeName }: Props) {
   const today = localDateKey(new Date())
   const [dateFrom, setDateFrom] = useState(today)
