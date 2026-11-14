@@ -4242,7 +4242,7 @@ const loadPromotions = useCallback(async () => {
             {message && <div className="alert success">{message}</div>}
 
             {currentView === 'expenses' ? (
-              <ExpensesModule storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} />
+              <ExpensesModule storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
             ) : currentView === 'atelier' ? (
   <AtelierModule storeId={storeId} userId={user.id} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} />
 ) : currentView === 'livraisons' ? (
@@ -5029,7 +5029,7 @@ const loadPromotions = useCallback(async () => {
   </section>
 ) : currentView === 'sales' ? (
               <section className="panel pos-panel">
-                <CashRegisterPanel storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} onSessionChange={setActiveCashSessionId} />
+                <CashRegisterPanel storeId={storeId} userId={user.id} currency={stores.find(store => store.id === storeId)?.currency || 'DZD'} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} onSessionChange={setActiveCashSessionId} />
                 <div className="panel-heading">
                   <div className="panel-title"><ShoppingBag size={22}/><div><h2>Ventes / Caisse</h2><p>Ajoutez les articles puis validez la vente.</p></div></div>
                   <button type="button" className="secondary-button" onClick={() => void loadPOSData().catch(e => setError(e.message))} disabled={posBusy}><RefreshCw size={16}/> Actualiser</button>
@@ -5542,7 +5542,7 @@ const loadPromotions = useCallback(async () => {
               </section>
 
             ) : currentView === 'webOrders' ? (
-              <WebOrdersModule storeId={storeId} onOpenDelivery={() => setCurrentView('livraisons')} />
+              <WebOrdersModule storeId={storeId} storeName={stores.find(store => store.id === storeId)?.name || 'StylePro Manager'} onOpenDelivery={() => setCurrentView('livraisons')} />
 
             ) : currentView === 'returns' ? (
               <section className="panel returns-panel">
