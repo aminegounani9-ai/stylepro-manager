@@ -4,6 +4,7 @@ import { Truck, Plus, RefreshCw, Search, Package, ClipboardList, MapPin, Phone, 
 import { supabase } from './lib/supabase'
 import { getLocalRecords, cacheServerRecord, enqueueSyncOperation, type EntityTable } from './lib/offlineDb'
 import './livraison.css'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 
 type Delivery = { id: string; delivery_number: number | string; status: string; customer_id: string | null; recipient_name: string | null; recipient_phone: string | null; delivery_address: string | null; notes: string | null; created_at: string }
 type Product = { id: string; name: string }
@@ -379,6 +380,27 @@ export default function LivraisonModule({ storeId, userId, storeName = 'StylePro
   const selectedReturns = returns.filter(r => r.delivery_id === selected?.id)
   const total = items.reduce((s, item) => s + Number(item.quantity) * Number(item.unit_price), 0)
 
+  function printDelivery() {
+    if (!selected) return
+    const rows = items.map(item => {
+      const allocations = item.allocations.map(allocation => `${allocation.location_id === RESERVE ? 'Réserve' : 'Boutique'} : ${allocation.quantity_dispatched} sorti / ${allocation.quantity_returned} retourné`).join('<br>')
+      return `<tr><td>${escapePrintHtml(item.product?.name || 'Article')}<br><small>${escapePrintHtml([item.variant?.size,item.variant?.color].filter(Boolean).join(' / '))}</small></td><td>${escapePrintHtml(item.variant?.sku || '—')}</td><td>${item.quantity}</td><td>${escapePrintHtml(money(item.unit_price))}</td><td>${escapePrintHtml(money(item.quantity * item.unit_price))}</td><td>${escapePrintHtml(allocations || '—')}</td></tr>`
+    }).join('')
+    const content = `<div class="summary-grid">
+      <div class="summary-card"><span>Bon de livraison</span><strong>BL-${escapePrintHtml(selected.delivery_number)}</strong></div>
+      <div class="summary-card"><span>Statut</span><strong>${escapePrintHtml(statusLabel(selected.status))}</strong></div>
+    </div>
+    <p><strong>Destinataire :</strong> ${escapePrintHtml(selected.recipient_name || '—')} · <strong>Téléphone :</strong> ${escapePrintHtml(selected.recipient_phone || '—')}</p>
+    <p><strong>Adresse :</strong> ${escapePrintHtml(selected.delivery_address || '—')}</p>
+    <p><strong>Date :</strong> ${escapePrintHtml(dateLabel(selected.created_at))}</p>
+    <table><thead><tr><th>Article / variante</th><th>Référence</th><th>Qté</th><th>Prix unitaire</th><th>Total</th><th>Sortie / Retour</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Aucun article enregistré sur ce bon.</td></tr>'}</tbody></table>
+    <h2 style="text-align:right">Total du bon : ${escapePrintHtml(money(total))}</h2>
+    ${selected.notes ? `<p><strong>Observations :</strong> ${escapePrintHtml(selected.notes)}</p>` : ''}
+    <p style="margin-top:28px"><strong>Signature du destinataire :</strong> ____________________________________</p>`
+    const opened = openPrintPreview({ title: 'Bon de livraison', storeName, subtitle: `BL-${selected.delivery_number} · ${dateLabel(selected.created_at)} · ${statusLabel(selected.status)}`, content, format: deliveryPrintFormat === 'thermal' ? 'thermal' : 'a4' })
+    if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du bon.')
+  }
+
   return <div className="livraison-page">
     <div className="livraison-header"><div><span className="livraison-eyebrow">LOGISTIQUE & EXPÉDITION</span><h1><Truck size={27} /> Gestion des livraisons</h1><p>Préparation des bons, suivi des sorties et gestion des retours.</p></div>
       <div className="livraison-header-actions"><button className="livraison-btn secondary" onClick={() => void loadData()} disabled={loading}><RefreshCw size={16} /> Actualiser</button><button className="livraison-btn primary" onClick={() => { setShowCreate(v => !v); setError(''); setNotice('') }}><Plus size={17} /> Nouveau bon</button></div></div>
@@ -454,12 +476,12 @@ export default function LivraisonModule({ storeId, userId, storeName = 'StylePro
             <option value="thermal">Ticket thermique — 80 mm</option>
           </select>
         </label>
-        <button className="livraison-btn secondary" onClick={() => window.print()}><Printer size={16} /> Imprimer le bon</button>
+        <button className="livraison-btn secondary" onClick={printDelivery}><Printer size={16} /> Aperçu / Imprimer</button>
         {['confirmed','dispatched','partially_returned'].includes(selected.status) && !showReturn && <button className="livraison-btn primary" onClick={beginReturn}><RotateCcw size={16} /> Enregistrer un retour</button>}
         {selected.status === 'draft' && <button className="livraison-btn primary" onClick={() => void confirmDispatch(selected)}><CheckCircle2 size={16} /> Confirmer la sortie</button>}
       </div>
     </section></div>}
-    <div className={`livraison-print-document ${deliveryPrintFormat === 'thermal' ? 'livraison-print-thermal' : 'livraison-print-a4'}`}><div className="livraison-print-store">{storeName}</div><h1>Bon de livraison BL-{selected?.delivery_number || ''}</h1><p>Date : {selected ? dateLabel(selected.created_at) : ''}</p><p>Destinataire : {selected?.recipient_name || ''}</p><p>Téléphone : {selected?.recipient_phone || ''}</p><p>Adresse : {selected?.delivery_address || ''}</p><table><thead><tr><th>Article</th><th>Référence</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td>{item.product?.name || 'Article'}</td><td>{item.variant?.sku || ''}</td><td>{item.quantity}</td><td>{money(item.unit_price)}</td><td>{money(item.quantity * item.unit_price)}</td></tr>)}</tbody></table><h2>Total : {money(total)}</h2><p>Signature du destinataire : __________________________</p></div>
+
   </div>
 }
 
