@@ -1,13 +1,14 @@
 import { useCallback,useEffect,useState } from 'react'
-import { RefreshCw,ShoppingBag,Phone,Clock3,MapPin,Truck,CheckCircle2 } from 'lucide-react'
+import { RefreshCw,ShoppingBag,Phone,Clock3,MapPin,Truck,CheckCircle2,Printer } from 'lucide-react'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 import { supabase } from './lib/supabase'
 import './web-orders.css'
 type Item={variant_id:string;product_name:string;sku:string;size:string|null;color:string|null;quantity:number;unit_price:number;line_total:number}
 type Order={id:string;order_number:number;customer_name:string;customer_phone:string;customer_note:string|null;delivery_address:string|null;delivery_id:string|null;status:string;subtotal:number;currency:string;created_at:string;items:Item[]}
 const labels:Record<string,string>={pending:'Nouvelle',confirmed:'Confirmée',preparing:'En préparation',shipped:'Expédiée',completed:'Terminée',cancelled:'Annulée'}
 const statuses=Object.keys(labels)
-export default function WebOrdersModule({storeId,onOpenDelivery}:{storeId:string;onOpenDelivery:()=>void}){
- const [orders,setOrders]=useState<Order[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[creating,setCreating]=useState(''),[filter,setFilter]=useState('all'),[error,setError]=useState('')
+export default function WebOrdersModule({storeId,storeName='StylePro Manager',onOpenDelivery}:{storeId:string;storeName?:string;onOpenDelivery:()=>void}){
+ const [orders,setOrders]=useState<Order[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[creating,setCreating]=useState(''),[filter,setFilter]=useState('all'),[error,setError]=useState(''),[printFormat,setPrintFormat]=useState<'a4'|'thermal'>('a4')
  const fetchOrders=useCallback(()=>supabase.rpc('get_web_orders',{p_store_id:storeId}),[storeId])
  useEffect(()=>{
   let active=true
@@ -38,8 +39,18 @@ export default function WebOrdersModule({storeId,onOpenDelivery}:{storeId:string
  }
  const visible=orders.filter(o=>filter==='all'||o.status===filter)
  const money=(n:number,c:string)=>`${Number(n).toLocaleString('fr-DZ',{maximumFractionDigits:2})} ${c}`
+ function printOrders(){
+  const total=visible.reduce((sum,o)=>sum+Number(o.subtotal||0),0)
+  const rows=visible.map(o=>{
+   const itemRows=o.items.map(it=>`<tr><td>${escapePrintHtml(it.product_name)}</td><td>${escapePrintHtml(it.sku)}</td><td>${escapePrintHtml([it.size,it.color].filter(Boolean).join(' / ')||'—')}</td><td>${it.quantity}</td><td>${escapePrintHtml(money(it.unit_price,o.currency))}</td><td>${escapePrintHtml(money(it.line_total,o.currency))}</td></tr>`).join('')
+   return `<section class="order-report-card"><h3>Commande web #${o.order_number} · ${escapePrintHtml(labels[o.status]||o.status)}</h3><p><strong>Client :</strong> ${escapePrintHtml(o.customer_name)} · <strong>Téléphone :</strong> ${escapePrintHtml(o.customer_phone)} · <strong>Date :</strong> ${escapePrintHtml(new Date(o.created_at).toLocaleString('fr-DZ'))}</p><p><strong>Adresse :</strong> ${escapePrintHtml(o.delivery_address||'Non renseignée')}</p>${o.customer_note?`<p><strong>Note client :</strong> ${escapePrintHtml(o.customer_note)}</p>`:''}<table><thead><tr><th>Article</th><th>Référence</th><th>Variante</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table><p><strong>Total commande : ${escapePrintHtml(money(o.subtotal,o.currency))}</strong></p></section>`
+  }).join('')
+  const content=`<div class="summary-grid"><div class="summary-card"><span>Commandes affichées</span><strong>${visible.length}</strong></div><div class="summary-card"><span>Montant total</span><strong>${escapePrintHtml(money(total,visible[0]?.currency||'DZD'))}</strong></div></div>${rows||'<p>Aucune commande dans ce filtre.</p>'}`
+  const opened=openPrintPreview({title:'Rapport des commandes Web',storeName,subtitle:`Filtre : ${filter==='all'?'Tous les statuts':labels[filter]||filter} · ${visible.length} commande(s)`,content,format:printFormat})
+  if(!opened)setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
+ }
  return <section className="panel web-orders-panel">
- <div className="panel-heading"><div className="panel-title"><ShoppingBag size={23}/><div><h2>Commandes Web</h2><p>Commandes reçues avec les coordonnées et l’adresse de livraison.</p></div></div><button className="secondary-button" onClick={()=>void load()} disabled={loading}><RefreshCw size={16}/> Actualiser</button></div>
+ <div className="panel-heading"><div className="panel-title"><ShoppingBag size={23}/><div><h2>Commandes Web</h2><p>Commandes reçues avec les coordonnées et l’adresse de livraison.</p></div></div><div className="web-order-report-actions"><select aria-label="Format du rapport" value={printFormat} onChange={e=>setPrintFormat(e.target.value as 'a4'|'thermal')}><option value="a4">A4</option><option value="thermal">80 mm</option></select><button className="secondary-button" onClick={printOrders} disabled={!visible.length}><Printer size={16}/> Aperçu / Imprimer</button><button className="secondary-button" onClick={()=>void load()} disabled={loading}><RefreshCw size={16}/> Actualiser</button></div></div>
  <div className="web-order-stats"><div><span>Total commandes</span><strong>{orders.length}</strong></div><div><span>À traiter</span><strong>{orders.filter(o=>o.status==='pending').length}</strong></div><div><span>Terminées</span><strong>{orders.filter(o=>o.status==='completed').length}</strong></div></div>
  <div className="web-order-toolbar"><div><h3>Suivi des commandes</h3><p>{visible.length} commande(s)</p></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Tous les statuts</option>{statuses.map(s=><option key={s} value={s}>{labels[s]}</option>)}</select></div>
  {error&&<div className="web-order-error">{error}</div>}
