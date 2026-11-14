@@ -1100,11 +1100,14 @@ export default function App() {
     return () => { cancelled = true }
   }, [user, storeId])
   useEffect(() => {
-    if (!user || !storeId || !['admin', 'manager'].includes(currentRole || '')) {
-      setWebOrderNotifications([])
-      return
-    }
     let active = true
+    if (!user || !storeId || !['admin', 'manager'].includes(currentRole || '')) {
+      // Defer the reset so React does not receive a synchronous state update during effect setup.
+      void Promise.resolve().then(() => {
+        if (active) setWebOrderNotifications([])
+      })
+      return () => { active = false }
+    }
     const loadWebOrderNotifications = async () => {
       const { data, error } = await supabase.rpc('get_web_orders', { p_store_id: storeId })
       if (!active || error) return
