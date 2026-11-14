@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Download, FileText, Printer, PackageCheck, WalletCards, CalendarDays } from 'lucide-react'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 
 type Sale = { id: string; sale_number: number; total: number; status: string; created_at: string; completed_at?: string | null }
 type Expense = { amount: number; expense_date: string }
@@ -115,30 +116,26 @@ export default function OperationsReports({ sales, expenses, returns, lowStock, 
 
   function printReport() {
     if (!validRange) return
-    const popup = window.open('', '_blank', 'width=1000,height=760')
-    if (!popup) return
     const rows = [
-      ...report.daySales.map(sale => `<tr><td>Vente</td><td>${escapeHtml(localDateKey(new Date(sale.completed_at || sale.created_at)))}</td><td>#${escapeHtml(sale.sale_number)}</td><td>${formatMoney(Number(sale.total), currency)}</td></tr>`),
-      ...report.dayReturns.map((item, index) => `<tr><td>Retour</td><td>${escapeHtml(localDateKey(new Date(item.created_at)))}</td><td>${index + 1}</td><td>-${formatMoney(Number(item.total), currency)}</td></tr>`),
-      ...report.dayExpenses.map((item, index) => `<tr><td>Dépense</td><td>${escapeHtml(item.expense_date)}</td><td>${index + 1}</td><td>-${formatMoney(Number(item.amount), currency)}</td></tr>`),
+      ...report.daySales.map(sale => `<tr><td>Vente</td><td>${escapePrintHtml(localDateKey(new Date(sale.completed_at || sale.created_at)))}</td><td>#${escapePrintHtml(sale.sale_number)}</td><td>${escapePrintHtml(formatMoney(Number(sale.total), currency))}</td></tr>`),
+      ...report.dayReturns.map((item, index) => `<tr><td>Retour</td><td>${escapePrintHtml(localDateKey(new Date(item.created_at)))}</td><td>${index + 1}</td><td>-${escapePrintHtml(formatMoney(Number(item.total), currency))}</td></tr>`),
+      ...report.dayExpenses.map((item, index) => `<tr><td>Dépense</td><td>${escapePrintHtml(item.expense_date)}</td><td>${index + 1}</td><td>-${escapePrintHtml(formatMoney(Number(item.amount), currency))}</td></tr>`),
     ].join('')
-    popup.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport StylePro</title><style>
-      body{font:14px Arial,sans-serif;color:#202a28;margin:28px}header{border-bottom:2px solid #a9875b;padding-bottom:14px;margin-bottom:22px}
-      h1{font-size:22px;margin:0 0 6px}p{color:#66716d;margin:4px 0}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
-      .card{border:1px solid #d8ddd8;border-radius:8px;padding:12px}.card span{display:block;color:#66716d;font-size:11px}.card strong{display:block;margin-top:7px;font-size:17px}
-      table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:10px;border-bottom:1px solid #e2e6e2;text-align:left}th{background:#f3f0e9}
-      .note{margin-top:24px;padding:12px;background:#f7f4ed;border-left:3px solid #a9875b;font-size:11px}
-      @media print{body{margin:12mm}.cards{grid-template-columns:repeat(2,1fr)}}
-    </style></head><body><header><h1>${escapeHtml(storeName)}</h1><p>Rapport de gestion · ${escapeHtml(dateFrom)} → ${escapeHtml(dateTo)}</p></header>
-    <div class="cards"><div class="card"><span>Ventes brutes</span><strong>${formatMoney(report.grossSales, currency)}</strong></div>
-    <div class="card"><span>Retours</span><strong>${formatMoney(report.returned, currency)}</strong></div>
-    <div class="card"><span>Dépenses</span><strong>${formatMoney(report.costs, currency)}</strong></div>
-    <div class="card"><span>Solde indicatif</span><strong>${formatMoney(report.netAfterExpenses, currency)}</strong></div></div>
-    <p>Ventes: ${report.daySales.length} · Retours: ${report.dayReturns.length} · Dépenses: ${report.dayExpenses.length}</p>
+    const stockRows = lowStock.map(item => `<tr><td>${escapePrintHtml(item.sku)}</td><td>${item.current}</td><td>${item.minimum}</td><td>${Math.max(0, item.minimum - item.current)}</td></tr>`).join('')
+    const content = `<div class="summary-grid">
+      <div class="summary-card"><span>Ventes brutes</span><strong>${escapePrintHtml(formatMoney(report.grossSales, currency))}</strong></div>
+      <div class="summary-card"><span>Retours</span><strong>${escapePrintHtml(formatMoney(report.returned, currency))}</strong></div>
+      <div class="summary-card"><span>Dépenses</span><strong>${escapePrintHtml(formatMoney(report.costs, currency))}</strong></div>
+      <div class="summary-card"><span>Solde indicatif après dépenses</span><strong>${escapePrintHtml(formatMoney(report.netAfterExpenses, currency))}</strong></div>
+    </div>
+    <p><strong>Activité :</strong> ${report.daySales.length} vente(s) · ${report.dayReturns.length} retour(s) · ${report.dayExpenses.length} dépense(s)</p>
+    <h2>Journal des opérations</h2>
     <table><thead><tr><th>Opération</th><th>Date</th><th>Référence</th><th>Montant</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Aucune opération pour cette période.</td></tr>'}</tbody></table>
-    <div class="note">Synthèse des enregistrements accessibles dans StylePro Manager. Le solde n'est ni un bénéfice net comptable ni un comptage physique de caisse. Les données sont limitées aux enregistrements chargés par le tableau de bord.</div>
-    <script>window.onload=()=>window.print()</script></body></html>`)
-    popup.document.close()
+    <h2>Alertes de stock</h2>
+    <table><thead><tr><th>Référence</th><th>Stock actuel</th><th>Seuil minimum</th><th>Manque</th></tr></thead><tbody>${stockRows || '<tr><td colspan="4">Aucune alerte de stock chargée.</td></tr>'}</tbody></table>
+    <p>Rapport calculé à partir des enregistrements chargés dans StylePro Manager. Le solde indicatif n'est ni un bénéfice net comptable certifié ni un comptage physique de caisse.</p>`
+    const opened = openPrintPreview({ title: 'Rapport de gestion', storeName, subtitle: `Période : ${dateFrom} → ${dateTo} · Devise : ${currency}`, content, format: 'a4' })
+    if (!opened) window.alert('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
   }
 
   return <section className="panel operations-reports">
