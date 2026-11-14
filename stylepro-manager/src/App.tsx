@@ -6635,14 +6635,34 @@ const loadPromotions = useCallback(async () => {
               </div>
 
               {stores.length > 0 && (
-                <label className="field">
-                  Boutique active
-                  <select value={storeId} onChange={event => setStoreId(event.target.value)}>
+                <>
+                  <label className="field">
+                    Boutique active
+                    <select value={storeId} onChange={event => setStoreId(event.target.value)}>
+                      {stores.map(store => (
+                        <option key={store.id} value={store.id}>{store.name} — {store.currency}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="store-landing-list">
                     {stores.map(store => (
-                      <option key={store.id} value={store.id}>{store.name} — {store.currency}</option>
+                      <div className="store-landing-item" key={store.id}>
+                        <div className="store-landing-info">
+                          <strong>{store.name}</strong>
+                          <span>{store.currency} · Landing page publique</span>
+                        </div>
+                        <a
+                          className="secondary-button store-landing-button"
+                          href={`/shop/${encodeURIComponent(store.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Globe2 size={16} /> Ouvrir la landing page
+                        </a>
+                      </div>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </>
               )}
 
               {isGlobalAdmin && <form onSubmit={createStore} className="inline-form">
