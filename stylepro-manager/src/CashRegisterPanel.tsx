@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   Banknote, Calculator, CheckCircle2, Clock3, LockKeyhole, RefreshCw,
-  Wallet, AlertTriangle, TrendingUp, ArrowDownRight, ArrowUpRight,
+  Wallet, AlertTriangle, TrendingUp, ArrowDownRight, ArrowUpRight, Printer,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import './cash-register.css'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 
 type CashSession = {
   id: string
@@ -34,6 +35,7 @@ type Props = {
   storeId: string
   userId: string
   currency?: string
+  storeName?: string
   onSessionChange?: (id: string | null) => void
 }
 const money = (n: number, currency: string) =>
@@ -55,8 +57,9 @@ const asSummary = (row: Record<string, unknown>): CashSummary => ({
 })
 
 export default function CashRegisterPanel({
-  storeId, userId, currency = 'DZD', onSessionChange,
+  storeId, userId, currency = 'DZD', storeName = 'StylePro Manager', onSessionChange,
 }: Props) {
+  const [printFormat, setPrintFormat] = useState<'a4' | 'thermal'>('a4')
   const [session, setSession] = useState<CashSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -161,6 +164,31 @@ export default function CashRegisterPanel({
   }
 
   const difference = summary?.cash_difference ?? 0
+
+  function printSessionReport() {
+    if (!summary) return
+    const metrics = [
+      ['Fond initial', summary.opening_float],
+      ['Ventes espèces', summary.cash_sales],
+      ['Dépenses caisse', summary.cash_expenses],
+      ['Remboursements espèces', summary.cash_refunds],
+      ['Solde théorique', summary.expected_cash],
+      ['Montant compté', summary.counted_cash],
+      [difference === 0 ? 'Écart de caisse' : difference > 0 ? 'Excédent de caisse' : 'Manquant de caisse', Math.abs(difference)],
+      ['Ventes totales', summary.total_sales],
+      ['Retours produits', summary.sales_returns],
+      ['Coût des articles vendus', summary.cost_of_goods_sold],
+      ['Marge brute estimée', summary.gross_profit],
+      ['Total des dépenses', summary.total_expenses],
+      ['Bénéfice net estimé', summary.net_profit],
+    ]
+    const content = `<div class="summary-grid">${metrics.map(([label, value]) => `<div class="summary-card"><span>${escapePrintHtml(label)}</span><strong>${escapePrintHtml(money(Number(value), currency))}</strong></div>`).join('')}</div>
+      <p><strong>État de clôture :</strong> ${difference === 0 ? 'Équilibrée' : difference > 0 ? 'Excédent' : 'Manquant'}</p>
+      <p>Le fond initial n’est pas un revenu. Le solde théorique tient compte des paiements en espèces, des dépenses sorties du tiroir et des remboursements espèces.</p>
+      <p>Le bénéfice net affiché est une estimation calculée à partir des coûts d’achat et des dépenses enregistrées. Il ne remplace pas une comptabilité certifiée.</p>`
+    const opened = openPrintPreview({ title: 'Rapport de clôture de caisse', storeName, subtitle: `Clôture · ${new Date().toLocaleString('fr-DZ')} · Devise : ${currency}`, content, format: printFormat })
+    if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
+  }
   return (
     <section className="cash-register-panel">
       <header className="cash-register-heading">
@@ -224,7 +252,7 @@ export default function CashRegisterPanel({
 
       {summary && (
         <section className="cash-register-summary" aria-label="Résumé de la dernière clôture">
-          <div className="cash-register-summary-heading"><div><span className="cash-register-eyebrow">RAPPORT DE SESSION</span><h4>Dernière clôture</h4></div><span className={difference === 0 ? 'cash-register-result-pill is-balanced' : 'cash-register-result-pill is-unbalanced'}>{difference === 0 ? 'ÉQUILIBRÉE' : difference > 0 ? 'EXCÉDENT' : 'MANQUANT'}</span></div>
+          <div className="cash-register-summary-heading"><div><span className="cash-register-eyebrow">RAPPORT DE SESSION</span><h4>Dernière clôture</h4></div><span className={difference === 0 ? 'cash-register-result-pill is-balanced' : 'cash-register-result-pill is-unbalanced'}>{difference === 0 ? 'ÉQUILIBRÉE' : difference > 0 ? 'EXCÉDENT' : 'MANQUANT'}</span><div className="cash-register-print-actions"><select aria-label="Format du rapport" value={printFormat} onChange={event => setPrintFormat(event.target.value as 'a4' | 'thermal')}><option value="a4">A4</option><option value="thermal">80 mm</option></select><button type="button" className="cash-register-action" onClick={printSessionReport}><Printer size={15}/> Aperçu / Imprimer</button></div></div>
           <div className="cash-register-metrics">
             <div><span>Fond initial</span><strong>{money(summary.opening_float, currency)}</strong></div>
             <div><span>Ventes espèces</span><strong>{money(summary.cash_sales, currency)}</strong></div>
