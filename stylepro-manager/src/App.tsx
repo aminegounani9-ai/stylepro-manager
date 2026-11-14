@@ -1277,6 +1277,8 @@ export default function App() {
     total: number
     currency: string
     status: string
+    customer_name: string
+    customer_phone: string
     items: { name: string; sku: string; size: string; color: string; quantity: number; unit_price: number; discount: number }[]
   }
   const [receiptPreview, setReceiptPreview] = useState<ReceiptPreview | null>(null)
@@ -1290,7 +1292,7 @@ export default function App() {
     try {
       let saleQuery = supabase
         .from('sales')
-        .select('id,sale_number,total,status,created_at,currency')
+        .select('id,sale_number,total,status,created_at,currency,customer_id')
         .eq('store_id', storeId)
 
       saleQuery = saleId
@@ -1309,6 +1311,21 @@ export default function App() {
 
       if (itemsError) throw itemsError
       if (!items?.length) throw new Error('Aucun article trouvé sur cette facture.')
+
+      let customerName = 'Client de passage'
+      let customerPhone = ''
+      if (sale.customer_id) {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('full_name,phone')
+          .eq('store_id', storeId)
+          .eq('id', sale.customer_id)
+          .maybeSingle()
+        if (customer) {
+          customerName = customer.full_name || customerName
+          customerPhone = customer.phone || ''
+        }
+      }
 
       const variantIds = [...new Set(items.map(item => item.variant_id))]
       const { data: variants, error: variantsError } = await supabase
@@ -1337,6 +1354,8 @@ export default function App() {
         total: Number(sale.total),
         currency: sale.currency || 'DZD',
         status: sale.status,
+        customer_name: customerName,
+        customer_phone: customerPhone,
         items: items.map(item => {
           const variant = variantMap.get(item.variant_id)
           const product = variant ? productMap.get(variant.product_id) : null
@@ -5060,6 +5079,8 @@ const loadPromotions = useCallback(async () => {
                           <p>Facture de vente</p>
                           <h2>Facture N° {receiptPreview.sale_number}</h2>
                           <p>Date : {new Date(receiptPreview.created_at).toLocaleString('fr-DZ')}</p>
+                          <p>Client : {receiptPreview.customer_name}{receiptPreview.customer_phone ? ` · ${receiptPreview.customer_phone}` : ''}</p>
+                          <p>Statut : {receiptPreview.status}</p>
                         </header>
                         <table className="receipt-items-table">
                           <thead><tr><th>Article</th><th>Qté</th><th>Prix unitaire</th><th>Remise</th><th>Total</th></tr></thead>
