@@ -943,7 +943,7 @@ const STOCK_LOCATIONS = {
 
 const APP_MODULE_FOR_VIEW: Record<string, string> = {
   dashboard: 'dashboard', catalogue: 'catalogue', atelier: 'atelier', livraisons: 'deliveries',
-  stock: 'stock', sales: 'sales', returns: 'returns', customers: 'clients',
+  stock: 'stock', sales: 'sales', webOrders: 'web_orders', returns: 'returns', customers: 'clients',
   statistics: 'dashboard', labels: 'labels', promotions: 'promotions', expenses: 'expenses', settings: 'settings',
 }
 
@@ -1128,7 +1128,7 @@ export default function App() {
     const canOpenSettings = currentView === 'settings' && (hasModuleView('settings') || hasModuleView('users'))
     if (moduleKey && !hasModuleView(moduleKey) && !canOpenSettings) {
       const firstAllowed = [
-        ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['stock', 'stock'],
+        ['dashboard', 'dashboard'], ['catalogue', 'catalogue'], ['sales', 'sales'], ['web_orders', 'webOrders'], ['stock', 'stock'],
         ['returns', 'returns'], ['clients', 'customers'], ['expenses', 'expenses'], ['atelier', 'atelier'],
         ['deliveries', 'livraisons'], ['promotions', 'promotions'], ['labels', 'labels'], ['users', 'settings'], ['settings', 'settings'],
       ].find(([key]) => hasModuleView(key))
@@ -4197,7 +4197,7 @@ const loadPromotions = useCallback(async () => {
             <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`} onClick={() => setCurrentView('sales')}>
               <ShoppingBasket size={19} /> <span>Ventes / Caisse</span>
             </button>
-            <button type="button" style={{ display: hasModuleView('sales') ? undefined : 'none' }} className={`nav-item ${currentView === 'webOrders' ? 'active' : ''}`} onClick={() => setCurrentView('webOrders')}>
+            <button type="button" style={{ display: hasModuleView('web_orders') ? undefined : 'none' }} className={`nav-item ${currentView === 'webOrders' ? 'active' : ''}`} onClick={() => setCurrentView('webOrders')}>
               <Globe2 size={19} /> <span>Commandes Web</span>
             </button>
             <button type="button" style={{ display: hasModuleView('returns') ? undefined : 'none' }} className={`nav-item ${currentView === 'returns' ? 'active' : ''}`} onClick={() => { setCurrentView('returns'); setError(''); setMessage('') }}>
