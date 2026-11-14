@@ -7586,3 +7586,65 @@ body { min-height: 100svh; }
   .user-member-row { align-items:stretch; }
   .user-member-row .user-member-info { flex-basis:100%; }
 }
+
+
+/* Exact physical paper definitions for product labels.
+   Roll labels must print one label per page, not three labels across an A4 sheet. */
+@page styleproLabelA4 { size: A4 portrait; margin: 5mm; }
+@page styleproLabel50x30 { size: 50mm 30mm; margin: 0; }
+@page styleproLabel70x40 { size: 70mm 40mm; margin: 0; }
+@media print {
+  html[data-label-paper="A4"] .label-page { page: styleproLabelA4; }
+  html[data-label-paper="50x30"] .label-page {
+    page: styleproLabel50x30;
+    width: 50mm !important;
+    min-width: 50mm !important;
+    max-width: 50mm !important;
+  }
+  html[data-label-paper="50x30"] .label-print-only-grid {
+    display: block !important;
+    width: 50mm !important;
+    grid-template-columns: 50mm !important;
+    gap: 0 !important;
+  }
+  html[data-label-paper="50x30"] .qr-label-print {
+    width: 50mm !important;
+    height: 30mm !important;
+    min-height: 30mm !important;
+    max-height: 30mm !important;
+    margin: 0 !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    overflow: hidden !important;
+  }
+  html[data-label-paper="50x30"] .qr-label-print:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  html[data-label-paper="70x40"] .label-page {
+    page: styleproLabel70x40;
+    width: 70mm !important;
+    min-width: 70mm !important;
+    max-width: 70mm !important;
+  }
+  html[data-label-paper="70x40"] .label-print-only-grid {
+    display: block !important;
+    width: 70mm !important;
+    grid-template-columns: 70mm !important;
+    gap: 0 !important;
+  }
+  html[data-label-paper="70x40"] .qr-label-print {
+    width: 70mm !important;
+    height: 40mm !important;
+    min-height: 40mm !important;
+    max-height: 40mm !important;
+    margin: 0 !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    overflow: hidden !important;
+  }
+  html[data-label-paper="70x40"] .qr-label-print:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+}
