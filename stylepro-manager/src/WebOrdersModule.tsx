@@ -8,7 +8,7 @@ const labels:Record<string,string>={pending:'Nouvelle',confirmed:'Confirmée',pr
 const statuses=Object.keys(labels)
 export default function WebOrdersModule({storeId,onOpenDelivery}:{storeId:string;onOpenDelivery:()=>void}){
  const [orders,setOrders]=useState<Order[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[creating,setCreating]=useState(''),[filter,setFilter]=useState('all'),[error,setError]=useState('')
- const load=useCallback(async()=>{setLoading(true);setError('');const r=await supabase.rpc('get_web_orders',{p_store_id:storeId});if(r.error)setError(r.error.message);else setOrders((r.data??[]) as Order[]);setLoading(false)},[storeId])
+ const load=useCallback(async()=>{await Promise.resolve();setLoading(true);setError('');const r=await supabase.rpc('get_web_orders',{p_store_id:storeId});if(r.error)setError(r.error.message);else setOrders((r.data??[]) as Order[]);setLoading(false)},[storeId])
  useEffect(()=>{void load()},[load])
  async function update(id:string,status:string){setBusy(id);const r=await supabase.rpc('update_web_order_status',{p_order_id:id,p_status:status});if(r.error)setError(r.error.message);else setOrders(v=>v.map(o=>o.id===id?{...o,status}:o));setBusy('')}
  async function confirmAndCreateDelivery(order:Order){
