@@ -79,3 +79,8 @@
 .cash-register-footnote svg{flex:0 0 auto;margin-top:1px;color:#927c5c}
 @media(max-width:620px){.cash-register-panel{padding:14px;gap:14px}.cash-register-heading h3{font-size:16px}.cash-register-heading p{font-size:10px}.cash-register-form{grid-template-columns:minmax(0,1fr);padding:13px}.cash-register-form-title{grid-column:1}.cash-register-action{grid-column:1}.cash-register-metrics{gap:7px}.cash-register-metrics>div,.cash-register-cash-balance>div{padding:9px}.cash-register-metrics strong{font-size:11px}.cash-register-cash-balance>div>strong{font-size:12px}.cash-register-session-time{width:100%}.cash-register-float-card strong{font-size:19px}}
 @media(max-width:380px){.cash-register-metrics,.cash-register-cash-balance{grid-template-columns:minmax(0,1fr)}.cash-register-cash-balance .cash-register-diff-balanced,.cash-register-cash-balance .cash-register-diff-warning{grid-column:1}.cash-register-summary-heading{align-items:flex-start;flex-direction:column}}
+
+.cash-register-print-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cash-register-print-actions select{min-height:34px;padding:6px 8px;border:1px solid var(--border,#ded7ca);border-radius:8px;background:var(--surface,#fff);color:var(--text,#30291f);font:inherit;font-size:11px}
+.cash-register-print-actions .cash-register-action{min-height:34px;padding:7px 10px;font-size:11px}
+@media(max-width:760px){.cash-register-summary-heading{align-items:flex-start;flex-wrap:wrap}.cash-register-print-actions{width:100%}}
