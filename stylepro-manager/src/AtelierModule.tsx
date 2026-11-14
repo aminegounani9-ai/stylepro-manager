@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { getLocalRecords, cacheServerRecord, type EntityTable } from './lib/offlineDb'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 
 
 type SupplierType = 'tissu' | 'confection'
@@ -461,24 +462,42 @@ export default function AtelierModule({ storeId, userId, storeName = 'StylePro M
   function printReport(production?: Production) {
     const rows = production ? [production] : filteredProductions
     const thermal = reportPrintFormat === 'thermal'
-    const headers = thermal ? '<th>N° / Date</th><th>Modèle / SKU</th><th>Qté</th><th>Coût</th><th>Bénéfice</th>' : '<th>N°</th><th>Date</th><th>Tissu</th><th>Fournisseur</th><th>Modèles / SKU</th><th>Qté</th><th>Coût total</th><th>Ventes</th><th>Bénéfice</th>'
+    const headers = thermal ? '<th>N° / Date</th><th>Modèle / SKU</th><th>Qté</th><th>Coût</th><th>Bénéfice</th>' : '<th>N°</th><th>Date</th><th>Tissu</th><th>Fournisseur tissu</th><th>Modèles / SKU</th><th>Qté</th><th>Coût total</th><th>Ventes estimées</th><th>Bénéfice estimé</th>'
     const body = rows.map(p => {
-      const models = (modelsByProduction[p.id] || []).map(m => escapeHtml(m.model_name) + ' (' + escapeHtml(m.sku) + ')').join('<br>') || escapeHtml(p.model_name)
+      const models = (modelsByProduction[p.id] || []).map(m => escapePrintHtml(m.model_name) + ' (' + escapePrintHtml(m.sku) + ')').join('<br>') || escapePrintHtml(p.model_name)
       const cost = Number(p.total_cost ?? (Number(p.fabric_total_cost || 0) + Number(p.total_production_price || 0) + Number(p.total_confection_cost || 0)))
-      if (thermal) return '<tr><td>#' + p.production_number + '<br>' + escapeHtml(p.production_date) + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + money(cost) + '</td><td>' + money(Number(p.gross_profit || 0)) + '</td></tr>'
-      return '<tr><td>' + p.production_number + '</td><td>' + escapeHtml(p.production_date) + '</td><td>' + escapeHtml(p.fabric_name) + '</td><td>' + escapeHtml(p.supplier_name_snapshot) + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + money(cost) + '</td><td>' + money(Number(p.total_sales_price || 0)) + '</td><td>' + money(Number(p.gross_profit || 0)) + '</td></tr>'
+      if (thermal) return '<tr><td>#' + p.production_number + '<br>' + escapePrintHtml(p.production_date) + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + escapePrintHtml(money(cost)) + '</td><td>' + escapePrintHtml(money(Number(p.gross_profit || 0))) + '</td></tr>'
+      return '<tr><td>' + p.production_number + '</td><td>' + escapePrintHtml(p.production_date) + '</td><td>' + escapePrintHtml(p.fabric_name) + '<br>Réf. ' + escapePrintHtml(p.fabric_number || '—') + '</td><td>' + escapePrintHtml(p.supplier_name_snapshot) + '<br>' + escapePrintHtml(p.confection_supplier_name_snapshot || '—') + '</td><td>' + models + '</td><td>' + p.total_quantity + '</td><td>' + escapePrintHtml(money(cost)) + '</td><td>' + escapePrintHtml(money(Number(p.total_sales_price || 0))) + '</td><td>' + escapePrintHtml(money(Number(p.gross_profit || 0))) + '</td></tr>'
     }).join('')
-    const html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport Atelier</title><style>' +
-      '@page{size:' + (thermal ? '80mm auto' : 'A4 landscape') + ';margin:' + (thermal ? '3mm' : '12mm') + '}' +
-      '*{box-sizing:border-box}body{font:' + (thermal ? '8px' : '11px') + ' Arial,sans-serif;color:#29251f;margin:0}h1{color:#684c35;margin:0 0 4px;font-size:' + (thermal ? '13px' : '20px') + '}' +
-      '.meta{color:#71685e;margin-bottom:12px}.brand{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #d8cabb;padding-bottom:9px}.store{font-weight:bold;font-size:' + (thermal ? '11px' : '14px') + '}' +
-      'table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}th,td{border:1px solid #d8cabb;padding:' + (thermal ? '3px 2px' : '6px') + ';text-align:left;overflow-wrap:anywhere;vertical-align:top}th{background:#eee5da}tr{break-inside:avoid}' +
-      (thermal ? 'th:nth-child(1),td:nth-child(1){width:19%}th:nth-child(2),td:nth-child(2){width:31%}th:nth-child(3),td:nth-child(3){width:10%}th:nth-child(4),td:nth-child(4){width:20%}th:nth-child(5),td:nth-child(5){width:20%}' : '') +
-      '</style></head><body><div class="brand"><div><div class="store">' + escapeHtml(storeName) + '</div><h1>RAPPORT ATELIER</h1><div class="meta">' + (production ? 'Production #' + production.production_number : 'Historique des productions') + '</div></div><div>' + new Date().toLocaleDateString('fr-DZ') + '</div></div>' +
-      '<table><thead><tr>' + headers + '</tr></thead><tbody>' + (body || '<tr><td colspan="' + (thermal ? 5 : 9) + '">Aucune production à afficher.</td></tr>') + '</tbody></table><p class="meta">Rapport généré depuis les données enregistrées dans cette boutique.</p><script>window.onload=()=>window.print()</script></body></html>'
-    const w = window.open('', '_blank')
-    if (!w) { setError('Autorisez les fenêtres pop-up pour générer le rapport.'); return }
-    w.document.write(html); w.document.close()
+    const selectedDetails = production ? `
+      <div class="summary-grid">
+        <div class="summary-card"><span>Tissu / Référence</span><strong>${escapePrintHtml(production.fabric_name)} · ${escapePrintHtml(production.fabric_number || '—')}</strong></div>
+        <div class="summary-card"><span>Consommation tissu</span><strong>${Number(production.fabric_quantity_m || 0).toLocaleString('fr-DZ')} m × ${escapePrintHtml(money(Number(production.fabric_price_per_m || 0)))}</strong></div>
+        <div class="summary-card"><span>Coût tissu</span><strong>${escapePrintHtml(money(Number(production.fabric_total_cost || 0)))}</strong></div>
+        <div class="summary-card"><span>Confection / Production</span><strong>${escapePrintHtml(money(Number(production.total_production_price || 0) + Number(production.total_confection_cost || 0)))}</strong></div>
+        <div class="summary-card"><span>Quantité totale</span><strong>${production.total_quantity}</strong></div>
+        <div class="summary-card"><span>Ventes / Bénéfice estimés</span><strong>${escapePrintHtml(money(Number(production.total_sales_price || 0)))} / ${escapePrintHtml(money(Number(production.gross_profit || 0)))}</strong></div>
+      </div>
+      <p><strong>Fournisseur tissu :</strong> ${escapePrintHtml(production.supplier_name_snapshot)} · <strong>Confection :</strong> ${escapePrintHtml(production.confection_supplier_name_snapshot || '—')}</p>
+      <p><strong>Notes :</strong> ${escapePrintHtml(production.notes || '—')}</p>
+      <h2>Détail des tailles et quantités</h2>
+      <table><thead><tr><th>Modèle</th><th>SKU</th><th>Couleur</th><th>Taille</th><th>Quantité</th><th>Coût unitaire</th><th>Prix de vente</th><th>Total ligne</th></tr></thead><tbody>${(sizesByProduction[production.id] || []).map(size => { const model = (modelsByProduction[production.id] || []).find(item => item.id === size.model_id); return '<tr><td>' + escapePrintHtml(model?.model_name || production.model_name) + '</td><td>' + escapePrintHtml(model?.sku || '—') + '</td><td>' + escapePrintHtml(model?.color || production.color || '—') + '</td><td>' + escapePrintHtml(size.size_name) + '</td><td>' + size.quantity + '</td><td>' + escapePrintHtml(money(Number(size.unit_price || 0))) + '</td><td>' + escapePrintHtml(money(Number(size.sale_price || 0))) + '</td><td>' + escapePrintHtml(money(Number(size.line_total || Number(size.quantity) * Number(size.sale_price)))) + '</td></tr>' }).join('') || '<tr><td colspan="8">Aucun détail de taille enregistré.</td></tr>'}</tbody></table>
+    ` : ''
+    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.total_quantity || 0), 0)
+    const totalCost = rows.reduce((sum, row) => sum + Number(row.total_cost ?? (Number(row.fabric_total_cost || 0) + Number(row.total_production_price || 0) + Number(row.total_confection_cost || 0)), 0)
+    const totalSales = rows.reduce((sum, row) => sum + Number(row.total_sales_price || 0), 0)
+    const totalProfit = rows.reduce((sum, row) => sum + Number(row.gross_profit || 0), 0)
+    const content = `<div class="summary-grid">
+      <div class="summary-card"><span>Productions</span><strong>${rows.length}</strong></div>
+      <div class="summary-card"><span>Quantité produite</span><strong>${totalQuantity}</strong></div>
+      <div class="summary-card"><span>Coût total</span><strong>${escapePrintHtml(money(totalCost))}</strong></div>
+      <div class="summary-card"><span>Ventes estimées</span><strong>${escapePrintHtml(money(totalSales))}</strong></div>
+      <div class="summary-card"><span>Bénéfice estimé</span><strong>${escapePrintHtml(money(totalProfit))}</strong></div>
+    </div>${selectedDetails}
+    <table><thead><tr>${headers}</tr></thead><tbody>${body || '<tr><td colspan="' + (thermal ? 5 : 9) + '">Aucune production à afficher.</td></tr>'}</tbody></table>
+    <p>Les montants de ventes et bénéfices sont des estimations basées sur les coûts et prix enregistrés dans l’atelier.</p>`
+    const opened = openPrintPreview({ title: production ? 'Fiche détaillée de production' : 'Rapport Atelier', storeName, subtitle: production ? `Production #${production.production_number} · Date : ${production.production_date}` : `Historique filtré · ${rows.length} production(s)`, content, format: thermal ? 'thermal' : 'a4-landscape' })
+    if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
   }
   function escapeHtml(value: string) {
     return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c))
