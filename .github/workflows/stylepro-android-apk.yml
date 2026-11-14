@@ -1,4 +1,5 @@
 name: StylePro Android APK
+# Rebuild the Android test APK alongside synchronized desktop and web releases.
 
 on:
   push:
