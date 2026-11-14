@@ -155,7 +155,14 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD', stor
   function exportCsv() {
     const quote = (value: unknown) => '"' + String(value ?? '').replace(/"/g, '""') + '"'
     const content = [
-      ['Date', 'Type', 'Description', 'Bénéficiaire', 'Source', 'Montant', 'Référence', 'Notes'].join(';'),
+      ['Boutique', storeName].map(quote).join(';'),
+      ['Rapport', 'Dépenses'].map(quote).join(';'),
+      ['Période', period === 'month' ? 'Depuis le début du mois' : 'Toutes les opérations chargées'].map(quote).join(';'),
+      ['Généré le', new Date().toLocaleString('fr-DZ')].map(quote).join(';'),
+      ['Nombre d’opérations', filtered.length].map(quote).join(';'),
+      ['Total', total, currency].map(quote).join(';'),
+      [],
+      ['Date', 'Type', 'Description', 'Bénéficiaire', 'Source', 'Montant', 'Référence', 'Notes'].map(quote).join(';'),
       ...filtered.map(row => [row.expense_date, typeLabel(row.expense_type), row.description, row.payee_name, SOURCES.find(item => item.value === row.payment_source)?.label, row.amount, row.reference, row.notes].map(quote).join(';')),
     ].join('\r\n')
     const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' })
