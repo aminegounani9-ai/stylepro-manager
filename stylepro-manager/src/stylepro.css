@@ -7394,3 +7394,52 @@ body { min-height: 100svh; }
   .notification-popover { right:-44px; }
   .header-actions { gap:6px; }
 }
+
+
+/* Public landing-page shortcuts for every accessible store */
+.store-landing-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+.store-landing-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--border, rgba(120, 110, 90, .2));
+  border-radius: 13px;
+  background: var(--surface, rgba(255, 255, 255, .35));
+}
+.store-landing-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.store-landing-info strong {
+  overflow-wrap: anywhere;
+}
+.store-landing-info span {
+  color: var(--muted, #777);
+  font-size: 12px;
+}
+.store-landing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  text-decoration: none;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .store-landing-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .store-landing-button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
