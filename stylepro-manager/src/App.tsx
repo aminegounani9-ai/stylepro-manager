@@ -2282,7 +2282,13 @@ function exportMovementHistoryCSV() {
     const safe = /^[=+@-]/.test(text) ? "'" + text : text
     return '"' + safe.replace(/"/g, '""') + '"'
   }
+  const movementStore = stores.find(item => item.id === storeId)
   const csv = '\uFEFF' + [
+    ['Boutique', movementStore?.name || 'StylePro Manager'],
+    ['Rapport', 'Historique des mouvements de stock'],
+    ['Généré le', new Date().toLocaleString('fr-DZ')],
+    ['Nombre de mouvements', rows.length],
+    [],
     ['Date', 'Article', 'SKU', 'Type', 'Variation', 'Motif'],
     ...rows
   ].map(row => row.map(cell).join(';')).join('\r\n')
