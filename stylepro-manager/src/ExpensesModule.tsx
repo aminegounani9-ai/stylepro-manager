@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowDownLeft, Banknote, Building2, CalendarDays, Download, Plus, RefreshCw, Search, Trash2, Truck, Wallet } from 'lucide-react'
+import { ArrowDownLeft, Banknote, Building2, CalendarDays, Download, Plus, Printer, RefreshCw, Search, Trash2, Truck, Wallet } from 'lucide-react'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 import { supabase } from './lib/supabase'
 import './expenses.css'
 
@@ -18,7 +19,7 @@ type ExpenseRow = {
   notes: string | null
   created_at: string
 }
-type Props = { storeId: string; userId: string; currency?: string }
+type Props = { storeId: string; userId: string; currency?: string; storeName?: string }
 
 const TYPES: { value: ExpenseType; label: string }[] = [
   { value: 'cash_withdrawal', label: 'Retrait de caisse' },
@@ -39,13 +40,14 @@ const today = () => {
 const money = (value: number, currency: string) => new Intl.NumberFormat('fr-DZ', { maximumFractionDigits: 2 }).format(value) + ' ' + currency
 const typeLabel = (value: ExpenseType) => TYPES.find(item => item.value === value)?.label ?? 'Autre dépense'
 
-export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Props) {
+export default function ExpensesModule({ storeId, userId, currency = 'DZD', storeName = 'StylePro Manager' }: Props) {
   const [rows, setRows] = useState<ExpenseRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [period, setPeriod] = useState<'month' | 'all'>('month')
+  const [printFormat, setPrintFormat] = useState<'a4' | 'thermal'>('a4')
   const [showForm, setShowForm] = useState(false)
   const [expenseType, setExpenseType] = useState<ExpenseType>('cash_withdrawal')
   const [source, setSource] = useState<PaymentSource>('cashbox')
@@ -135,6 +137,21 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
     else await load()
   }
 
+  function printReport() {
+    const rowsHtml = filtered.map(row => `<tr><td>${escapePrintHtml(row.expense_date)}</td><td>${escapePrintHtml(typeLabel(row.expense_type))}</td><td>${escapePrintHtml(row.description)}</td><td>${escapePrintHtml(row.payee_name || '—')}</td><td>${escapePrintHtml(SOURCES.find(item => item.value === row.payment_source)?.label || '—')}</td><td class="amount">${escapePrintHtml(money(Number(row.amount), currency))}</td><td>${escapePrintHtml(row.reference || '—')}</td></tr>`).join('')
+    const content = `<div class="summary-grid">
+      <div class="summary-card"><span>Total des dépenses</span><strong>${escapePrintHtml(money(total, currency))}</strong></div>
+      <div class="summary-card"><span>Sorties de caisse</span><strong>${escapePrintHtml(money(cashboxTotal, currency))}</strong></div>
+      <div class="summary-card"><span>Salaires & avances</span><strong>${escapePrintHtml(money(salaryTotal, currency))}</strong></div>
+      <div class="summary-card"><span>Livraison & transport</span><strong>${escapePrintHtml(money(deliveryTotal, currency))}</strong></div>
+    </div>
+    <p><strong>Période :</strong> ${period === 'month' ? 'Depuis le début du mois' : 'Toutes les opérations chargées'} · <strong>Nombre d'opérations :</strong> ${filtered.length}</p>
+    <table><thead><tr><th>Date</th><th>Catégorie</th><th>Description</th><th>Bénéficiaire</th><th>Source</th><th>Montant</th><th>Référence</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="7">Aucune dépense pour cette période.</td></tr>'}</tbody></table>
+    <p>Les montants représentent les dépenses enregistrées dans la boutique et chargées par le module.</p>`
+    const opened = openPrintPreview({ title: 'Rapport des dépenses', storeName, subtitle: `Période : ${period === 'month' ? 'Mois en cours' : 'Historique complet'} · Devise : ${currency}`, content, format: printFormat })
+    if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
+  }
+
   function exportCsv() {
     const quote = (value: unknown) => '"' + String(value ?? '').replace(/"/g, '""') + '"'
     const content = [
@@ -186,6 +203,8 @@ export default function ExpensesModule({ storeId, userId, currency = 'DZD' }: Pr
         <div className="expenses-search"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher une dépense, un bénéficiaire…" /></div>
         <select value={period} onChange={event => setPeriod(event.target.value as 'month' | 'all')} aria-label="Période"><option value="month">Ce mois</option><option value="all">Toutes les dates</option></select>
         <button type="button" className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} /> Actualiser</button>
+        <label className="expenses-print-format">Format d’impression<select value={printFormat} onChange={event => setPrintFormat(event.target.value as 'a4' | 'thermal')}><option value="a4">A4</option><option value="thermal">Ticket thermique 80 mm</option></select></label>
+        <button type="button" className="secondary-button" onClick={printReport} disabled={!filtered.length}><Printer size={15} /> Aperçu / Imprimer</button>
         <button type="button" className="secondary-button" onClick={exportCsv} disabled={!filtered.length}><Download size={15} /> Export CSV</button>
       </div>
 
