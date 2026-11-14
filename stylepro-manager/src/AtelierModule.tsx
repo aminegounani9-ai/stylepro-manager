@@ -499,9 +499,6 @@ export default function AtelierModule({ storeId, userId, storeName = 'StylePro M
     const opened = openPrintPreview({ title: production ? 'Fiche détaillée de production' : 'Rapport Atelier', storeName, subtitle: production ? `Production #${production.production_number} · Date : ${production.production_date}` : `Historique filtré · ${rows.length} production(s)`, content, format: thermal ? 'thermal' : 'a4-landscape' })
     if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
   }
-  function escapeHtml(value: string) {
-    return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c))
-  }
 
   return <div className="atelier-module">
     <header className="atelier-hero">
