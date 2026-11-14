@@ -50,6 +50,7 @@ import {
   Bell,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { escapePrintHtml, openPrintPreview } from './lib/printPreview'
 import { getLocalRecords, cacheServerRecord, enqueueSyncOperation } from './lib/offlineDb'
 import { registerSyncAdapter } from './lib/syncEngine'
 import type { EntityTable } from './lib/offlineDb'
@@ -2297,117 +2298,31 @@ function exportMovementHistoryPDF() {
   const rows = movementHistory.map(m => {
     const variant = posVariants.find(v => v.id === m.variant_id)
     const product = products.find(p => p.id === variant?.product_id)
-
     return {
       date: new Date(m.created_at).toLocaleString('fr-DZ'),
       article: product?.name || variant?.sku || 'Article inconnu',
       sku: variant?.sku || '',
       type: m.movement_type,
-      quantity:
-        `${Number(m.quantity_delta) > 0 ? '+' : ''}${m.quantity_delta}`,
+      quantity: `${Number(m.quantity_delta) > 0 ? '+' : ''}${m.quantity_delta}`,
       reason: m.reason || '—'
     }
   })
-
-  const escapeHTML = (value: string) =>
-    value.replace(/[&<>"']/g, char => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    })[char]!)
-
-  const reportWindow = window.open('', '_blank')
-
-  if (!reportWindow) {
-    setError('Autorisez les fenêtres pop-up pour exporter le PDF.')
-    return
-  }
-
-  reportWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8">
-      <title>Rapport des mouvements de stock</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          padding: 30px;
-          color: #292929;
-        }
-        h1 { font-size: 22px; margin-bottom: 5px; }
-        .subtitle { color: #666; margin-bottom: 25px; }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 12px;
-        }
-        th, td {
-          border: 1px solid #ddd;
-          padding: 9px;
-          text-align: left;
-        }
-        th {
-          background: #eee7dc;
-        }
-        tr { page-break-inside: avoid; }
-        .footer {
-          margin-top: 25px;
-          font-size: 11px;
-          color: #666;
-        }
-        @media print {
-          body { padding: 0; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Rapport des mouvements de stock</h1>
-      <div class="subtitle">
-        StylePro Manager — Généré le ${escapeHTML(new Date().toLocaleString('fr-DZ'))}
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Article</th>
-            <th>SKU</th>
-            <th>Type</th>
-            <th>Variation</th>
-            <th>Motif</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(row => `
-            <tr>
-              <td>${escapeHTML(row.date)}</td>
-              <td>${escapeHTML(row.article)}</td>
-              <td>${escapeHTML(row.sku)}</td>
-              <td>${escapeHTML(row.type)}</td>
-              <td>${escapeHTML(row.quantity)}</td>
-              <td>${escapeHTML(row.reason)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <div class="footer">
-        Nombre total de mouvements : ${rows.length}
-      </div>
-
-      <script>
-        window.onload = function() {
-          window.print();
-        };
-      </script>
-    </body>
-    </html>
-  `)
-
-  reportWindow.document.close()
+  const rowsHtml = rows.map(row => `<tr><td>${escapePrintHtml(row.date)}</td><td>${escapePrintHtml(row.article)}</td><td>${escapePrintHtml(row.sku)}</td><td>${escapePrintHtml(row.type)}</td><td>${escapePrintHtml(row.quantity)}</td><td>${escapePrintHtml(row.reason)}</td></tr>`).join('')
+  const content = `<div class="summary-grid">
+    <div class="summary-card"><span>Nombre de mouvements</span><strong>${rows.length}</strong></div>
+    <div class="summary-card"><span>Articles concernés</span><strong>${new Set(rows.map(row => row.sku || row.article)).size}</strong></div>
+  </div>
+  <table><thead><tr><th>Date</th><th>Article</th><th>SKU</th><th>Type</th><th>Variation</th><th>Motif</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="6">Aucun mouvement enregistré.</td></tr>'}</tbody></table>
+  <p>Rapport établi à partir de l’historique des mouvements chargé pour cette boutique.</p>`
+  const store = stores.find(item => item.id === storeId)
+  const opened = openPrintPreview({
+    title: 'Rapport des mouvements de stock',
+    storeName: store?.name || 'StylePro Manager',
+    subtitle: `${rows.length} mouvement(s) · Devise boutique : ${store?.currency || 'DZD'}`,
+    content,
+    format: printSize === '80mm' ? 'thermal' : 'a4',
+  })
+  if (!opened) setError('Autorisez les fenêtres pop-up pour afficher l’aperçu du rapport.')
 }
 
 function handleScannedCode(rawCode: string) {
