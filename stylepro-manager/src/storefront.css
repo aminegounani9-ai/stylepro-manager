@@ -5,3 +5,26 @@
 
 .shop-checkout input:focus{border-color:#8b9b87;box-shadow:0 0 0 3px #8b9b871c}
 .shop-checkout label:has(input[autocomplete="street-address"]) input{min-height:46px}
+
+
+/* Public storefront must scroll independently of the fixed desktop app shell.
+   The dashboard intentionally locks body scrolling on wide screens; override
+   that only when the storefront route is mounted. */
+html:has(.storefront),
+body:has(.storefront) {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+}
+#root:has(.storefront) {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow: visible !important;
+}
+#root:has(.storefront) > .storefront {
+  min-height: 100vh;
+  overflow: visible !important;
+  touch-action: pan-y pinch-zoom !important;
+}
