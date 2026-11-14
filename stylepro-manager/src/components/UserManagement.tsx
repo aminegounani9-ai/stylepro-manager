@@ -4,7 +4,7 @@ import { UserPlus, RefreshCw, ShieldCheck, UserRound, UserX, UserCheck, Save, Ch
 import { supabase } from '../lib/supabase'
 
 type Role = 'admin' | 'manager' | 'cashier' | 'stock_manager'
-type ModuleKey = 'dashboard' | 'catalogue' | 'sales' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'promotions' | 'labels' | 'users' | 'settings'
+type ModuleKey = 'dashboard' | 'catalogue' | 'sales' | 'web_orders' | 'stock' | 'returns' | 'clients' | 'expenses' | 'atelier' | 'deliveries' | 'promotions' | 'labels' | 'users' | 'settings'
 type Permission = { module_key: ModuleKey; can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }
 type Member = { user_id: string; role: Role; created_at: string; full_name: string; email: string; is_active: boolean; permissions: Permission[] }
 type StoreOption = { id: string; name: string; currency: string }
@@ -14,7 +14,8 @@ const modules: { key: ModuleKey; label: string }[] = [
   { key: 'dashboard', label: 'Tableau de bord' },
   { key: 'catalogue', label: 'Catalogue' },
   { key: 'sales', label: 'Ventes / Caisse' },
-  { key: 'stock', label: 'Stock' },
+  { key: 'web_orders', label: 'Commandes Web' },
+  { key: 'stock', label: 'Gestion du stock' },
   { key: 'returns', label: 'Retours' },
   { key: 'clients', label: 'Clients' },
   { key: 'expenses', label: 'Dépenses' },
@@ -38,7 +39,7 @@ const emptyPermissions = (): Permission[] => modules.map(({ key }) => ({
 const permissionsForRole = (role: Role): Permission[] => modules.map(({ key }) => {
   const all = role === 'manager' || role === 'admin'
   const stock = role === 'stock_manager' && ['dashboard', 'catalogue', 'stock', 'labels', 'deliveries'].includes(key)
-  const cashier = role === 'cashier' && ['dashboard', 'sales', 'returns', 'clients'].includes(key)
+  const cashier = role === 'cashier' && ['dashboard', 'sales', 'web_orders', 'returns', 'clients'].includes(key)
   const enabled = all || stock || cashier
   const canWrite = all || (role === 'stock_manager' && ['stock', 'deliveries'].includes(key)) ||
     (role === 'cashier' && ['sales', 'returns', 'clients'].includes(key))
@@ -54,16 +55,31 @@ const normalize = (items: Permission[] = []): Permission[] => {
 
 function PermissionEditor({ value, onChange, disabled = false }: { value: Permission[]; onChange: (next: Permission[]) => void; disabled?: boolean }) {
   const rows = useMemo(() => normalize(value), [value])
+  const actions = [
+    { key: 'can_view', label: 'Voir' },
+    { key: 'can_add', label: 'Ajouter' },
+    { key: 'can_edit', label: 'Modifier' },
+    { key: 'can_delete', label: 'Supprimer' },
+  ] as const
   const update = (moduleKey: ModuleKey, action: keyof Omit<Permission, 'module_key'>, checked: boolean) => {
     onChange(rows.map(row => row.module_key === moduleKey ? { ...row, [action]: checked } : row))
   }
-  return <div className="user-permission-editor">
-    <div className="user-permission-heading"><strong>Module</strong><strong>Voir</strong><strong>Ajouter</strong><strong>Modifier</strong><strong>Supprimer</strong></div>
+  return <div className="user-permission-editor" role="group" aria-label="Droits par module">
+    <div className="user-permission-heading" aria-hidden="true">
+      <strong>Module</strong>{actions.map(action => <strong key={action.key}>{action.label}</strong>)}
+    </div>
     {rows.map(row => <div className="user-permission-row" key={row.module_key}>
-      <span>{modules.find(item => item.key === row.module_key)?.label}</span>
-      {(['can_view', 'can_add', 'can_edit', 'can_delete'] as const).map(action =>
-        <label key={action} className="user-permission-check">
-          <input type="checkbox" checked={row[action]} disabled={disabled} onChange={event => update(row.module_key, action, event.target.checked)} />
+      <strong className="user-permission-module">{modules.find(item => item.key === row.module_key)?.label}</strong>
+      {actions.map(action =>
+        <label key={action.key} className="user-permission-check">
+          <span>{action.label}</span>
+          <input
+            type="checkbox"
+            aria-label={`${modules.find(item => item.key === row.module_key)?.label}: ${action.label}`}
+            checked={row[action.key]}
+            disabled={disabled}
+            onChange={event => update(row.module_key, action.key, event.target.checked)}
+          />
         </label>
       )}
     </div>)}
@@ -215,8 +231,11 @@ export default function UserManagement({ user, storeId, storeName, stores = [] }
             <label className="field">Adresse e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="off"/></label>
             <label className="field">Mot de passe temporaire<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8} autoComplete="new-password"/></label>
             <label className="field">Rôle<select value={role} onChange={e=>{const nextRole=e.target.value as Role;setRole(nextRole);setDraftPermissions(permissionsForRole(nextRole))}}>{availableRoles.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
-            <div className="user-permission-card">
-              <h3>Permissions du nouvel utilisateur</h3>
+            <div className="user-permission-card user-permission-new">
+              <div className="user-permission-card-title">
+                <div><h3>Permissions du nouvel utilisateur</h3><p>Activez uniquement les modules et les actions autorisés pour ce compte.</p></div>
+                <span>{draftPermissions.filter(item => item.can_view).length}/{modules.length} modules visibles</span>
+              </div>
               <PermissionEditor value={draftPermissions} onChange={setDraftPermissions} disabled={saving}/>
             </div>
             <button type="submit" className="primary-button" disabled={saving || !targetStoreId}><UserPlus size={16}/> {saving ? 'Création…' : 'Ajouter utilisateur'}</button>
