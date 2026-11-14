@@ -6653,11 +6653,25 @@ const loadPromotions = useCallback(async () => {
                         </div>
                         <a
                           className="secondary-button store-landing-button"
-                          href={`/shop/${encodeURIComponent(store.id)}`}
+                          href={`https://stylepro-manager.vercel.app/shop/${encodeURIComponent(store.id)}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={event => {
+                            const invoke = (window as Window & {
+                              __TAURI_INTERNALS__?: {
+                                invoke?: (command: string, args?: Record<string, string>) => Promise<unknown>
+                              }
+                            }).__TAURI_INTERNALS__?.invoke
+                            if (invoke) {
+                              event.preventDefault()
+                              const url = `https://stylepro-manager.vercel.app/shop/${encodeURIComponent(store.id)}`
+                              void invoke('open_external_url', { url }).catch(error => {
+                                console.error('Impossible d’ouvrir la landing page dans le navigateur.', error)
+                              })
+                            }
+                          }}
                         >
-                          <Globe2 size={16} /> Ouvrir la landing page
+                          <Globe2 size={16} /> Ouvrir dans Chrome
                         </a>
                       </div>
                     ))}
