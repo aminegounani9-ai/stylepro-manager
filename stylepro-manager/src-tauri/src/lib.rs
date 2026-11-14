@@ -17,7 +17,7 @@ fn open_external_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
+            .args(["/C", "start", ""]).arg(&url)
             .spawn()
             .map_err(|e| format!("Impossible d’ouvrir le navigateur: {e}"))?;
     }
