@@ -30,7 +30,7 @@ export function openPrintPreview({
   content,
   format = 'a4',
 }: PrintPreviewOptions): boolean {
-  const popup = window.open('', '_blank', 'noopener,noreferrer')
+  const popup = window.open('', '_blank')
   if (!popup) return false
 
   const page = format === 'thermal'
