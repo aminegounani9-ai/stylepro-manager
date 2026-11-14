@@ -94,8 +94,8 @@ export function openPrintPreview({
   <div class="preview-toolbar">
     <strong>Aperçu du document · ${escapePrintHtml(title)}</strong>
     <div class="preview-actions">
-      <button class="primary" type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
-      <button type="button" onclick="window.close()">Fermer</button>
+      <button class="primary" id="print-document" type="button">Imprimer / Enregistrer en PDF</button>
+      <button id="close-preview" type="button">Fermer</button>
     </div>
   </div>
   <main class="preview-sheet">
@@ -109,5 +109,7 @@ export function openPrintPreview({
 </body>
 </html>`)
   popup.document.close()
+  popup.document.getElementById('print-document')?.addEventListener('click', () => popup.print())
+  popup.document.getElementById('close-preview')?.addEventListener('click', () => popup.close())
   return true
 }
