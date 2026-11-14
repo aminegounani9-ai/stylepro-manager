@@ -86,7 +86,7 @@ export function openPrintPreview({
   }
   @media(max-width:700px){
     .preview-toolbar{align-items:flex-start;flex-direction:column}
-    .preview-sheet{width:calc(100% - 16px);margin:8px auto;padding:12px;overflow-wrap:anywhere}
+    .preview-sheet{width:min(${sheetWidth},calc(100% - 16px));margin:8px auto;padding:12px;overflow-wrap:anywhere}
   }
 </style>
 </head>
