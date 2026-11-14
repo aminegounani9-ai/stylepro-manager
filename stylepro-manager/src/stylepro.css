@@ -7443,3 +7443,146 @@ body { min-height: 100svh; }
     box-sizing: border-box;
   }
 }
+
+
+/* User management refresh: compact form, clear permission matrix and predictable scrolling. */
+.settings-users { min-width:0; }
+.settings-users > .panel-title { align-items:flex-start; gap:14px; }
+.settings-users > .panel-title > div { min-width:0; flex:1; }
+.user-create-form {
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  align-items:start !important;
+  gap:13px !important;
+  padding:18px !important;
+  border:1px solid var(--border) !important;
+  border-radius:16px !important;
+  background:var(--surface) !important;
+  box-shadow:0 5px 18px rgb(55 43 27 / 4%);
+}
+.user-create-form > .user-permission-card,
+.user-create-form > button[type="submit"] { grid-column:1 / -1; }
+.user-create-form > .field { min-width:0; }
+.user-create-form .field input,
+.user-create-form .field select { min-height:42px; }
+.user-permission-card {
+  width:100%;
+  min-width:0 !important;
+  max-width:100%;
+  max-height:min(440px,58vh) !important;
+  margin:4px 0 8px !important;
+  padding:14px !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  direction:ltr !important;
+  scrollbar-gutter:stable;
+  border-radius:13px;
+}
+.user-permission-card-title {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.user-permission-card-title h3 { margin:0 0 4px !important; font-size:15px; }
+.user-permission-card-title p { margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+.user-permission-card-title > span {
+  flex:0 0 auto;
+  padding:5px 9px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  color:var(--primary);
+  background:var(--surface);
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+}
+.user-permission-editor {
+  width:100% !important;
+  min-width:0 !important;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:5px !important;
+}
+.user-permission-heading,
+.user-permission-row {
+  display:grid !important;
+  grid-template-columns:minmax(175px,1.6fr) repeat(4,minmax(72px,.7fr)) !important;
+  align-items:center;
+  gap:8px;
+}
+.user-permission-heading {
+  position:sticky;
+  top:-14px;
+  z-index:2;
+  padding:9px 12px !important;
+  border-bottom:1px solid var(--border);
+  background:var(--surface-soft) !important;
+  color:var(--muted) !important;
+  font-size:11px !important;
+  text-align:center;
+}
+.user-permission-heading strong:first-child { text-align:left; }
+.user-permission-row {
+  padding:8px 12px !important;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--surface) !important;
+}
+.user-permission-module {
+  min-width:0;
+  font-size:12px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.user-permission-check {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  min-width:0;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:650;
+}
+.user-permission-check input {
+  width:17px !important;
+  height:17px !important;
+  margin:0;
+  accent-color:var(--primary);
+  cursor:pointer;
+}
+.user-permission-check input:disabled { cursor:not-allowed; opacity:.55; }
+.user-members-list { margin-top:22px; }
+.user-members-list > h3 { display:flex; align-items:center; gap:8px; font-size:16px; }
+.user-member-card { padding:13px 0 !important; }
+.user-member-row {
+  padding:10px !important;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+}
+.user-member-row .user-member-info strong { overflow-wrap:anywhere; }
+.user-member-row .secondary-button { min-height:36px; }
+.user-member-card > .user-permission-card { margin-top:10px !important; }
+.app.dark .user-permission-row,
+.app.dark .user-member-row { background:var(--surface) !important; }
+@media(max-width:760px) {
+  .user-create-form { grid-template-columns:minmax(0,1fr) !important; padding:13px !important; }
+  .user-create-form > .user-permission-card,
+  .user-create-form > button[type="submit"] { grid-column:auto; }
+  .user-permission-card { max-height:min(420px,55vh) !important; padding:10px !important; }
+  .user-permission-heading { display:none !important; }
+  .user-permission-row {
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:6px !important;
+    padding:10px !important;
+  }
+  .user-permission-module { grid-column:1 / -1; padding-bottom:4px; }
+  .user-permission-check { padding:5px 2px; }
+  .user-permission-check span { font-size:10px; }
+  .user-permission-card-title { flex-direction:column; }
+  .user-member-row { align-items:stretch; }
+  .user-member-row .user-member-info { flex-basis:100%; }
+}
