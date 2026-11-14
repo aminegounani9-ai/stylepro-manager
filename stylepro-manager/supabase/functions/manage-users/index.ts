@@ -19,7 +19,7 @@ const allowedRoles = ["admin", "manager", "cashier", "stock_manager"] as const;
 type Role = (typeof allowedRoles)[number];
 
 const moduleKeys = [
-  "dashboard", "catalogue", "sales", "stock", "returns", "clients",
+  "dashboard", "catalogue", "sales", "web_orders", "stock", "returns", "clients",
   "expenses", "atelier", "deliveries", "promotions", "labels", "users", "settings",
 ] as const;
 type ModuleKey = (typeof moduleKeys)[number];
@@ -36,7 +36,7 @@ function defaultPermissionsForRole(role: Role): PermissionInput[] {
   return moduleKeys.map((module_key) => {
     const manager = role === "manager" || role === "admin";
     const stock = role === "stock_manager" && ["dashboard", "catalogue", "stock", "labels", "deliveries"].includes(module_key);
-    const cashier = role === "cashier" && ["dashboard", "sales", "returns", "clients"].includes(module_key);
+    const cashier = role === "cashier" && ["dashboard", "sales", "web_orders", "returns", "clients"].includes(module_key);
     const canWrite = manager ||
       (role === "stock_manager" && ["stock", "deliveries"].includes(module_key)) ||
       (role === "cashier" && ["sales", "returns", "clients"].includes(module_key));
